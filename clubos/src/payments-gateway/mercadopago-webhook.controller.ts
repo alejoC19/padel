@@ -134,19 +134,27 @@ export class MercadoPagoWebhookController {
       const result = await runWithTenant(
         systemTenantContext(clubId),
         async () => {
-          // 1. Verificar firma contra el secreto del club.
+          // 1. Verificar firma contra el secreto del club. NO es opcional:
+          // si no hay secreto guardado (club nunca conectó o está
+          // desconectado), se rechaza en vez de procesar sin firma —
+          // "sin secreto, no verifico" es exactamente el bypass que un
+          // webhook falso necesitaría.
           const secret = await this.integration.getWebhookSecret(clubId);
-          if (secret) {
-            const ok = this.mp.verifyWebhookSignature({
-              xSignature: xSignature ?? '',
-              xRequestId: xRequestId ?? '',
-              dataId,
-              secret,
-            });
-            if (!ok) {
-              this.log.warn(`Webhook con firma inválida (club ${clubId}).`);
-              return { ignored: 'firma inválida' as const };
-            }
+          if (!secret) {
+            this.log.warn(
+              `Webhook recibido sin secreto configurado (club ${clubId}) — rechazado.`,
+            );
+            return { ignored: 'club sin integración activa' as const };
+          }
+          const ok = this.mp.verifyWebhookSignature({
+            xSignature: xSignature ?? '',
+            xRequestId: xRequestId ?? '',
+            dataId,
+            secret,
+          });
+          if (!ok) {
+            this.log.warn(`Webhook con firma inválida (club ${clubId}).`);
+            return { ignored: 'firma inválida' as const };
           }
 
           // 2. Procesar (idempotente). Consulta el pago real en MP.

@@ -268,6 +268,20 @@ export async function seedClubDefaults(clubId: string) {
 // Club demo (solo desarrollo)
 // ---------------------------------------------------------------------------
 async function seedDemoClub() {
+  // Segunda guarda, independiente de NODE_ENV/SEED_MODE: si ya existe algún
+  // club real (no el demo mismo), esta base dejó de ser un sandbox de
+  // desarrollo vacío y no se toca. Un NODE_ENV mal configurado en producción
+  // (el error de deploy más común que existe) no alcanza por sí solo para
+  // crear una cuenta OWNER con contraseña pública y conocida
+  // (Demo1234!) en una base real.
+  const otherClubs = await prisma.club.count({ where: { slug: { not: 'demo' } } });
+  if (otherClubs > 0) {
+    console.log(
+      '  (club demo omitido: ya existen otros clubes — esta base no parece un sandbox vacío)',
+    );
+    return;
+  }
+
   const bcrypt = await import('bcryptjs');
   const proPlan = await prisma.plan.findUniqueOrThrow({ where: { code: 'pro' } });
 

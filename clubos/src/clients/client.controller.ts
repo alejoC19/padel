@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -186,6 +187,18 @@ export class ClientController {
     @ClubId() clubId: string,
     @UserId() userId: string,
   ) {
+    // RLS solo valida que la nota NUEVA tenga el clubId correcto, no que
+    // `id` (el cliente referenciado) pertenezca a este club — es una FK, no
+    // una policy con join. Sin este chequeo, cualquiera con CLIENT_UPDATE
+    // podía crear una ClientNote en su club apuntando a un clientId de OTRO
+    // club (adivinado u observado), un cliente ajeno con contenido propio.
+    const client = await this.prisma.db.client.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado.');
+    }
     return this.prisma.db.clientNote.create({
       data: {
         clubId,
