@@ -130,6 +130,12 @@ export class PublicService {
         number: c.number,
         color: c.color,
         environment: c.environment,
+        // null = la cancha no abre este día. Sin esto el front no tiene forma
+        // de saber el horario real del club y termina inventando uno propio
+        // (lo que hacía antes): mostraba turnos como disponibles que el
+        // backend rechazaba después con 409 al confirmar.
+        openMinute: c.openMinute,
+        closeMinute: c.closeMinute,
       })),
       busy: day.bookings.map((b) => ({
         courtId: b.courtId,

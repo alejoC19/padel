@@ -105,10 +105,11 @@ DIRECT_URL=postgresql://<tu-usuario-de-railway>:...
 
 ## PARTE 5 — La app del jugador
 
-No es un proyecto aparte: vive dentro de `clubos-next` (rutas públicas, sin
-login, bajo el slug del club — revisá `clubos-next/src/app` para el nombre
-exacto de la carpeta) y se despliega solo, junto con el panel, en el mismo
-paso de la Parte 4. No hay nada extra que configurar acá.
+No es un proyecto aparte: vive dentro de `clubos-next`, bajo `/c/[slug]`
+(`clubos-next/src/app/c/[slug]/`) — rutas públicas, sin login, identificadas
+por el slug del club (ej. `tu-app.vercel.app/c/mi-club`). Se despliega solo,
+junto con el panel, en el mismo paso de la Parte 4. No hay nada extra que
+configurar acá.
 
 ---
 

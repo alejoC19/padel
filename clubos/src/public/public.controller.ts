@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public, SkipTenant } from '../common/decorators';
 import { PublicService } from './public.service';
+import { AccessTokenDto, ReservarDto } from './dto/public-booking.dto';
 
 /**
  * Endpoints PÚBLICOS para la app del jugador. Sin login.
@@ -40,18 +41,7 @@ export class PublicController {
    */
   @Post(':slug/reservar')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  reservar(
-    @Param('slug') slug: string,
-    @Body()
-    body: {
-      courtId: string;
-      startsAt: string;
-      durationMinutes: number;
-      firstName: string;
-      lastName?: string;
-      phone: string;
-    },
-  ) {
+  reservar(@Param('slug') slug: string, @Body() body: ReservarDto) {
     return this.svc.reservar(slug, body);
   }
 
@@ -90,7 +80,7 @@ export class PublicController {
   checkout(
     @Param('slug') slug: string,
     @Param('id') id: string,
-    @Body() body: { accessToken: string },
+    @Body() body: AccessTokenDto,
   ) {
     return this.svc.checkout(slug, id, body.accessToken);
   }
@@ -101,7 +91,7 @@ export class PublicController {
   cancelar(
     @Param('slug') slug: string,
     @Param('id') id: string,
-    @Body() body: { accessToken: string },
+    @Body() body: AccessTokenDto,
   ) {
     return this.svc.cancelar(slug, id, body.accessToken);
   }

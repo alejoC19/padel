@@ -101,14 +101,20 @@ clubos-next/
 │   │   │     RouteGuard además del guard del backend — ver src/components/
 │   │   │     RouteGuard.tsx.
 │   │   ├── entrar/ crear-club/  → login y alta de club (self-service)
-│   │   └── (ver el árbol real para las rutas públicas del jugador — sin
-│   │        login, bajo el slug del club)
+│   │   └── c/[slug]/            → portal del JUGADOR: público, sin login.
+│   │         ├── page.tsx                reservar (disponibilidad + form)
+│   │         ├── reservas/[id]/page.tsx  comprobante (gateado por ?token=)
+│   │         └── mis-reservas/page.tsx   buscar reservas por teléfono
 │   ├── components/            AgendaScreen, CashScreen, ClientsScreen, POS,
 │   │                          TreasuryScreen, ReportsScreen, TournamentsScreen,
 │   │                          BookingPanel, RouteGuard, etc.
-│   │   └── marketing/         Art.tsx, HeroAgenda.tsx
+│   │   ├── marketing/         Art.tsx, HeroAgenda.tsx
+│   │   └── player/            PlayerBookingScreen, BookingReceiptScreen,
+│   │                          MyBookingsScreen (portal del jugador, sin sesión)
 │   ├── hooks/                 index.ts (useSession: isAuthenticated/isDemo/can)
-│   └── lib/                   api.ts, agenda-store.ts, grid.ts, demo-data.ts
+│   └── lib/                   api.ts (panel, con sesión), agenda-store.ts, grid.ts,
+│                              demo-data.ts, publicApi.ts/publicSlots.ts/publicStorage.ts
+│                              (portal del jugador, sin sesión — ver arriba)
 ├── next.config.mjs
 ├── package.json
 ├── tsconfig.json
