@@ -134,6 +134,16 @@ export class ExpenseService {
         throw new ConflictException('El gasto está anulado.');
       }
 
+      // Sin paymentMethodId NI bankAccountId, ninguna de las dos ramas de
+      // abajo corre: el gasto quedaría PAID (y el saldo del proveedor
+      // descontado) sin ningún CashMovement ni movimiento bancario que lo
+      // respalde — plata que "sale" sin dejar rastro en ningún lado.
+      if (!input.paymentMethodId && !input.bankAccountId) {
+        throw new BadRequestException(
+          'Indicá cómo se pagó: un medio de pago (efectivo/tarjeta) o una cuenta bancaria.',
+        );
+      }
+
       const total = this.num(expense.total);
 
       // Pago en efectivo: sale del cajón y tiene que verse en el arqueo.
