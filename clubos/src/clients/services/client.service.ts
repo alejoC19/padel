@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanLimitsService } from '../../common/services/plan-limits.service';
 import { ClientSearchService } from './client-search.service';
 import type {
   CreateClientDto,
@@ -17,6 +18,7 @@ export class ClientService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly search: ClientSearchService,
+    private readonly limits: PlanLimitsService,
   ) {}
 
   /**
@@ -64,6 +66,11 @@ export class ClientService {
         };
       }
     }
+
+    const currentCount = await this.prisma.db.client.count({
+      where: { deletedAt: null },
+    });
+    await this.limits.assertCanAdd(clubId, 'maxClients', currentCount, 'clientes');
 
     const client = await this.prisma.db.client.create({
       data: {

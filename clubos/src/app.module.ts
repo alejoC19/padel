@@ -8,6 +8,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { CourtsModule } from './courts/courts.module';
 import { CashModule } from './cash/cash.module';
 import { ClientsModule } from './clients/clients.module';
 import { PosModule } from './pos/pos.module';
@@ -48,6 +49,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     PrismaModule,
     AuthModule,
     BookingsModule,
+    CourtsModule,
     CashModule,
     ClientsModule,
     PosModule,
