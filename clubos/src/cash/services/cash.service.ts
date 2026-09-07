@@ -34,6 +34,25 @@ export class CashService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Bloquea la fila de la sesión de caja (SELECT ... FOR UPDATE) por el resto
+   * de la transacción, ANTES de leer el saldo.
+   *
+   * Sin esto, dos movimientos OUT concurrentes (dos pestañas, o dos
+   * empleados con el mismo login) pueden leer el mismo "efectivo disponible"
+   * antes de que ninguno de los dos haya confirmado el suyo, y ambos pasan
+   * el chequeo de "no dejar la caja en negativo" — el clásico TOCTOU de
+   * lectura-antes-de-escribir. El UPDATE final de por sí toma un lock de
+   * fila, pero para entonces el chequeo de saldo ya se hizo mal; hay que
+   * bloquear ANTES de leer, no en el momento de escribir.
+   */
+  private async lockSession(
+    tx: Prisma.TransactionClient,
+    sessionId: string,
+  ): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM cash_sessions WHERE id = ${sessionId}::uuid FOR UPDATE`;
+  }
+
+  /**
    * Abre un turno de caja.
    *
    * El unique index parcial `cash_sessions_one_open_per_register` impide
@@ -198,6 +217,9 @@ export class CashService {
     }
 
     return this.prisma.tenantTransaction(async (tx) => {
+      // Bloquear la fila ANTES de leer el saldo: ver lockSession().
+      await this.lockSession(tx, sessionId);
+
       const session = await tx.cashSession.findFirst({
         where: { id: sessionId },
         select: { id: true, status: true, openingAmount: true },
@@ -376,6 +398,11 @@ export class CashService {
     userId: string,
   ) {
     return this.prisma.tenantTransaction(async (tx) => {
+      // Bloquear la fila ANTES de leer el saldo: si un movimiento se cuela
+      // entre el cálculo y este UPDATE, el cierre queda con un
+      // expectedAmount que ya no refleja la caja real.
+      await this.lockSession(tx, sessionId);
+
       const session = await tx.cashSession.findFirst({
         where: { id: sessionId },
         select: {
