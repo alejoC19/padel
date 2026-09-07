@@ -81,6 +81,20 @@ export class PublicController {
     return this.svc.consultar(slug, id, token);
   }
 
+  /**
+   * Checkout online (Mercado Pago) de una reserva pública. Requiere el
+   * accessToken de la reserva. Devuelve el link de Checkout Pro.
+   */
+  @Post(':slug/reservas/:id/checkout')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  checkout(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() body: { accessToken: string },
+  ) {
+    return this.svc.checkout(slug, id, body.accessToken);
+  }
+
   /** Cancelar una reserva del jugador (requiere el accessToken de la reserva). */
   @Post(':slug/reservas/:id/cancelar')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })

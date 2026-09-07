@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AgendaService } from '../bookings/services/agenda.service';
 import { ClubConfigService } from '../bookings/services/club-config.service';
 import { BookingService } from '../bookings/services/booking.service';
+import { PaymentOrderService } from '../payments-gateway/services/payment-order.service';
 import {
   runWithoutTenancy,
   runWithTenant,
@@ -32,6 +33,7 @@ export class PublicService {
     private readonly agenda: AgendaService,
     private readonly config: ClubConfigService,
     private readonly booking: BookingService,
+    private readonly orders: PaymentOrderService,
   ) {}
 
   /**
@@ -341,6 +343,35 @@ export class PublicService {
         courtName: booking!.court?.name ?? 'Cancha',
         courtColor: booking!.court?.color ?? null,
       };
+    });
+  }
+
+  /**
+   * Checkout online de una reserva pública: crea la orden en Mercado Pago
+   * (reusando PaymentOrderService, el mismo camino que usa el panel) y
+   * devuelve el link de Checkout Pro al que redirigir al jugador.
+   *
+   * Gated por accessToken, igual que `consultar`/`cancelar` — no alcanza con
+   * el bookingId.
+   */
+  async checkout(slug: string, bookingId: string, accessToken: string) {
+    const club = await this.resolveClub(slug);
+    if (!accessToken?.trim()) {
+      throw new BadRequestException('Falta el token de acceso de la reserva.');
+    }
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      const booking = await this.prisma.db.booking.findFirst({
+        where: { id: bookingId },
+        select: { id: true, accessTokenHash: true },
+      });
+      this.assertOwnsToken(booking, accessToken);
+
+      const { initPoint } = await this.orders.createForBooking({
+        clubId: club.id,
+        bookingId,
+      });
+      return { initPoint };
     });
   }
 
