@@ -24,26 +24,38 @@ volumen lo pida.
 ## Checklist de primer deploy
 
 ### 1. Base de datos
+
+> ⚠️ **Dos connection strings, no una.** Todo lo de abajo que crea/altera
+> objetos (rol, extensiones, tablas, políticas RLS) se corre con
+> `DIRECT_URL` — la del **owner** que te da el proveedor gestionado. El
+> backend en runtime usa `DATABASE_URL` — el rol restringido `clubos_app`
+> que crea el paso (a), sujeto a RLS. Correr estos pasos con `DATABASE_URL`
+> falla: `clubos_app` no tiene permiso para crear su propio rol ni para
+> alterar tablas.
+
 ```bash
 # En la base gestionada (Neon/Supabase/RDS), una vez creada:
-# a) extensiones y rol de aplicación
-psql "$DATABASE_URL" -f db/init/01-extensions.sql
-psql "$DATABASE_URL" -f db/init/02-app-role.sql
-# b) schema
+# a) extensiones y rol de aplicación (con el owner: DIRECT_URL)
+psql "$DIRECT_URL" -f db/init/01-extensions.sql
+psql "$DIRECT_URL" -f db/init/02-app-role.sql
+# b) schema (usa DIRECT_URL — configurado en prisma/schema.prisma)
 npx prisma migrate deploy
 # c) políticas RLS (CRÍTICO: sin esto no hay aislamiento entre clubes)
-psql "$DATABASE_URL" -f prisma/manual/001_integrity_and_rls.sql
-# d) datos base (planes, etc.) — si tu seed los crea
+psql "$DIRECT_URL" -f prisma/manual/001_integrity_and_rls.sql
+# d) datos base (planes, etc.) — el seed usa DIRECT_URL solo si está seteada
 npm run db:seed
 ```
 
 > ⚠️ **La RLS no es opcional.** Es lo que garantiza que un club no vea datos de
-> otro. Verificá que se aplicó corriendo el test de aislamiento contra la base:
-> `DATABASE_URL_TEST="$DATABASE_URL" npm run test:int`.
+> otro. Verificá que se aplicó corriendo el test de aislamiento contra la base,
+> ahora sí con el rol restringido: `DATABASE_URL_TEST="$DATABASE_URL" npm run test:int`.
 
 ### 2. Variables de entorno
 Copiá `.env.example` y completá **todo**. Las imprescindibles en prod:
-- `DATABASE_URL`, `NODE_ENV=production`, `PORT`
+- `DATABASE_URL` (rol restringido `clubos_app` — la usa el backend en
+  runtime) **y** `DIRECT_URL` (rol owner — la usan `prisma migrate deploy`
+  y el paso de release; guardala, la necesitás cada vez que migrás)
+- `NODE_ENV=production`, `PORT`
 - `JWT_ACCESS_SECRET` (largo y aleatorio — `openssl rand -base64 48`)
 - `PAYMENTS_ENC_KEY` (≥32 chars — **backupealo en el secret manager**)
 - `API_PUBLIC_URL`, `WEB_PUBLIC_URL`, `CORS_ORIGINS`

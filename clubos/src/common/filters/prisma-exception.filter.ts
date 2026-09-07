@@ -47,7 +47,11 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     });
   }
 
-  private translate(exception: any): {
+  private translate(
+    exception:
+      | Prisma.PrismaClientKnownRequestError
+      | Prisma.PrismaClientUnknownRequestError,
+  ): {
     status: number;
     code: string;
     message: string;
@@ -120,7 +124,15 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       };
     }
 
-    // --- Códigos conocidos de Prisma ---
+    // --- Códigos conocidos de Prisma (PrismaClientUnknownRequestError no tiene `code`) ---
+    if (!(exception instanceof Prisma.PrismaClientKnownRequestError)) {
+      return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: 'DATABASE_ERROR',
+        message: 'Error al procesar la operación.',
+      };
+    }
+
     switch (exception.code) {
       case 'P2002': {
         const target = (exception.meta?.target as string[]) ?? [];

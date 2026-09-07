@@ -43,7 +43,7 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, {
         secret: process.env.JWT_ACCESS_SECRET,
       });
-      (req as any).auth = payload;
+      req.auth = payload;
       return true;
     } catch {
       throw new UnauthorizedException('Token inválido o expirado');
@@ -54,7 +54,7 @@ export class JwtAuthGuard implements CanActivate {
     const header = req.headers.authorization;
     if (header?.startsWith('Bearer ')) return header.slice(7);
     // Cookie httpOnly para el portal web (evita XSS token theft).
-    const cookie = (req as any).cookies?.access_token;
+    const cookie = req.cookies?.access_token;
     return typeof cookie === 'string' ? cookie : null;
   }
 }

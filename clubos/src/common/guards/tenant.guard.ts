@@ -54,7 +54,7 @@ export class TenantGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
-    const auth = (req as any).auth as AccessTokenPayload | undefined;
+    const auth: AccessTokenPayload | undefined = req.auth;
 
     if (!auth) throw new UnauthorizedException();
 
@@ -180,7 +180,7 @@ export class TenantGuard implements CanActivate {
    */
   private mount(req: Request, res: Response, ctx: TenantContext): void {
     setActiveContext(ctx);
-    (req as any).tenantContext = ctx;
+    req.tenantContext = ctx;
     // Limpiar el respaldo al cerrar la response (una sola vez).
     res.once('finish', () => clearActiveContext(ctx.requestId));
     res.once('close', () => clearActiveContext(ctx.requestId));

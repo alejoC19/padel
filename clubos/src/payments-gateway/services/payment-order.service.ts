@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentService } from '../../bookings/services/payment.service';
@@ -342,7 +343,7 @@ export class PaymentOrderService {
    * Recalcula paidAmount / paymentStatus de la reserva a partir de sus pagos.
    * No confía en incrementos: suma la verdad desde la tabla Payment.
    */
-  private async settleBooking(tx: any, bookingId: string): Promise<void> {
+  private async settleBooking(tx: Prisma.TransactionClient, bookingId: string): Promise<void> {
     const booking = await tx.booking.findUnique({
       where: { id: bookingId },
       select: { totalPrice: true, status: true },
