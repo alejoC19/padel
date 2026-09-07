@@ -1,0 +1,319 @@
+/* ============================================================================
+ * auth.css — estilos de las pantallas de acceso (login y onboarding).
+ *
+ * Este archivo se importa desde los layouts de /entrar y /crear-club.
+ * Reconstruye las clases que usa LoginScreen (auth-card, field, input, btn…)
+ * con la paleta de marca de ClubOS, y agrega las del wizard de alta.
+ *
+ * Paleta (de Art.tsx):
+ *   --pad-red   #C8443E   acento primario (pelota / CTA)
+ *   --pad-sky   #8FD3F4   celeste
+ *   --pad-dark  #2B3A47   texto / fondos oscuros
+ *   --pad-slate #4A6070   texto secundario
+ *   --pad-cream #F2EFE4   fondo
+ *   --pad-lime  #EDF56B   detalle
+ * ========================================================================== */
+
+:root {
+  --pad-red: #c8443e;
+  --pad-red-dark: #a5352f;
+  --pad-sky: #8fd3f4;
+  --pad-dark: #2b3a47;
+  --pad-slate: #4a6070;
+  --pad-cream: #f2efe4;
+  --pad-lime: #edf56b;
+
+  --auth-bg: #eef1f4;
+  --auth-card-bg: #ffffff;
+  --auth-border: #dfe4ea;
+  --auth-text: var(--pad-dark);
+  --auth-muted: var(--pad-slate);
+  --auth-radius: 14px;
+  --auth-shadow: 0 10px 40px rgba(43, 58, 71, 0.12);
+}
+
+/* ---- Contenedor de página ---- */
+.auth-wrap {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 100% -10%, rgba(143, 211, 244, 0.25), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(200, 68, 62, 0.12), transparent 55%),
+    var(--auth-bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--auth-text);
+}
+
+/* ---- Tarjeta ---- */
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--auth-card-bg);
+  border: 1px solid var(--auth-border);
+  border-radius: var(--auth-radius);
+  box-shadow: var(--auth-shadow);
+  padding: 32px;
+}
+.auth-card.wide { max-width: 560px; }
+
+/* ---- Marca ---- */
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.auth-brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--pad-red);
+  position: relative;
+  flex: none;
+}
+.auth-brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+}
+.auth-brand-name {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 18px;
+}
+
+/* ---- Títulos ---- */
+.auth-h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.auth-sub {
+  margin: 0 0 22px;
+  color: var(--auth-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---- Campos ---- */
+.field { margin-bottom: 16px; }
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--auth-text);
+}
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid var(--auth-border);
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--auth-text);
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--pad-red);
+  box-shadow: 0 0 0 3px rgba(200, 68, 62, 0.15);
+}
+.input:disabled { background: #f6f7f9; color: var(--auth-muted); }
+.input.has-error { border-color: var(--pad-red); }
+
+/* Prefijo/sufijo (para el slug: club .clubos.com) */
+.input-affix {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--auth-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.input-affix:focus-within {
+  border-color: var(--pad-red);
+  box-shadow: 0 0 0 3px rgba(200, 68, 62, 0.15);
+}
+.input-affix .input {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.input-affix .suffix {
+  padding: 0 12px;
+  color: var(--auth-muted);
+  font-size: 14px;
+  white-space: nowrap;
+  background: #f6f7f9;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.hint {
+  font-size: 12.5px;
+  margin-top: 6px;
+  color: var(--auth-muted);
+}
+.hint.ok { color: #167a4a; }
+.hint.bad { color: var(--pad-red); }
+
+/* ---- Contraseña ---- */
+.pw-wrap { position: relative; }
+.pw-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--auth-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+/* ---- Botones ---- */
+.btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, opacity 0.15s;
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary { background: var(--pad-red); color: #fff; }
+.btn-primary:not(:disabled):hover { background: var(--pad-red-dark); }
+.btn-ghost {
+  background: transparent;
+  color: var(--auth-text);
+  border-color: var(--auth-border);
+}
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.btn-row .btn { width: auto; flex: 1; }
+
+/* ---- Alertas ---- */
+.alert {
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  color: #8a231f;
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.alert-hint { color: var(--auth-muted); font-size: 12.5px; margin-top: 4px; }
+
+/* ---- Pie ---- */
+.auth-foot {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--auth-muted);
+}
+.auth-foot a { color: var(--pad-red); text-decoration: none; font-weight: 600; }
+.auth-foot a:hover { text-decoration: underline; }
+
+/* ---- Spinner ---- */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: auth-spin 0.7s linear infinite;
+}
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+
+/* ============================================================================
+ * WIZARD (alta de club)
+ * ========================================================================== */
+
+/* Barra de pasos */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.step-dot {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--auth-border);
+  transition: background 0.2s;
+}
+.step-dot.active { background: var(--pad-red); }
+.step-dot.done { background: var(--pad-sky); }
+
+.step-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pad-red);
+  margin-bottom: 4px;
+}
+
+/* Resumen final */
+.summary {
+  border: 1px solid var(--auth-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 16px 0;
+  background: #fafbfc;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.summary-row + .summary-row { border-top: 1px dashed var(--auth-border); }
+.summary-row .k { color: var(--auth-muted); }
+.summary-row .v { font-weight: 600; }
+
+/* Éxito */
+.success {
+  text-align: center;
+  padding: 8px 0;
+}
+.success-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #167a4a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  margin: 0 auto 16px;
+}
+
+@media (max-width: 480px) {
+  .field-row { grid-template-columns: 1fr; }
+  .auth-card { padding: 24px; }
+}

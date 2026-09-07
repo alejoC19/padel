@@ -1,0 +1,163 @@
+// ============================================================================
+// AGREGAR ESTO A prisma/schema.prisma
+// ============================================================================
+// Dos modelos nuevos + relaciones inversas en Club y Payment.
+// No modifica nada existente; solo agrega.
+//
+// Después de pegar: `npx prisma migrate dev --name add_payment_gateway`
+// ============================================================================
+
+
+/// Conexión OAuth de un club con su procesador de pagos (Mercado Pago).
+/// Cada club cobra a SU propia cuenta: el access token se guarda cifrado.
+/// La plataforma nunca toca la plata de las reservas.
+model ClubPaymentIntegration {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  provider PaymentProvider @default(MERCADO_PAGO)
+
+  /// ID de la cuenta del club en el proveedor (user_id de MP). Sirve para
+  /// validar que un webhook entrante corresponde a este club.
+  providerAccountId String?
+
+  /// Credenciales CIFRADAS (AES-256-GCM). Nunca en texto plano, nunca en logs.
+  accessTokenEnc  String? @db.Text
+  refreshTokenEnc String? @db.Text
+
+  /// Clave secreta que MP firma en el header de los webhooks (x-signature).
+  /// También cifrada.
+  webhookSecretEnc String? @db.Text
+
+  publicKey String? // La public key NO es secreta: va al frontend.
+
+  expiresAt DateTime? // Vencimiento del access token (MP: ~180 días).
+  scope     String?
+
+  status IntegrationStatus @default(PENDING)
+
+  connectedAt  DateTime?
+  lastSyncAt   DateTime?
+  lastError    String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  orders PaymentOrder[]
+
+  // Un club, una integración activa por proveedor.
+  @@unique([clubId, provider])
+  @@index([providerAccountId])
+}
+
+
+/// Orden de pago online. Es el "puente" entre una reserva sin pagar y el
+/// Payment contable definitivo. Vive mientras el pago está en vuelo.
+///
+/// CICLO DE VIDA:
+///   PENDING    → preferencia creada, esperando que el jugador pague
+///   APPROVED   → MP confirmó (vía webhook) → dispara PaymentService.register()
+///   REJECTED   → pago rechazado
+///   EXPIRED    → nunca se pagó dentro del plazo
+///   REFUNDED   → reembolsado
+///
+/// IDEMPOTENCIA: `providerPaymentId` es único. Si el webhook llega dos veces
+/// (MP reintenta), el segundo no vuelve a registrar el Payment.
+model PaymentOrder {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  integrationId String                 @db.Uuid
+  integration   ClubPaymentIntegration @relation(fields: [integrationId], references: [id])
+
+  /// Qué se está pagando. Una reserva (lo habitual) o una venta.
+  bookingId String?  @db.Uuid
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  saleId    String?  @db.Uuid
+  sale      Sale?    @relation(fields: [saleId], references: [id])
+
+  clientId String? @db.Uuid
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  amount   Decimal @db.Decimal(14, 2)
+  currency String  @default("ARS")
+  concept  String
+
+  status PaymentOrderStatus @default(PENDING)
+
+  /// Referencia externa propia (la mandamos a MP como external_reference).
+  /// La usamos para reconciliar cuando llega el webhook.
+  externalReference String @unique
+
+  /// Datos de la pasarela.
+  provider           PaymentProvider @default(MERCADO_PAGO)
+  preferenceId       String? // id de la preferencia de Checkout Pro
+  initPoint          String? @db.Text // URL a la que redirigir al jugador
+  providerPaymentId  String? @unique // id del pago en MP (idempotencia)
+  providerStatus     String?
+  providerRawWebhook Json?
+
+  /// Payment contable generado cuando se aprueba. Enlace 1:1.
+  paymentId String? @unique @db.Uuid
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  expiresAt   DateTime?
+  approvedAt  DateTime?
+  createdById String?   @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId, status])
+  @@index([clubId, createdAt])
+}
+
+
+enum PaymentProvider {
+  MERCADO_PAGO
+  STRIPE
+  OTHER
+}
+
+enum IntegrationStatus {
+  PENDING     // creada, sin conectar
+  CONNECTED   // OAuth completo, operativa
+  EXPIRED     // token vencido, hay que reconectar
+  REVOKED     // el club desconectó
+  ERROR       // último intento falló
+}
+
+enum PaymentOrderStatus {
+  PENDING
+  APPROVED
+  IN_PROCESS
+  REJECTED
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
+
+// ----------------------------------------------------------------------------
+// RELACIONES INVERSAS — agregar estas líneas a los modelos existentes.
+// ----------------------------------------------------------------------------
+//
+// En  model Club {  ... agregar:
+//     paymentIntegrations ClubPaymentIntegration[]
+//     paymentOrders       PaymentOrder[]
+//
+// En  model Payment {  ... agregar:
+//     paymentOrder PaymentOrder?
+//
+// En  model Booking {  ... agregar:
+//     paymentOrders PaymentOrder[]
+//
+// En  model Sale {  ... agregar:
+//     paymentOrders PaymentOrder[]
+//
+// En  model Client {  ... agregar:
+//     paymentOrders PaymentOrder[]
+// ----------------------------------------------------------------------------

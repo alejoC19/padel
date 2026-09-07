@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es-AR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar · ClubOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===========================================================================
+   Login de ClubOS
+
+   Mismo sistema visual que la agenda: grises fríos, sin acento de marca.
+   El único color es el verde de acción y el rojo de error.
+
+   La pantalla tiene un solo trabajo: que alguien que llega a las 8 de la
+   mañana con el club abriendo entre en dos segundos. Nada decorativo.
+   =========================================================================== */
+:root{
+  --surface-base:#0F1216; --surface-raised:#171B21; --surface-overlay:#1E242C;
+  --surface-sunken:#0A0D10; --surface-hover:#232A33;
+  --line-subtle:#232830; --line-default:#2E353F; --line-strong:#3D4550;
+  --text-primary:#E8EBEF; --text-secondary:#9BA5B4; --text-tertiary:#6B7684; --text-disabled:#4A5360;
+  --turf:#00C46A; --danger:#F87171; --focus-ring:#60A5FA;
+  --font:'Inter Tight',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+  --radius-sm:3px; --radius-md:6px; --radius-lg:10px;
+  --ease:cubic-bezier(.32,.72,0,1); --dur:140ms;
+}
+[data-theme=light]{
+  --surface-base:#F7F8FA; --surface-raised:#fff; --surface-overlay:#fff;
+  --surface-sunken:#EDEFF3; --surface-hover:#E8EBF0;
+  --line-subtle:#E3E7ED; --line-default:#D2D8E0; --line-strong:#B4BDC9;
+  --text-primary:#12161C; --text-secondary:#4E5866; --text-tertiary:#79838F; --text-disabled:#A8B0BA;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:var(--font);font-size:14px;line-height:1.45;
+  color:var(--text-primary);background:var(--surface-base);
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+  display:grid;place-items:center;padding:var(--sp-4);
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px;border-radius:var(--radius-sm)}
+:focus:not(:focus-visible){outline:none}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important}}
+
+.card{
+  width:min(380px,100%);
+  background:var(--surface-raised);
+  border:1px solid var(--line-subtle);
+  border-radius:var(--radius-lg);
+  padding:var(--sp-8);
+  box-shadow:0 20px 50px -20px rgb(0 0 0/.55);
+}
+.brand{display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-6)}
+.brand-name{font-size:17px;font-weight:700;letter-spacing:-.03em}
+h1{font-size:20px;font-weight:600;letter-spacing:-.02em;margin:0 0 var(--sp-1)}
+.sub{color:var(--text-tertiary);font-size:13px;margin:0 0 var(--sp-6)}
+
+.field{margin-bottom:var(--sp-4)}
+.label{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:var(--sp-2);font-weight:500}
+.input{
+  width:100%;height:38px;padding:0 var(--sp-3);
+  background:var(--surface-sunken);
+  border:1px solid var(--line-default);
+  border-radius:var(--radius-md);
+  transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.input::placeholder{color:var(--text-disabled)}
+.input:hover{border-color:var(--line-strong)}
+.input:focus{border-color:var(--focus-ring);background:var(--surface-base);outline:none}
+.input[aria-invalid=true]{border-color:var(--danger)}
+.input:disabled{opacity:.55;cursor:not-allowed}
+
+.pw-wrap{position:relative}
+.pw-toggle{
+  position:absolute;right:var(--sp-2);top:50%;transform:translateY(-50%);
+  width:28px;height:28px;display:grid;place-items:center;
+  color:var(--text-tertiary);border-radius:var(--radius-sm);
+}
+.pw-toggle:hover{color:var(--text-secondary);background:var(--surface-hover)}
+
+.field-error{
+  font-size:12px;color:var(--danger);margin-top:var(--sp-2);
+  display:flex;align-items:center;gap:var(--sp-1);
+}
+
+.btn{
+  width:100%;height:38px;border-radius:var(--radius-md);
+  font-weight:600;font-size:14px;
+  display:flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  transition:filter var(--dur) var(--ease),opacity var(--dur) var(--ease);
+}
+.btn-primary{background:var(--turf);color:#08110C}
+.btn-primary:hover:not(:disabled){filter:brightness(1.08)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+
+.alert{
+  display:flex;gap:var(--sp-3);align-items:flex-start;
+  padding:var(--sp-3);border-radius:var(--radius-md);
+  background:color-mix(in srgb,var(--danger) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--danger) 32%,transparent);
+  font-size:13px;color:var(--text-primary);
+  margin-bottom:var(--sp-4);
+}
+.alert svg{flex:0 0 auto;color:var(--danger);margin-top:1px}
+.alert-body{flex:1}
+.alert-hint{color:var(--text-secondary);font-size:12px;margin-top:2px}
+
+.spinner{
+  width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;
+  border-radius:50%;animation:spin .6s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.foot{
+  margin-top:var(--sp-5);padding-top:var(--sp-4);
+  border-top:1px solid var(--line-subtle);
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:12px;color:var(--text-tertiary);
+}
+.link{color:var(--text-secondary);text-decoration:none}
+.link:hover{color:var(--text-primary);text-decoration:underline}
+
+/* --- selección de club --- */
+.clubs{display:flex;flex-direction:column;gap:var(--sp-2);margin-bottom:var(--sp-4)}
+.club{
+  display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-3);border-radius:var(--radius-md);
+  border:1px solid var(--line-default);
+  background:var(--surface-sunken);
+  text-align:left;width:100%;
+  transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.club:hover{border-color:var(--line-strong);background:var(--surface-hover)}
+.club-mark{
+  width:32px;height:32px;border-radius:var(--radius-md);flex:0 0 auto;
+  display:grid;place-items:center;font-weight:700;font-size:13px;
+  background:var(--surface-overlay);border:1px solid var(--line-default);
+  color:var(--text-secondary);
+}
+.club-name{font-weight:600;font-size:14px}
+.club-role{font-size:12px;color:var(--text-tertiary)}
+.club-arrow{margin-left:auto;color:var(--text-disabled)}
+.club:hover .club-arrow{color:var(--text-secondary)}
+.club-warn{
+  font-size:11px;color:var(--danger);
+  padding:2px 6px;border-radius:999px;
+  background:color-mix(in srgb,var(--danger) 14%,transparent);
+}
+
+.back-btn{
+  display:inline-flex;align-items:center;gap:var(--sp-1);
+  font-size:12px;color:var(--text-tertiary);margin-bottom:var(--sp-4);
+}
+.back-btn:hover{color:var(--text-secondary)}
+
+.hidden{display:none}
+
+/* aviso de que no hay backend */
+.demo-note{
+  margin-top:var(--sp-4);padding:var(--sp-3);
+  border-radius:var(--radius-md);
+  background:color-mix(in srgb,#EAB308 12%,transparent);
+  border:1px solid color-mix(in srgb,#EAB308 28%,transparent);
+  font-size:12px;color:var(--text-secondary);line-height:1.5;
+}
+.demo-note b{color:var(--text-primary);font-weight:600}
+.demo-note code{
+  font-size:11px;background:var(--surface-sunken);
+  padding:1px 5px;border-radius:3px;color:var(--text-primary);
+}
+</style>
+</head>
+<body>
+
+<main class="card">
+  <!-- ============ paso 1: credenciales ============ -->
+  <section id="stepLogin">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true">
+        <defs><radialGradient id="bg" cx="35%" cy="30%">
+          <stop offset="0%" stop-color="#EDF56B"/><stop offset="55%" stop-color="#D8E63C"/>
+          <stop offset="100%" stop-color="#9FAD26"/></radialGradient></defs>
+        <circle cx="50" cy="50" r="46" fill="url(#bg)"/>
+        <path d="M14 22c16 14 16 42 0 56" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".92"/>
+        <path d="M86 22c-16 14-16 42 0 56" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".92"/>
+      </svg>
+      <span class="brand-name">ClubOS</span>
+    </div>
+
+    <h1>Entrar</h1>
+    <p class="sub">Ingresá con tu cuenta del club.</p>
+
+    <div id="loginAlert" class="alert hidden" role="alert" aria-live="assertive">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>
+      </svg>
+      <div class="alert-body">
+        <div id="loginAlertMsg"></div>
+        <div id="loginAlertHint" class="alert-hint"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label" for="email">Email</label>
+      <input class="input" id="email" type="email" autocomplete="username"
+             placeholder="tu@club.com.ar" required>
+    </div>
+
+    <div class="field">
+      <label class="label" for="password">Contraseña</label>
+      <div class="pw-wrap">
+        <input class="input" id="password" type="password" autocomplete="current-password"
+               style="padding-right:40px" required>
+        <button class="pw-toggle" id="pwToggle" type="button"
+                aria-label="Mostrar contraseña" aria-pressed="false">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="pwIcon">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <div id="pwError" class="field-error hidden"></div>
+    </div>
+
+    <button class="btn btn-primary" id="submitBtn">
+      <span id="submitLabel">Entrar</span>
+    </button>
+
+    <div class="foot">
+      <a class="link" href="#" id="forgotLink">Olvidé mi contraseña</a>
+      <span id="apiStatus"></span>
+    </div>
+
+    <div class="demo-note hidden" id="demoNote">
+      <b>No hay conexión con el servidor.</b><br>
+      Podés ver la agenda con datos de ejemplo, o levantar el backend y
+      configurar <code>window.CLUBOS_API</code>.
+      <div style="margin-top:8px">
+        <a class="link" href="agenda.html" style="color:var(--turf)">Ver la agenda de ejemplo →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ paso 2: elegir club ============ -->
+  <section id="stepClub" class="hidden">
+    <button class="back-btn" id="backBtn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+      Volver
+    </button>
+    <h1>¿A qué club entrás?</h1>
+    <p class="sub" id="clubSub">Tenés acceso a más de un club.</p>
+    <div class="clubs" id="clubList"></div>
+  </section>
+</main>
+
+<script type="module">
+/* ===========================================================================
+   Login
+
+   ---------------------------------------------------------------------------
+   DÓNDE VIVE EL TOKEN
+   ---------------------------------------------------------------------------
+   El access token queda en memoria de esta pestaña y se pasa a la agenda por
+   sessionStorage — NO localStorage. Diferencia: sessionStorage muere al
+   cerrar la pestaña, localStorage sobrevive. En una recepción con la
+   computadora compartida, que la sesión no persista es lo correcto.
+
+   El refresh token va en cookie httpOnly que pone el servidor: el JS no
+   puede leerlo, así que un XSS no se lleva la sesión larga.
+
+   ---------------------------------------------------------------------------
+   MENSAJES DE ERROR
+   ---------------------------------------------------------------------------
+   Nunca se distingue "el email no existe" de "la contraseña está mal". Decir
+   cuál de los dos falló permite averiguar qué emails están registrados en el
+   sistema. El backend ya iguala los tiempos de respuesta; el front no debe
+   arruinarlo con un mensaje más específico.
+   =========================================================================== */
+
+const API = window.CLUBOS_API ?? '/api/v1';
+
+const el = id => document.getElementById(id);
+const emailInput = el('email');
+const pwInput = el('password');
+const submitBtn = el('submitBtn');
+const submitLabel = el('submitLabel');
+
+let credentials = null;   // se guardan para el paso de selección de club
+let backendUp = null;     // null = sin chequear todavía
+
+// ---------------------------------------------------------------------------
+// API
+// ---------------------------------------------------------------------------
+
+async function apiCall(path, init = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    let body = {};
+    try { body = await res.json(); } catch {}
+    const err = new Error(body.message ?? `Error ${res.status}`);
+    err.status = res.status;
+    err.code = body.error ?? 'UNKNOWN';
+    throw err;
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/** ¿Hay backend? Se chequea al cargar para poder avisar antes de que escriba. */
+async function checkBackend() {
+  try {
+    // /auth/me responde 401 sin sesión: eso ya confirma que el servidor está.
+    const res = await fetch(`${API}/auth/me`, { credentials: 'include' });
+    backendUp = res.status !== 0;
+
+    // Si responde 200, ya hay sesión activa: no tiene sentido pedir login.
+    if (res.ok) {
+      const me = await res.json();
+      if (me.clubId) {
+        location.href = 'agenda.html';
+        return;
+      }
+    }
+  } catch {
+    backendUp = false;
+  }
+
+  el('apiStatus').textContent = backendUp ? '' : 'Sin conexión';
+  el('demoNote').classList.toggle('hidden', backendUp);
+}
+
+// ---------------------------------------------------------------------------
+// Errores
+// ---------------------------------------------------------------------------
+
+function showAlert(message, hint = '') {
+  el('loginAlertMsg').textContent = message;
+  el('loginAlertHint').textContent = hint;
+  el('loginAlert').classList.remove('hidden');
+}
+function clearAlert() {
+  el('loginAlert').classList.add('hidden');
+}
+function setFieldError(input, errorEl, message) {
+  input.setAttribute('aria-invalid', message ? 'true' : 'false');
+  errorEl.textContent = message ?? '';
+  errorEl.classList.toggle('hidden', !message);
+}
+
+function setLoading(on) {
+  submitBtn.disabled = on;
+  emailInput.disabled = on;
+  pwInput.disabled = on;
+  submitLabel.innerHTML = on
+    ? '<span class="spinner"></span> Entrando…'
+    : 'Entrar';
+}
+
+// ---------------------------------------------------------------------------
+// Login
+// ---------------------------------------------------------------------------
+
+async function doLogin(clubId) {
+  const email = emailInput.value.trim().toLowerCase();
+  const password = pwInput.value;
+
+  clearAlert();
+  setFieldError(pwInput, el('pwError'), null);
+
+  if (!email || !password) {
+    showAlert('Completá email y contraseña.');
+    (!email ? emailInput : pwInput).focus();
+    return;
+  }
+
+  if (!backendUp) {
+    showAlert(
+      'No hay conexión con el servidor.',
+      'Verificá que el backend esté levantado, o entrá a la agenda de ejemplo.',
+    );
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const res = await apiCall('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, clubId }),
+    });
+
+    // Varios clubes y ninguno elegido: el backend devuelve activeClub null.
+    if (!res.activeClub && res.clubs.length > 1) {
+      credentials = { email, password };
+      showClubStep(res.clubs);
+      return;
+    }
+
+    if (!res.activeClub && res.clubs.length === 0) {
+      showAlert(
+        'Tu cuenta no tiene ningún club asignado.',
+        'Pedile al dueño del club que te invite.',
+      );
+      return;
+    }
+
+    enterApp(res);
+  } catch (e) {
+    handleLoginError(e);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function handleLoginError(e) {
+  if (e.status === 401) {
+    // Mismo mensaje siempre: distinguir permite enumerar cuentas.
+    showAlert('Email o contraseña incorrectos.');
+    pwInput.value = '';
+    pwInput.focus();
+    return;
+  }
+  if (e.status === 429) {
+    showAlert(
+      'Demasiados intentos.',
+      'Esperá un minuto antes de volver a probar.',
+    );
+    return;
+  }
+  if (e.status === 403) {
+    showAlert(e.message, 'Contactá al administrador del club.');
+    return;
+  }
+  showAlert(
+    'No pudimos entrar.',
+    e.message ?? 'Probá de nuevo en unos segundos.',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Selección de club
+// ---------------------------------------------------------------------------
+
+function showClubStep(clubs) {
+  el('stepLogin').classList.add('hidden');
+  el('stepClub').classList.remove('hidden');
+  el('clubSub').textContent =
+    `Tenés acceso a ${clubs.length} clubes. Elegí con cuál trabajar.`;
+
+  const roleLabels = {
+    OWNER: 'Dueño', ADMIN: 'Administrador', RECEPTION: 'Recepción',
+    INSTRUCTOR: 'Profesor', CLIENT: 'Cliente',
+  };
+
+  el('clubList').innerHTML = clubs.map(c => `
+    <button class="club" data-id="${c.id}">
+      <span class="club-mark">${initials(c.name)}</span>
+      <span>
+        <div class="club-name">${escapeHtml(c.name)}</div>
+        <div class="club-role">${roleLabels[c.roleCode] ?? c.roleCode}</div>
+      </span>
+      ${c.status === 'PAST_DUE'
+        ? '<span class="club-warn">Pago pendiente</span>'
+        : '<span class="club-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></span>'}
+    </button>`).join('');
+
+  el('clubList').querySelectorAll('.club').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      // Se repite el login con el club elegido en vez de guardar el token
+      // del primer intento: así el token sale firmado con el club correcto
+      // y el backend audita el ingreso a ESE club.
+      emailInput.value = credentials.email;
+      pwInput.value = credentials.password;
+      el('stepClub').classList.add('hidden');
+      el('stepLogin').classList.remove('hidden');
+      await doLogin(btn.dataset.id);
+    });
+  });
+
+  el('clubList').querySelector('.club')?.focus();
+}
+
+// ---------------------------------------------------------------------------
+// Entrar a la app
+// ---------------------------------------------------------------------------
+
+function enterApp(res) {
+  // sessionStorage, no localStorage: en una recepción compartida la sesión
+  // debe morir al cerrar la pestaña.
+  sessionStorage.setItem('clubos.token', res.accessToken);
+  sessionStorage.setItem('clubos.club', res.activeClub.id);
+  sessionStorage.setItem('clubos.clubName', res.activeClub.name);
+  sessionStorage.setItem('clubos.user',
+    `${res.user.firstName} ${res.user.lastName}`);
+  sessionStorage.setItem('clubos.permissions', JSON.stringify(res.permissions));
+
+  location.href = 'agenda.html';
+}
+
+// ---------------------------------------------------------------------------
+// Utilidades
+// ---------------------------------------------------------------------------
+
+function initials(name) {
+  return name.split(/[\s—]+/).filter(Boolean).slice(0, 2)
+    .map(w => w[0]).join('').toUpperCase();
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ---------------------------------------------------------------------------
+// Eventos
+// ---------------------------------------------------------------------------
+
+submitBtn.addEventListener('click', () => doLogin());
+
+// Enter envía desde cualquier campo: recepción tipea rápido y no usa el mouse.
+[emailInput, pwInput].forEach(input => {
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+  });
+  input.addEventListener('input', clearAlert);
+});
+
+el('pwToggle').addEventListener('click', () => {
+  const showing = pwInput.type === 'text';
+  pwInput.type = showing ? 'password' : 'text';
+  el('pwToggle').setAttribute('aria-pressed', String(!showing));
+  el('pwToggle').setAttribute('aria-label',
+    showing ? 'Mostrar contraseña' : 'Ocultar contraseña');
+  el('pwIcon').innerHTML = showing
+    ? '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'
+    : '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-10-8-10-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 10 8 10 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><path d="M1 1l22 22"/>';
+  pwInput.focus();
+});
+
+el('backBtn').addEventListener('click', () => {
+  el('stepClub').classList.add('hidden');
+  el('stepLogin').classList.remove('hidden');
+  pwInput.value = '';
+  emailInput.focus();
+});
+
+el('forgotLink').addEventListener('click', e => {
+  e.preventDefault();
+  showAlert(
+    'Recuperación de contraseña en preparación.',
+    'Por ahora, pedile al dueño del club que la restablezca.',
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Arranque
+// ---------------------------------------------------------------------------
+checkBackend();
+emailInput.focus();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "clubos-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "verify:grid": "node verify-grid.cjs",
+    "verify:store": "node verify-store.cjs",
+    "verify:integration": "node verify-integration.mjs",
+    "verify": "npm run verify:grid && npm run verify:store && npm run verify:integration && npm run verify:auth",
+    "verify:auth": "node verify-auth.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

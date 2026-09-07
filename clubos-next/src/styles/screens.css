@@ -1,0 +1,194 @@
+/* screens.css — estilos de componentes específicos de las pantallas internas
+   (grillas de agenda, tablas, listados, badges de estado, etc.).
+
+   Base funcional para que las pantallas sean legibles y usables mientras se
+   desarrolla el diseño definitivo. */
+
+/* Encabezado de pantalla */
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.screen-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+.screen-subtitle {
+  color: var(--app-muted);
+  font-size: 14px;
+  margin: 2px 0 0;
+}
+
+/* Tablas */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--app-muted);
+  font-weight: 600;
+  border-bottom: 2px solid var(--app-border);
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--app-border);
+}
+.table tr:hover td {
+  background: var(--app-bg);
+}
+
+/* Badges de estado */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-green { background: #e6f5ec; color: #167a4a; }
+.badge-blue  { background: #e6f0fb; color: #1f5fbf; }
+.badge-yellow{ background: #fdf3d9; color: #9a6b00; }
+.badge-red   { background: #fdecea; color: #b3261e; }
+.badge-gray  { background: #eef1f4; color: #6b7c8a; }
+.badge-violet{ background: #f0e9fb; color: #6b3fbf; }
+.badge-orange{ background: #fdeede; color: #b5600f; }
+
+/* Grilla tipo agenda (placeholder funcional) */
+.agenda-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--app-border);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  overflow: hidden;
+}
+.agenda-cell {
+  background: var(--app-surface);
+  padding: 8px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.agenda-slot-free { background: #e6f5ec; }
+.agenda-slot-busy { background: #e6f0fb; }
+
+/* Listados */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+}
+
+/* Estados vacíos */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--app-muted);
+}
+.empty-state h3 {
+  color: var(--app-text);
+  margin: 0 0 6px;
+}
+
+/* KPIs / métricas */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.kpi {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  padding: 16px;
+}
+.kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+}
+.kpi-label {
+  color: var(--app-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* Loading / spinner */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--app-muted);
+}
+
+/* ---- Diálogo de nueva reserva ---- */
+.dialog-backdrop {
+  position: fixed; inset: 0; background: rgba(21, 24, 30, 0.55);
+  z-index: 40;
+}
+.dialog {
+  position: fixed; z-index: 41; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 92%; max-width: 420px;
+  background: var(--app-surface); border: 1px solid var(--app-border);
+  border-radius: var(--app-radius); box-shadow: 0 20px 50px rgba(43,58,71,.25);
+  overflow: hidden;
+}
+.dialog-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 18px 20px; border-bottom: 1px solid var(--app-border);
+}
+.dialog-head h3 { margin: 0; font-size: 18px; font-weight: 800; }
+.dialog-sub { margin: 4px 0 0; color: var(--pad-red); font-weight: 700; font-size: 13px; }
+.dialog-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+.dialog-foot {
+  display: flex; gap: 10px; justify-content: flex-end;
+  padding: 16px 20px; border-top: 1px solid var(--app-border);
+}
+.field-label {
+  font-size: 12px; font-weight: 700; color: var(--app-muted);
+  text-transform: uppercase; letter-spacing: 0.03em;
+  margin-top: 8px;
+}
+.seg { display: flex; gap: 8px; }
+.seg-btn {
+  flex: 1; padding: 10px; border-radius: 8px; cursor: pointer;
+  background: var(--app-bg); border: 1px solid var(--app-border);
+  font-weight: 700; font-size: 14px; color: var(--app-muted);
+  transition: all 0.15s;
+}
+.seg-btn.on { border-color: var(--pad-red); background: #fff; color: var(--pad-red); }
+.picked-client {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: var(--app-bg);
+  border: 1px solid var(--app-border); border-radius: 8px; font-weight: 600;
+}
+.link-btn { background: none; border: none; color: var(--pad-red); cursor: pointer; font-weight: 700; font-size: 13px; }
+.full { width: 100%; }
+.dialog-error { color: #b3261e; font-size: 13px; font-weight: 600; margin: 4px 0 0; }
+.icon-btn {
+  background: none; border: none; cursor: pointer; font-size: 16px;
+  color: var(--app-muted); padding: 4px 8px; border-radius: 6px;
+}
+.icon-btn:hover { background: var(--app-bg); }

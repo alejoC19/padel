@@ -1,0 +1,2410 @@
+// ============================================================================
+// ClubOS - Prisma Schema
+// Multi-tenant SaaS ERP para clubes deportivos
+// PostgreSQL 15+ | Prisma 5+
+// ============================================================================
+//
+// REGLAS ESTRUCTURALES (no romper):
+//  1. Toda entidad de negocio tiene `clubId` + FK a Club. Sin excepciones.
+//  2. Todo unique constraint incluye `clubId` (nunca unique global).
+//  3. Todo índice de consulta arranca con `clubId` (leftmost prefix).
+//  4. Nada se borra: `deletedAt` (soft delete) + estados terminales.
+//  5. Todo monto es Decimal(14,2). Nunca Float.
+//  6. Todo instante es DateTime UTC. Las horas del club son minutos int.
+//
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "relationJoins"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, citext, pg_trgm]
+}
+
+// ============================================================================
+// SECCIÓN 0 — PLATAFORMA (tablas globales, SIN clubId)
+// Únicas tablas del sistema que no son tenant-scoped.
+// ============================================================================
+
+/// Planes comerciales de la plataforma ClubOS.
+model Plan {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique // "starter" | "pro" | "enterprise"
+  name        String
+  description String?
+
+  priceMonthly Decimal @db.Decimal(14, 2)
+  priceYearly  Decimal @db.Decimal(14, 2)
+  currency     String  @default("ARS")
+
+  // Límites duros. -1 = ilimitado.
+  maxCourts    Int @default(4)
+  maxUsers     Int @default(5)
+  maxClients   Int @default(500)
+  storageMb    Int @default(1024)
+
+  // Feature flags por plan. El backend consulta esto, no hardcodea.
+  features Json @default("{}")
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clubs Club[]
+
+  @@map("plans")
+}
+
+/// El tenant. Raíz de todo el grafo de datos.
+model Club {
+  id   String @id @default(uuid()) @db.Uuid
+  slug String @unique @db.Citext // clubxyz.clubos.com
+
+  name      String
+  legalName String?
+  taxId     String? // CUIT
+  taxRegime TaxRegime @default(NOT_APPLICABLE)
+
+  email   String?
+  phone   String?
+  whatsapp String?
+  website String?
+
+  addressStreet String?
+  addressCity   String?
+  addressState  String?
+  addressZip    String?
+  addressCountry String  @default("AR")
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+
+  timezone String @default("America/Argentina/Buenos_Aires")
+  locale   String @default("es-AR")
+  currency String @default("ARS")
+
+  logoUrl        String?
+  coverUrl       String?
+  primaryColor   String  @default("#0F766E")
+  secondaryColor String  @default("#134E4A")
+
+  status      ClubStatus @default(TRIAL)
+  trialEndsAt DateTime?
+
+  planId String @db.Uuid
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  // Configuración operativa serializada (políticas de cancelación,
+  // recordatorios, reglas de caja). Ver ClubSettings типы en el backend.
+  settings Json @default("{}")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // --- Relaciones tenant ---
+  memberships     Membership[]
+  roles           Role[]
+  sports          Sport[]
+  courts          Court[]
+  operatingHours  OperatingHour[]
+  priceLists      PriceList[]
+  clients         Client[]
+  clientTags      ClientTag[]
+  clientNotes     ClientNote[]
+  clientDocuments ClientDocument[]
+  bookings        Booking[]
+  bookingPlayers  BookingPlayer[]
+  waitlistEntries WaitlistEntry[]
+  blocks          CourtBlock[]
+  instructors     Instructor[]
+  lessons         Lesson[]
+  memberships_    MembershipPlan[]
+  clientMemberships ClientMembership[]
+  products        Product[]
+  productCategories ProductCategory[]
+  stockMovements  StockMovement[]
+  sales           Sale[]
+  saleItems       SaleItem[]
+  cashRegisters   CashRegister[]
+  cashSessions    CashSession[]
+  cashMovements   CashMovement[]
+  paymentMethods  PaymentMethod[]
+  payments        Payment[]
+  bankAccounts    BankAccount[]
+  bankTransactions BankTransaction[]
+  suppliers       Supplier[]
+  expenses        Expense[]
+  expenseCategories ExpenseCategory[]
+  accountEntries  AccountEntry[]
+  tournaments     Tournament[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+
+  paymentIntegrations ClubPaymentIntegration[]
+  paymentOrders       PaymentOrder[]
+
+  @@index([status])
+  @@map("clubs")
+}
+
+enum ClubStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+enum TaxRegime {
+  NOT_APPLICABLE
+  MONOTRIBUTO
+  RESPONSABLE_INSCRIPTO
+  EXENTO
+}
+
+// ============================================================================
+// SECCIÓN 1 — IDENTIDAD, ROLES Y PERMISOS
+//
+// DECISIÓN: `User` es global (una persona = una cuenta, puede pertenecer a
+// varios clubes). El vínculo tenant vive en `Membership`. Esto permite que
+// un jugador use el mismo login en 3 clubes distintos — requisito real del
+// mercado que un modelo user-por-club haría imposible.
+//
+// DECISIÓN: permisos como array de strings ("booking.create", "cash.close")
+// en `Role`, no tabla Permission. Los permisos son un enum del código, no
+// datos editables. Tabla separada = joins caros sin ganancia real.
+// ============================================================================
+
+/// Cuenta de acceso global a la plataforma.
+model User {
+  id String @id @default(uuid()) @db.Uuid
+
+  email         String  @unique @db.Citext
+  emailVerified Boolean @default(false)
+  phone         String? @unique
+  phoneVerified Boolean @default(false)
+
+  passwordHash      String?
+  passwordChangedAt DateTime?
+
+  firstName String
+  lastName  String
+  avatarUrl String?
+  birthDate DateTime? @db.Date
+
+  locale String @default("es-AR")
+
+  isPlatformAdmin Boolean @default(false) // Super Admin ClubOS
+
+  mfaEnabled Boolean @default(false)
+  mfaSecret  String?
+
+  lastLoginAt DateTime?
+  isActive    Boolean   @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  memberships    Membership[]
+  identities     UserIdentity[]
+  sessions       Session[]
+  clientProfiles Client[]
+  instructorProfiles Instructor[]
+  auditLogs      AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+/// OAuth / social login. Un usuario puede tener varias identidades.
+model UserIdentity {
+  id       String @id @default(uuid()) @db.Uuid
+  userId   String @db.Uuid
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider   AuthProvider
+  providerId String
+  email      String?
+  rawProfile Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+enum AuthProvider {
+  GOOGLE
+  APPLE
+  PASSWORD
+  PHONE_OTP
+}
+
+/// Refresh token rotation. Un registro por sesión activa.
+model Session {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Club activo de la sesión. Null = contexto de plataforma.
+  activeClubId String? @db.Uuid
+
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  replacedById     String?   @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Vínculo User <-> Club. Define el rol dentro del tenant.
+model Membership {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roleId String @db.Uuid
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  /// Overrides puntuales sobre el rol: permisos extra o revocados.
+  extraPermissions   String[] @default([])
+  revokedPermissions String[] @default([])
+
+  status     MembershipStatus @default(ACTIVE)
+  invitedAt  DateTime?
+  acceptedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  cashSessions CashSession[]
+
+  @@unique([clubId, userId])
+  @@index([clubId, status])
+  @@index([userId])
+  @@map("memberships")
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+/// Roles por club. Se siembran 5 por defecto, el dueño puede crear más.
+model Role {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  code        RoleCode
+  name        String
+  description String?
+
+  /// Lista de permisos. Ej: ["booking.create","cash.close","report.view"]
+  permissions String[] @default([])
+
+  /// Roles del sistema no se pueden borrar ni renombrar el code.
+  isSystem Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  memberships Membership[]
+
+  @@unique([clubId, code])
+  @@index([clubId])
+  @@map("roles")
+}
+
+enum RoleCode {
+  OWNER
+  ADMIN
+  RECEPTION
+  INSTRUCTOR
+  CLIENT
+  CUSTOM
+}
+
+// ============================================================================
+// SECCIÓN 2 — INFRAESTRUCTURA DEPORTIVA
+//
+// DECISIÓN: `Sport` como tabla y no enum. El PRD exige soportar otros
+// deportes sin reescribir. Un enum requiere migración por deporte nuevo;
+// una tabla permite que el club agregue "Fútbol 5" solo.
+// ============================================================================
+
+model Sport {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  code String // "PADEL" | "TENIS" | "FUTBOL5"
+  name String
+
+  /// Jugadores por defecto (pádel=4, fútbol5=10). Usado en validación.
+  defaultPlayers Int @default(4)
+  /// Duración por defecto en minutos.
+  defaultDuration Int @default(90)
+
+  iconUrl   String?
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  courts Court[]
+
+  @@unique([clubId, code])
+  @@index([clubId])
+  @@map("sports")
+}
+
+model Court {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  sportId String @db.Uuid
+  sport   Sport  @relation(fields: [sportId], references: [id])
+
+  name   String // "Cancha 1"
+  number Int
+
+  environment  CourtEnvironment @default(INDOOR)
+  surface      CourtSurface     @default(SYNTHETIC_GRASS)
+  wallType     String? // "blindex" | "muro" | "mixta"
+  hasLighting  Boolean          @default(true)
+  capacity     Int              @default(4)
+
+  /// Color hex del bloque en la agenda.
+  color String @default("#3B82F6")
+
+  description String?
+  photos      String[] @default([])
+  features    String[] @default([]) // ["climatizada","vestuario","tribuna"]
+
+  status CourtStatus @default(AVAILABLE)
+
+  /// Si es null, hereda los horarios del club.
+  hasCustomHours Boolean @default(false)
+
+  /// Duración mínima reservable en minutos (grilla de la agenda).
+  slotMinutes Int @default(30)
+
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  operatingHours OperatingHour[]
+  prices         PriceRule[]
+  bookings       Booking[]
+  blocks         CourtBlock[]
+  waitlistEntries WaitlistEntry[]
+
+  @@unique([clubId, number])
+  @@index([clubId, status, deletedAt])
+  @@index([clubId, sportId])
+  @@map("courts")
+}
+
+enum CourtEnvironment {
+  INDOOR
+  OUTDOOR
+  COVERED
+}
+
+enum CourtSurface {
+  SYNTHETIC_GRASS
+  CONCRETE
+  CLAY
+  CRYSTAL
+  OTHER
+}
+
+enum CourtStatus {
+  AVAILABLE
+  MAINTENANCE
+  DISABLED
+}
+
+/// Horario de apertura. Si courtId es null aplica a todo el club.
+model OperatingHour {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  courtId String? @db.Uuid
+  court   Court?  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  /// 0=domingo ... 6=sábado
+  dayOfWeek Int
+
+  /// Minutos desde medianoche. 480 = 08:00. Evita parsing de strings y
+  /// permite comparaciones numéricas directas en SQL.
+  openMinute  Int
+  closeMinute Int
+
+  isClosed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // courtId nullable => unique parcial en SQL.
+  @@index([clubId, dayOfWeek])
+  @@map("operating_hours")
+}
+
+// ============================================================================
+// SECCIÓN 3 — PRECIOS
+//
+// DECISIÓN: motor de reglas, no precio fijo por cancha. Un club cobra
+// distinto lunes 10hs que sábado 21hs. Sin esto, el módulo de precios se
+// reescribe en 3 meses. `PriceRule` se resuelve por especificidad
+// (priority DESC) al momento de cotizar la reserva.
+// ============================================================================
+
+model PriceList {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  isDefault   Boolean @default(false)
+  isActive    Boolean @default(true)
+
+  validFrom DateTime?
+  validTo   DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  rules   PriceRule[]
+  clients Client[]
+
+  @@unique([clubId, name])
+  @@index([clubId, isActive])
+  @@map("price_lists")
+}
+
+model PriceRule {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+
+  priceListId String    @db.Uuid
+  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+
+  courtId String? @db.Uuid
+  court   Court?  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  /// null = aplica todos los días. Sino 0-6.
+  dayOfWeek Int?
+  /// Ventana horaria en minutos. null = todo el día.
+  fromMinute Int?
+  toMinute   Int?
+
+  /// Duración exacta a la que aplica. null = cualquiera.
+  durationMinutes Int?
+
+  bookingType BookingType?
+
+  /// Precio del bloque completo, no por hora. Evita ambigüedad.
+  price Decimal @db.Decimal(14, 2)
+
+  /// Mayor prioridad gana ante empate de especificidad.
+  priority Int @default(0)
+
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([clubId, priceListId, isActive])
+  @@index([courtId])
+  @@map("price_rules")
+}
+
+// ============================================================================
+// SECCIÓN 4 — CRM / CLIENTES
+//
+// DECISIÓN: `Client` != `User`. Un cliente puede existir sin cuenta (lo
+// carga recepción por teléfono). `userId` es opcional y se vincula cuando
+// el cliente se registra. Modelar cliente como User obligaría a crear
+// cuentas fantasma — error clásico que rompe el onboarding real.
+//
+// DECISIÓN: los agregados (totalSpent, lastVisitAt, etc.) son columnas
+// materializadas, no cálculos on-the-fly. Un CRM con 5k clientes que
+// calcula LTV con COUNT/SUM en cada listado es inusable. Se actualizan
+// por evento de dominio.
+// ============================================================================
+
+model Client {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  /// Vinculación opcional a cuenta de plataforma.
+  userId String? @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id])
+
+  // --- Personales ---
+  firstName   String
+  lastName    String
+  documentType DocumentType @default(DNI)
+  documentNumber String?
+  birthDate   DateTime? @db.Date
+  gender      Gender?
+  nationality String?
+
+  email    String? @db.Citext
+  phone    String?
+  whatsapp String?
+
+  addressStreet String?
+  addressCity   String?
+  addressZip    String?
+
+  avatarUrl String?
+
+  // --- Deportivo ---
+  skillLevel      SkillLevel?
+  dominantHand    DominantHand?
+  preferredSide   CourtSide?
+  category        String?
+  frequentPartnerId String?     @db.Uuid
+  usualInstructorId String?     @db.Uuid
+
+  // --- Comercial ---
+  status        ClientStatus @default(ACTIVE)
+  clientSince   DateTime     @default(now())
+  priceListId   String?      @db.Uuid
+  priceList     PriceList?   @relation(fields: [priceListId], references: [id])
+  discountPercent Decimal    @default(0) @db.Decimal(5, 2)
+
+  /// Saldo de cuenta corriente. Positivo = a favor del cliente.
+  /// Negativo = el cliente debe. Fuente de verdad: suma de AccountEntry.
+  /// Esta columna es un cache y se recalcula en la misma transacción.
+  accountBalance Decimal @default(0) @db.Decimal(14, 2)
+  creditLimit    Decimal @default(0) @db.Decimal(14, 2)
+
+  // --- Agregados materializados (recalculados por evento) ---
+  totalSpent        Decimal   @default(0) @db.Decimal(14, 2)
+  bookingsCount     Int       @default(0)
+  cancellationsCount Int      @default(0)
+  noShowCount       Int       @default(0)
+  lessonsCount      Int       @default(0)
+  lastVisitAt       DateTime?
+  lastBookingAt     DateTime?
+  favoriteCourtId   String?   @db.Uuid
+  favoriteInstructorId String? @db.Uuid
+  /// Minuto del día más frecuente y día de semana más frecuente.
+  favoriteStartMinute Int?
+  favoriteDayOfWeek   Int?
+  /// Lifetime value proyectado. Lo escribe el motor de analítica.
+  lifetimeValue     Decimal   @default(0) @db.Decimal(14, 2)
+  avgDaysBetweenBookings Decimal? @db.Decimal(8, 2)
+
+  /// Consentimientos de comunicación (Ley 25.326).
+  acceptsMarketing Boolean @default(false)
+  acceptsWhatsapp  Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tags        ClientTagAssignment[]
+  notes       ClientNote[]
+  documents   ClientDocument[]
+  bookings    Booking[]
+  bookingPlayers BookingPlayer[]
+  waitlistEntries WaitlistEntry[]
+  lessonAttendances LessonAttendance[]
+  memberships ClientMembership[]
+  sales       Sale[]
+  payments    Payment[]
+  accountEntries AccountEntry[]
+  tournamentTeams TournamentTeamMember[]
+  notifications Notification[]
+
+  // NOTA: los uniques de email y documento son índices parciales en SQL
+  // (ver 001_integrity_and_rls.sql). Prisma no soporta WHERE en @@unique,
+  // y sin el WHERE, Postgres permitiría N clientes con documento NULL.
+  @@index([clubId, status, deletedAt])
+  @@index([clubId, lastName, firstName])
+  @@index([clubId, phone])
+  @@index([clubId, lastVisitAt])
+  paymentOrders PaymentOrder[]
+
+  @@map("clients")
+}
+
+enum DocumentType {
+  DNI
+  CUIT
+  CUIL
+  PASSPORT
+  OTHER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNDISCLOSED
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PROFESSIONAL
+}
+
+enum DominantHand {
+  RIGHT
+  LEFT
+  AMBIDEXTROUS
+}
+
+enum CourtSide {
+  DRIVE
+  REVES
+  BOTH
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BLACKLISTED
+}
+
+/// Etiquetas. `isAuto` = la asigna el motor de reglas, no un humano.
+model ClientTag {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  code  String
+  name  String
+  color String  @default("#64748B")
+  isAuto Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  assignments ClientTagAssignment[]
+
+  @@unique([clubId, code])
+  @@index([clubId])
+  @@map("client_tags")
+}
+
+model ClientTagAssignment {
+  id       String    @id @default(uuid()) @db.Uuid
+  clubId   String    @db.Uuid
+  clientId String    @db.Uuid
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tagId    String    @db.Uuid
+  tag      ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  assignedById String?  @db.Uuid
+  assignedAt   DateTime @default(now())
+
+  @@unique([clientId, tagId])
+  @@index([clubId, tagId])
+  @@map("client_tag_assignments")
+}
+
+model ClientNote {
+  id       String @id @default(uuid()) @db.Uuid
+  clubId   String @db.Uuid
+  club     Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  authorId String? @db.Uuid
+  category NoteCategory @default(GENERAL)
+  priority NotePriority @default(NORMAL)
+  content  String
+
+  /// Visible para el cliente en su portal, o solo interna.
+  isInternal Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([clubId, clientId, createdAt])
+  @@map("client_notes")
+}
+
+enum NoteCategory {
+  GENERAL
+  PREFERENCE
+  COMPLAINT
+  MEDICAL
+  BILLING
+  INCIDENT
+}
+
+enum NotePriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+model ClientDocument {
+  id       String @id @default(uuid()) @db.Uuid
+  clubId   String @db.Uuid
+  club     Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type     ClientDocumentType
+  name     String
+  fileUrl  String
+  fileSize Int?
+  mimeType String?
+
+  /// Apto médico vencido = alerta operativa.
+  expiresAt DateTime?
+
+  uploadedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  @@index([clubId, clientId])
+  @@index([clubId, type, expiresAt])
+  @@map("client_documents")
+}
+
+enum ClientDocumentType {
+  ID_DOCUMENT
+  MEDICAL_CLEARANCE
+  CONTRACT
+  CONSENT
+  INSURANCE
+  OTHER
+}
+
+// ============================================================================
+// SECCIÓN 5 — RESERVAS Y AGENDA (núcleo del sistema)
+//
+// DECISIÓN CRÍTICA: `startsAt`/`endsAt` como DateTime UTC absolutos, NO
+// date + string de hora. El bug #1 del código PadelPRO era exactamente
+// esto: comparaba solo startTime y no detectaba solapamientos parciales.
+//
+// DECISIÓN CRÍTICA: la exclusión de solapamiento NO se resuelve en el ORM.
+// Se implementa con un EXCLUDE constraint de PostgreSQL sobre tstzrange
+// (extensión btree_gist), aplicado vía migración SQL manual:
+//
+//   ALTER TABLE bookings ADD COLUMN period tstzrange
+//     GENERATED ALWAYS AS (tstzrange(starts_at, ends_at, '[)')) STORED;
+//   ALTER TABLE bookings ADD CONSTRAINT bookings_no_overlap
+//     EXCLUDE USING gist (court_id WITH =, period WITH &&)
+//     WHERE (status NOT IN ('CANCELLED_BY_CLIENT','CANCELLED_BY_CLUB',
+//                           'RESCHEDULED','NO_SHOW'));
+//
+// Esto hace la doble reserva IMPOSIBLE a nivel motor, incluso con
+// concurrencia. Validar en aplicación es una carrera perdida.
+// ============================================================================
+
+model Booking {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  /// Legible por humanos: "R-2026-00184". Único por club.
+  code String
+
+  courtId String @db.Uuid
+  court   Court  @relation(fields: [courtId], references: [id])
+
+  /// Titular. Null solo en bloqueos/mantenimiento.
+  clientId String? @db.Uuid
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  instructorId String?     @db.Uuid
+  instructor   Instructor? @relation(fields: [instructorId], references: [id])
+
+  type   BookingType   @default(REGULAR)
+  status BookingStatus @default(PENDING)
+
+  startsAt DateTime
+  endsAt   DateTime
+  durationMinutes Int
+
+  playersCount Int @default(4)
+
+  // --- Dinero ---
+  basePrice      Decimal @default(0) @db.Decimal(14, 2)
+  discountAmount Decimal @default(0) @db.Decimal(14, 2)
+  totalPrice     Decimal @default(0) @db.Decimal(14, 2)
+  paidAmount     Decimal @default(0) @db.Decimal(14, 2)
+  paymentStatus  PaymentStatus @default(UNPAID)
+  /// Si el pago se divide entre jugadores.
+  isSplitPayment Boolean @default(false)
+
+  notes         String?
+  internalNotes String?
+
+  // --- Ciclo de vida operativo ---
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+
+  confirmedAt DateTime?
+  cancelledAt DateTime?
+  cancelledById String? @db.Uuid
+  cancellationReason String?
+  cancellationFee Decimal @default(0) @db.Decimal(14, 2)
+  refundAmount    Decimal @default(0) @db.Decimal(14, 2)
+
+  noShowAt     DateTime?
+  noShowReason String?
+
+  // --- Reprogramación: cadena, nunca sobrescritura ---
+  rescheduledFromId String?  @db.Uuid
+  rescheduledFrom   Booking? @relation("BookingReschedule", fields: [rescheduledFromId], references: [id])
+  rescheduledTo     Booking[] @relation("BookingReschedule")
+
+  // --- Origen ---
+  source     BookingSource @default(ADMIN)
+  createdById String?      @db.Uuid
+
+  // --- Recurrencia (turnos fijos: "todos los martes 20hs") ---
+  recurrenceId    String? @db.Uuid
+  recurrenceRule  String? // RRULE RFC-5545
+  isRecurrenceParent Boolean @default(false)
+
+  lessonId    String? @db.Uuid
+  lesson      Lesson? @relation(fields: [lessonId], references: [id])
+  tournamentId String? @db.Uuid
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  players      BookingPlayer[]
+  payments     Payment[]
+  reminders    ScheduledReminder[]
+  statusHistory BookingStatusChange[]
+  accountEntries AccountEntry[]
+
+  @@unique([clubId, code])
+  // Índice maestro de la agenda: "dame el día de todas las canchas".
+  @@index([clubId, startsAt, courtId])
+  @@index([clubId, courtId, startsAt])
+  @@index([clubId, clientId, startsAt])
+  @@index([clubId, status, startsAt])
+  @@index([clubId, instructorId, startsAt])
+  @@index([recurrenceId])
+  paymentOrders PaymentOrder[]
+
+  @@map("bookings")
+}
+
+enum BookingType {
+  REGULAR
+  LESSON
+  TOURNAMENT
+  EVENT
+  MAINTENANCE
+  ADMIN_BLOCK
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_CLUB
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERPAID
+  REFUNDED
+}
+
+enum BookingSource {
+  ADMIN
+  RECEPTION
+  CLIENT_WEB
+  CLIENT_APP
+  WHATSAPP
+  PHONE
+  RECURRENCE
+  TOURNAMENT
+  WAITLIST
+}
+
+/// Auditoría específica de cambios de estado. Separada de AuditLog porque
+/// se consulta en el panel de reserva (timeline visible al operador).
+model BookingStatusChange {
+  id        String  @id @default(uuid()) @db.Uuid
+  clubId    String  @db.Uuid
+  bookingId String  @db.Uuid
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  reason     String?
+  changedById String? @db.Uuid
+  createdAt  DateTime @default(now())
+
+  @@index([clubId, bookingId, createdAt])
+  @@map("booking_status_changes")
+}
+
+/// Jugadores de una reserva. Pueden ser clientes registrados o invitados
+/// sueltos (nombre + teléfono). Soporta pago dividido por jugador.
+model BookingPlayer {
+  id        String  @id @default(uuid()) @db.Uuid
+  clubId    String  @db.Uuid
+  club      Club    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  bookingId String  @db.Uuid
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  clientId String? @db.Uuid
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  guestName  String?
+  guestPhone String?
+  guestEmail String?
+
+  invitationStatus InvitationStatus @default(PENDING)
+  respondedAt      DateTime?
+
+  /// Monto que le corresponde en pago dividido.
+  shareAmount Decimal @default(0) @db.Decimal(14, 2)
+  paidAmount  Decimal @default(0) @db.Decimal(14, 2)
+
+  isOrganizer Boolean @default(false)
+  checkedInAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId, bookingId])
+  @@index([clubId, clientId])
+  @@map("booking_players")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+/// Lista de espera. `position` se recalcula al liberarse un turno.
+model WaitlistEntry {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  courtId String? @db.Uuid
+  court   Court?  @relation(fields: [courtId], references: [id])
+
+  /// Ventana deseada.
+  desiredDate      DateTime @db.Date
+  desiredFromMinute Int
+  desiredToMinute   Int
+  durationMinutes   Int
+
+  position Int
+  status   WaitlistStatus @default(WAITING)
+
+  notifiedAt   DateTime?
+  /// Tiempo límite para responder tras la notificación.
+  respondsUntil DateTime?
+  convertedBookingId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId, desiredDate, status, position])
+  @@index([clubId, clientId])
+  @@map("waitlist_entries")
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  CONVERTED
+  EXPIRED
+  CANCELLED
+}
+
+/// Bloqueos de cancha: mantenimiento, eventos, cierres.
+/// Separado de Booking porque puede ser recurrente e independiente.
+model CourtBlock {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  /// null = todas las canchas del club.
+  courtId String? @db.Uuid
+  court   Court?  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  type   BlockType @default(MAINTENANCE)
+  reason String
+  description String?
+  photoUrls String[] @default([])
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  recurrenceRule String? // RRULE
+
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([clubId, startsAt, endsAt])
+  @@index([clubId, courtId, startsAt])
+  @@map("court_blocks")
+}
+
+enum BlockType {
+  MAINTENANCE
+  EVENT
+  HOLIDAY
+  ADMIN
+  WEATHER
+}
+
+/// Recordatorios programados. Los consume un worker (BullMQ).
+model ScheduledReminder {
+  id        String  @id @default(uuid()) @db.Uuid
+  clubId    String  @db.Uuid
+  bookingId String  @db.Uuid
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  channel   NotificationChannel
+  /// Minutos antes del inicio: 1440, 720, 120, 30.
+  offsetMinutes Int
+  scheduledFor  DateTime
+
+  status ReminderStatus @default(SCHEDULED)
+  sentAt DateTime?
+  error  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, scheduledFor])
+  @@index([clubId, bookingId])
+  @@map("scheduled_reminders")
+}
+
+enum ReminderStatus {
+  SCHEDULED
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// ============================================================================
+// SECCIÓN 6 — PROFESORES Y CLASES
+// ============================================================================
+
+model Instructor {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  userId String? @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id])
+
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  avatarUrl String?
+  bio       String?
+
+  specialties String[] @default([])
+  skillLevels SkillLevel[] @default([])
+
+  /// Comisión sobre clases. Porcentaje o monto fijo, según commissionType.
+  commissionType   CommissionType @default(PERCENTAGE)
+  commissionValue  Decimal        @default(0) @db.Decimal(14, 2)
+  hourlyRate       Decimal        @default(0) @db.Decimal(14, 2)
+
+  status    InstructorStatus @default(ACTIVE)
+  hiredAt   DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  availability InstructorAvailability[]
+  bookings     Booking[]
+  lessons      Lesson[]
+  commissions  InstructorCommission[]
+
+  @@index([clubId, status, deletedAt])
+  @@map("instructors")
+}
+
+enum InstructorStatus {
+  ACTIVE
+  ON_LEAVE
+  INACTIVE
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED_PER_LESSON
+  HOURLY
+}
+
+model InstructorAvailability {
+  id           String     @id @default(uuid()) @db.Uuid
+  clubId       String     @db.Uuid
+  instructorId String     @db.Uuid
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  dayOfWeek   Int
+  fromMinute  Int
+  toMinute    Int
+
+  /// Bloqueo puntual (vacaciones) en vez de disponibilidad semanal.
+  isBlock     Boolean   @default(false)
+  blockFrom   DateTime?
+  blockTo     DateTime?
+  blockReason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([clubId, instructorId, dayOfWeek])
+  @@map("instructor_availability")
+}
+
+model Lesson {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  instructorId String     @db.Uuid
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+
+  name        String
+  description String?
+  type        LessonType @default(GROUP)
+  skillLevel  SkillLevel?
+
+  maxStudents Int     @default(4)
+  price       Decimal @default(0) @db.Decimal(14, 2)
+
+  recurrenceRule String?
+  isActive       Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  bookings    Booking[]
+  attendances LessonAttendance[]
+  commissions InstructorCommission[]
+
+  @@index([clubId, instructorId])
+  @@map("lessons")
+}
+
+enum LessonType {
+  INDIVIDUAL
+  GROUP
+  CLINIC
+  INTENSIVE
+}
+
+model LessonAttendance {
+  id       String @id @default(uuid()) @db.Uuid
+  clubId   String @db.Uuid
+  lessonId String @db.Uuid
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  date     DateTime @db.Date
+  attended Boolean  @default(false)
+  notes    String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([lessonId, clientId, date])
+  @@index([clubId, clientId])
+  @@map("lesson_attendances")
+}
+
+model InstructorCommission {
+  id           String     @id @default(uuid()) @db.Uuid
+  clubId       String     @db.Uuid
+  instructorId String     @db.Uuid
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  lessonId String? @db.Uuid
+  lesson   Lesson? @relation(fields: [lessonId], references: [id])
+
+  periodFrom DateTime @db.Date
+  periodTo   DateTime @db.Date
+
+  baseAmount       Decimal @db.Decimal(14, 2)
+  commissionAmount Decimal @db.Decimal(14, 2)
+
+  status  CommissionStatus @default(PENDING)
+  paidAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId, instructorId, periodFrom])
+  @@map("instructor_commissions")
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+// ============================================================================
+// SECCIÓN 7 — MEMBRESÍAS
+// ============================================================================
+
+model MembershipPlan {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  price       Decimal @db.Decimal(14, 2)
+  billingCycle BillingCycle @default(MONTHLY)
+
+  /// Beneficios: horas incluidas, % descuento, prioridad de reserva.
+  includedHours    Int?
+  discountPercent  Decimal @default(0) @db.Decimal(5, 2)
+  advanceBookingDays Int   @default(7)
+  benefits         String[] @default([])
+
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  clientMemberships ClientMembership[]
+
+  @@unique([clubId, name])
+  @@index([clubId, isActive])
+  @@map("membership_plans")
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  ANNUAL
+}
+
+model ClientMembership {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  planId   String @db.Uuid
+  plan     MembershipPlan @relation(fields: [planId], references: [id])
+
+  startsAt DateTime
+  endsAt   DateTime
+  status   ClientMembershipStatus @default(ACTIVE)
+
+  autoRenew    Boolean @default(false)
+  hoursUsed    Int     @default(0)
+  pricePaid    Decimal @db.Decimal(14, 2)
+
+  cancelledAt DateTime?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId, clientId, status])
+  @@index([clubId, endsAt, status])
+  @@map("client_memberships")
+}
+
+enum ClientMembershipStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+// ============================================================================
+// SECCIÓN 8 — PRODUCTOS, STOCK Y VENTAS
+// ============================================================================
+
+model ProductCategory {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  name      String
+  sortOrder Int    @default(0)
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  products Product[]
+
+  @@unique([clubId, name])
+  @@map("product_categories")
+}
+
+model Product {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  categoryId String?          @db.Uuid
+  category   ProductCategory? @relation(fields: [categoryId], references: [id])
+
+  sku     String?
+  barcode String?
+  name    String
+  description String?
+  imageUrl String?
+
+  /// Costo y precio. El margen se calcula, no se guarda.
+  costPrice Decimal @default(0) @db.Decimal(14, 2)
+  salePrice Decimal @db.Decimal(14, 2)
+  taxRate   Decimal @default(21) @db.Decimal(5, 2)
+
+  /// SERVICE no descuenta stock (ej: alquiler de paleta).
+  kind ProductKind @default(GOOD)
+
+  trackStock  Boolean @default(true)
+  stockQty    Decimal @default(0) @db.Decimal(14, 3)
+  minStockQty Decimal @default(0) @db.Decimal(14, 3)
+  unit        String  @default("unidad")
+
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  stockMovements StockMovement[]
+  saleItems      SaleItem[]
+
+  // sku/barcode: uniques parciales en SQL (nullable).
+  @@index([clubId, isActive, deletedAt])
+  @@index([clubId, categoryId])
+  @@map("products")
+}
+
+enum ProductKind {
+  GOOD
+  SERVICE
+  RENTAL
+}
+
+/// Kardex. Nunca se edita stockQty a mano: se inserta un movimiento.
+model StockMovement {
+  id        String  @id @default(uuid()) @db.Uuid
+  clubId    String  @db.Uuid
+  club      Club    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  productId String  @db.Uuid
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type     StockMovementType
+  quantity Decimal @db.Decimal(14, 3) // signo según type
+  unitCost Decimal @default(0) @db.Decimal(14, 2)
+
+  /// Stock resultante tras el movimiento. Permite auditar sin recalcular.
+  balanceAfter Decimal @db.Decimal(14, 3)
+
+  reference   String? // saleId, purchaseId, etc.
+  reason      String?
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([clubId, productId, createdAt])
+  @@map("stock_movements")
+}
+
+enum StockMovementType {
+  PURCHASE
+  SALE
+  ADJUSTMENT
+  RETURN
+  LOSS
+  TRANSFER
+  INITIAL
+}
+
+model Sale {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  code String
+
+  clientId String? @db.Uuid
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  cashSessionId String?      @db.Uuid
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id])
+
+  subtotal       Decimal @db.Decimal(14, 2)
+  discountAmount Decimal @default(0) @db.Decimal(14, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(14, 2)
+  total          Decimal @db.Decimal(14, 2)
+  paidAmount     Decimal @default(0) @db.Decimal(14, 2)
+
+  status SaleStatus @default(COMPLETED)
+
+  soldById  String?   @db.Uuid
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  voidedAt  DateTime?
+  voidReason String?
+
+  items    SaleItem[]
+  payments Payment[]
+  accountEntries AccountEntry[]
+
+  @@unique([clubId, code])
+  @@index([clubId, createdAt])
+  @@index([clubId, clientId])
+  paymentOrders PaymentOrder[]
+
+  @@map("sales")
+}
+
+enum SaleStatus {
+  DRAFT
+  COMPLETED
+  VOIDED
+  REFUNDED
+}
+
+model SaleItem {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  saleId String @db.Uuid
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  productId String? @db.Uuid
+  product   Product? @relation(fields: [productId], references: [id])
+
+  /// Snapshot: si el producto cambia de precio, la venta histórica no muta.
+  description String
+  quantity    Decimal @db.Decimal(14, 3)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  discountAmount Decimal @default(0) @db.Decimal(14, 2)
+  taxRate     Decimal @default(21) @db.Decimal(5, 2)
+  total       Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([clubId, saleId])
+  @@map("sale_items")
+}
+
+// ============================================================================
+// SECCIÓN 9 — CAJA
+//
+// DECISIÓN: `CashRegister` (la caja física/lógica) separada de
+// `CashSession` (el turno abierto). Un club puede tener 2 puntos de venta.
+// Sin esta separación, no se puede hacer arqueo por puesto.
+// ============================================================================
+
+model CashRegister {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  name     String // "Recepción" | "Buffet"
+  isActive Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  sessions CashSession[]
+
+  @@unique([clubId, name])
+  @@map("cash_registers")
+}
+
+model CashSession {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  registerId String       @db.Uuid
+  register   CashRegister @relation(fields: [registerId], references: [id])
+
+  membershipId String     @db.Uuid
+  membership   Membership @relation(fields: [membershipId], references: [id])
+
+  openedAt      DateTime @default(now())
+  openingAmount Decimal  @db.Decimal(14, 2)
+  openingNotes  String?
+
+  closedAt        DateTime?
+  /// Lo que el sistema calcula que debería haber.
+  expectedAmount  Decimal?  @db.Decimal(14, 2)
+  /// Lo que se contó físicamente (arqueo).
+  countedAmount   Decimal?  @db.Decimal(14, 2)
+  difference      Decimal?  @db.Decimal(14, 2)
+  differenceReason String?
+  closingNotes    String?
+  closedById      String?   @db.Uuid
+
+  status CashSessionStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements CashMovement[]
+  sales     Sale[]
+  payments  Payment[]
+
+  @@index([clubId, status])
+  @@index([clubId, registerId, openedAt])
+  @@map("cash_sessions")
+}
+
+enum CashSessionStatus {
+  OPEN
+  CLOSED
+  RECONCILED
+}
+
+/// Libro de caja. Append-only: nada se edita ni se borra.
+/// Un error se corrige con un contra-movimiento.
+model CashMovement {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  sessionId String      @db.Uuid
+  session   CashSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  type      CashMovementType
+  direction CashDirection
+
+  /// Siempre positivo. El signo lo da `direction`.
+  amount Decimal @db.Decimal(14, 2)
+
+  paymentMethodId String?        @db.Uuid
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+
+  concept     String
+  description String?
+  reference   String? // bookingId | saleId | expenseId
+
+  paymentId String?  @db.Uuid
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  /// Contra-asiento de corrección.
+  reversesId String? @db.Uuid
+
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([clubId, sessionId, createdAt])
+  @@index([clubId, type, createdAt])
+  @@map("cash_movements")
+}
+
+enum CashMovementType {
+  BOOKING_PAYMENT
+  LESSON_PAYMENT
+  PRODUCT_SALE
+  MEMBERSHIP_PAYMENT
+  TOURNAMENT_FEE
+  MANUAL_INCOME
+  EXPENSE
+  WITHDRAWAL
+  DEPOSIT
+  REFUND
+  ADJUSTMENT
+}
+
+enum CashDirection {
+  IN
+  OUT
+}
+
+/// Medios de pago configurables por club, con comisiones reales.
+model PaymentMethod {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  code String
+  name String
+  kind PaymentMethodKind
+
+  /// Comisión del procesador (Mercado Pago ~5%). Impacta rentabilidad real.
+  feePercent Decimal @default(0) @db.Decimal(5, 2)
+  feeFixed   Decimal @default(0) @db.Decimal(14, 2)
+
+  /// Días hasta acreditación. Clave para flujo de fondos proyectado.
+  settlementDays Int @default(0)
+
+  /// Si suma al efectivo esperado en el arqueo.
+  affectsCashCount Boolean @default(true)
+
+  bankAccountId String?      @db.Uuid
+  bankAccount   BankAccount? @relation(fields: [bankAccountId], references: [id])
+
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  payments      Payment[]
+  cashMovements CashMovement[]
+
+  @@unique([clubId, code])
+  @@index([clubId, isActive])
+  @@map("payment_methods")
+}
+
+enum PaymentMethodKind {
+  CASH
+  DEBIT_CARD
+  CREDIT_CARD
+  BANK_TRANSFER
+  MERCADO_PAGO
+  QR
+  ACCOUNT_CREDIT
+  STORE_CREDIT
+  OTHER
+}
+
+// ============================================================================
+// SECCIÓN 10 — PAGOS Y CUENTA CORRIENTE
+//
+// DECISIÓN: `Payment` es la entidad transversal. Una reserva, una venta o
+// una membresía se cobran todas vía Payment. Esto centraliza conciliación,
+// reembolsos e integración con pasarelas en un solo lugar.
+//
+// DECISIÓN: `AccountEntry` es un libro mayor append-only por cliente
+// (partida simple: debe/haber). El `accountBalance` del cliente es cache.
+// ============================================================================
+
+model Payment {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  code String
+
+  clientId String? @db.Uuid
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  bookingId String?  @db.Uuid
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  saleId    String?  @db.Uuid
+  sale      Sale?    @relation(fields: [saleId], references: [id])
+
+  methodId String        @db.Uuid
+  method   PaymentMethod @relation(fields: [methodId], references: [id])
+
+  cashSessionId String?      @db.Uuid
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id])
+
+  amount    Decimal @db.Decimal(14, 2)
+  feeAmount Decimal @default(0) @db.Decimal(14, 2)
+  netAmount Decimal @db.Decimal(14, 2)
+
+  status PaymentTxStatus @default(COMPLETED)
+
+  /// Datos de pasarela.
+  gatewayProvider    String?
+  gatewayPaymentId   String?
+  gatewayStatus      String?
+  gatewayRawResponse Json?
+
+  /// Fecha estimada de acreditación (hoy + settlementDays).
+  settlementDate DateTime? @db.Date
+  settledAt      DateTime?
+
+  refundedAmount Decimal @default(0) @db.Decimal(14, 2)
+  refundedAt     DateTime?
+  refundReason   String?
+
+  notes       String?
+  receivedById String?  @db.Uuid
+  paidAt      DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cashMovements CashMovement[]
+  accountEntries AccountEntry[]
+
+  @@unique([clubId, code])
+  @@unique([gatewayProvider, gatewayPaymentId])
+  @@index([clubId, paidAt])
+  @@index([clubId, clientId, paidAt])
+  @@index([clubId, status])
+  @@index([clubId, settlementDate, settledAt])
+  paymentOrder PaymentOrder?
+
+  @@map("payments")
+}
+
+enum PaymentTxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CHARGEBACK
+}
+
+/// Libro mayor de cuenta corriente del cliente. Append-only.
+model AccountEntry {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type      AccountEntryType
+  /// Positivo = a favor del cliente. Negativo = deuda.
+  amount    Decimal @db.Decimal(14, 2)
+  /// Saldo resultante. Permite extracto sin recalcular toda la historia.
+  balanceAfter Decimal @db.Decimal(14, 2)
+
+  concept   String
+  reference String?
+
+  bookingId String?  @db.Uuid
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  saleId    String?  @db.Uuid
+  sale      Sale?    @relation(fields: [saleId], references: [id])
+  paymentId String?  @db.Uuid
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  dueDate DateTime? @db.Date
+
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([clubId, clientId, createdAt])
+  @@index([clubId, dueDate])
+  @@map("account_entries")
+}
+
+enum AccountEntryType {
+  CHARGE
+  PAYMENT
+  CREDIT_NOTE
+  DEBIT_NOTE
+  ADJUSTMENT
+  REFUND
+  INTEREST
+}
+
+// ============================================================================
+// SECCIÓN 11 — TESORERÍA Y GASTOS
+// ============================================================================
+
+model BankAccount {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  bankName    String
+  accountName String
+  accountType BankAccountType @default(CHECKING)
+  cbu         String?
+  alias       String?
+  accountNumber String?
+  currency    String @default("ARS")
+
+  /// Cache del saldo. Fuente de verdad: BankTransaction.
+  currentBalance Decimal @default(0) @db.Decimal(14, 2)
+
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  transactions   BankTransaction[]
+  paymentMethods PaymentMethod[]
+
+  @@index([clubId, isActive])
+  @@map("bank_accounts")
+}
+
+enum BankAccountType {
+  CHECKING
+  SAVINGS
+  VIRTUAL_WALLET
+}
+
+/// Movimientos bancarios importados o manuales, para conciliación.
+model BankTransaction {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  accountId String      @db.Uuid
+  account   BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  date        DateTime @db.Date
+  description String
+  reference   String?
+  amount      Decimal  @db.Decimal(14, 2) // signado
+  balanceAfter Decimal? @db.Decimal(14, 2)
+
+  /// Huella para idempotencia en importaciones repetidas de extractos.
+  fingerprint String
+
+  isReconciled   Boolean   @default(false)
+  reconciledAt   DateTime?
+  reconciledWith String? // paymentId | expenseId
+
+  source TransactionSource @default(MANUAL)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clubId, accountId, fingerprint])
+  @@index([clubId, accountId, date])
+  @@index([clubId, isReconciled])
+  @@map("bank_transactions")
+}
+
+enum TransactionSource {
+  MANUAL
+  IMPORT_CSV
+  IMPORT_XLSX
+  API
+}
+
+model Supplier {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  name      String
+  legalName String?
+  taxId     String?
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+
+  /// Cache: cuánto se le debe.
+  currentBalance Decimal @default(0) @db.Decimal(14, 2)
+
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  expenses Expense[]
+
+  // taxId: unique parcial en SQL (nullable).
+  @@index([clubId, isActive])
+  @@map("suppliers")
+}
+
+model ExpenseCategory {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  name     String
+  /// Fijo vs variable: necesario para punto de equilibrio.
+  isFixed  Boolean @default(false)
+  sortOrder Int    @default(0)
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  expenses Expense[]
+
+  @@unique([clubId, name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  code String
+
+  categoryId String?          @db.Uuid
+  category   ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  supplierId String?          @db.Uuid
+  supplier   Supplier?        @relation(fields: [supplierId], references: [id])
+
+  concept     String
+  description String?
+  amount      Decimal @db.Decimal(14, 2)
+  taxAmount   Decimal @default(0) @db.Decimal(14, 2)
+  total       Decimal @db.Decimal(14, 2)
+
+  date    DateTime  @db.Date
+  dueDate DateTime? @db.Date
+
+  status ExpenseStatus @default(PENDING)
+  paidAt DateTime?
+
+  documentType   String? // "FACTURA_A" | "TICKET" | "RECIBO"
+  documentNumber String?
+  attachmentUrl  String?
+
+  createdById String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([clubId, code])
+  @@index([clubId, date])
+  @@index([clubId, status, dueDate])
+  @@index([clubId, categoryId])
+  @@map("expenses")
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  CANCELLED
+}
+
+// ============================================================================
+// SECCIÓN 12 — FACTURACIÓN (preparado para ARCA/AFIP)
+//
+// DECISIÓN: modelado ahora aunque se implemente en v2. Agregar CAE y
+// puntos de venta después obliga a migrar facturas ya emitidas.
+// ============================================================================
+
+
+
+
+
+// ============================================================================
+// SECCIÓN 13 — TORNEOS
+// ============================================================================
+
+model Tournament {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  imageUrl    String?
+
+  format     TournamentFormat @default(ELIMINATION)
+  category   String?
+  skillLevel SkillLevel?
+
+  registrationOpensAt  DateTime?
+  registrationClosesAt DateTime?
+  startsAt DateTime
+  endsAt   DateTime?
+
+  maxTeams      Int     @default(16)
+  entryFee      Decimal @default(0) @db.Decimal(14, 2)
+  prizeDescription String?
+  rules         String?
+
+  status TournamentStatus @default(DRAFT)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  teams    TournamentTeam[]
+  matches  TournamentMatch[]
+  bookings Booking[]
+
+  @@index([clubId, status, startsAt])
+  @@map("tournaments")
+}
+
+enum TournamentFormat {
+  ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  GROUPS_PLAYOFF
+  AMERICANO
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+model TournamentTeam {
+  id           String     @id @default(uuid()) @db.Uuid
+  clubId       String     @db.Uuid
+  tournamentId String     @db.Uuid
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  name String
+
+  seed          Int?
+  groupName     String?
+  paymentStatus PaymentStatus @default(UNPAID)
+
+  played Int @default(0)
+  won    Int @default(0)
+  lost   Int @default(0)
+  points Int @default(0)
+  finalPosition Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members    TournamentTeamMember[]
+  homeMatches TournamentMatch[] @relation("HomeTeam")
+  awayMatches TournamentMatch[] @relation("AwayTeam")
+
+  @@index([clubId, tournamentId])
+  @@map("tournament_teams")
+}
+
+model TournamentTeamMember {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  teamId String @db.Uuid
+  team   TournamentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, clientId])
+  @@index([clubId, clientId])
+  @@map("tournament_team_members")
+}
+
+model TournamentMatch {
+  id           String     @id @default(uuid()) @db.Uuid
+  clubId       String     @db.Uuid
+  tournamentId String     @db.Uuid
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  round       String // "Octavos" | "Grupo A - Fecha 1"
+  roundNumber Int    @default(1)
+  matchNumber Int    @default(1)
+
+  homeTeamId String?         @db.Uuid
+  homeTeam   TournamentTeam? @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId String?         @db.Uuid
+  awayTeam   TournamentTeam? @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  scheduledAt DateTime?
+  courtId     String?   @db.Uuid
+
+  /// [[6,4],[3,6],[7,5]]
+  scoreSets Json?
+  winnerTeamId String? @db.Uuid
+
+  status MatchStatus @default(SCHEDULED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId, tournamentId, roundNumber])
+  @@map("tournament_matches")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+  WALKOVER
+  CANCELLED
+}
+
+// ============================================================================
+// SECCIÓN 14 — NOTIFICACIONES Y AUDITORÍA
+// ============================================================================
+
+model Notification {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  clientId String? @db.Uuid
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId   String? @db.Uuid
+
+  channel NotificationChannel
+  type    NotificationType
+
+  title    String
+  body     String
+  /// Deep link al recurso.
+  actionUrl String?
+  metadata Json?
+
+  status NotificationStatus @default(PENDING)
+  sentAt DateTime?
+  readAt DateTime?
+  error  String?
+  retryCount Int @default(0)
+
+  providerMessageId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([clubId, clientId, createdAt])
+  @@index([status, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  WHATSAPP
+  SMS
+  IN_APP
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_RESCHEDULED
+  BOOKING_REMINDER
+  BOOKING_INVITATION
+  WAITLIST_AVAILABLE
+  PAYMENT_RECEIVED
+  PAYMENT_DUE
+  MEMBERSHIP_EXPIRING
+  TOURNAMENT_UPDATE
+  PROMOTION
+  BIRTHDAY
+  SYSTEM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+/// Auditoría transversal. Append-only, sin updatedAt ni deletedAt.
+/// Particionar por mes cuando supere ~50M filas.
+model AuditLog {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  userId String? @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id])
+  /// Snapshot: si el usuario se borra, el log conserva quién fue.
+  actorName String?
+  actorRole String?
+
+  action     AuditAction
+  entityType String // "Booking" | "Payment" | "Client"
+  entityId   String? @db.Uuid
+
+  /// Solo campos que cambiaron: { "status": ["PENDING","CONFIRMED"] }
+  changes Json?
+  reason  String?
+
+  ipAddress String?
+  userAgent String?
+  requestId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([clubId, entityType, entityId, createdAt])
+  @@index([clubId, userId, createdAt])
+  @@index([clubId, createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  EXPORT
+  PERMISSION_CHANGE
+  CASH_OPEN
+  CASH_CLOSE
+  PRICE_CHANGE
+  REFUND
+  VOID
+}
+
+
+// ============================================================================
+// PAGOS ONLINE — Mercado Pago (marketplace: cada club cobra a su cuenta)
+// ============================================================================
+
+/// Conexión OAuth de un club con su procesador de pagos.
+model ClubPaymentIntegration {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  provider PaymentProvider @default(MERCADO_PAGO)
+
+  providerAccountId String?
+
+  accessTokenEnc   String? @db.Text
+  refreshTokenEnc  String? @db.Text
+  webhookSecretEnc String? @db.Text
+  publicKey        String?
+
+  expiresAt DateTime?
+  scope     String?
+
+  status IntegrationStatus @default(PENDING)
+
+  connectedAt DateTime?
+  lastSyncAt  DateTime?
+  lastError   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  orders PaymentOrder[]
+
+  @@unique([clubId, provider])
+  @@index([providerAccountId])
+  @@map("club_payment_integrations")
+}
+
+/// Orden de pago online: puente entre una reserva sin pagar y el Payment.
+model PaymentOrder {
+  id     String @id @default(uuid()) @db.Uuid
+  clubId String @db.Uuid
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  integrationId String                 @db.Uuid
+  integration   ClubPaymentIntegration @relation(fields: [integrationId], references: [id])
+
+  bookingId String?  @db.Uuid
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  saleId    String?  @db.Uuid
+  sale      Sale?    @relation(fields: [saleId], references: [id])
+  clientId  String?  @db.Uuid
+  client    Client?  @relation(fields: [clientId], references: [id])
+
+  amount   Decimal @db.Decimal(14, 2)
+  currency String  @default("ARS")
+  concept  String
+
+  status PaymentOrderStatus @default(PENDING)
+
+  externalReference String @unique
+
+  provider           PaymentProvider @default(MERCADO_PAGO)
+  preferenceId       String?
+  initPoint          String?         @db.Text
+  providerPaymentId  String?         @unique
+  providerStatus     String?
+  providerRawWebhook Json?
+
+  paymentId String?  @unique @db.Uuid
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  expiresAt   DateTime?
+  approvedAt  DateTime?
+  createdById String?   @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubId, status])
+  @@index([clubId, createdAt])
+  @@map("payment_orders")
+}
+
+enum PaymentProvider {
+  MERCADO_PAGO
+  STRIPE
+  OTHER
+}
+
+enum IntegrationStatus {
+  PENDING
+  CONNECTED
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+enum PaymentOrderStatus {
+  PENDING
+  APPROVED
+  IN_PROCESS
+  REJECTED
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}

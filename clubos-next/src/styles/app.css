@@ -1,0 +1,186 @@
+/* app.css — estructura base de las pantallas internas de ClubOS
+   (agenda, caja, clientes, buffet, reportes, tesorería, torneos).
+
+   Nota: estos estilos son una base funcional para que las pantallas se vean
+   ordenadas y navegables. No pretenden ser el diseño final; el objetivo es que
+   la app sea usable mientras se desarrolla el sistema visual definitivo. */
+
+:root {
+  --pad-red: #c8443e;
+  --pad-red-dark: #a5352f;
+  --pad-sky: #8fd3f4;
+  --pad-dark: #2b3a47;
+  --pad-slate: #4a6070;
+  --pad-cream: #f2efe4;
+  --pad-lime: #edf56b;
+
+  --app-bg: #f4f6f8;
+  --app-surface: #ffffff;
+  --app-border: #e2e7ec;
+  --app-text: #2b3a47;
+  --app-muted: #6b7c8a;
+  --app-radius: 12px;
+  --app-shadow: 0 1px 3px rgba(43, 58, 71, 0.08);
+}
+
+/* Contenedor general */
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+/* Barra superior */
+.app-header,
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.app-brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--pad-red);
+  flex: none;
+}
+
+/* Navegación */
+.app-nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.app-nav a,
+.nav-link {
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: var(--app-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.app-nav a:hover,
+.nav-link:hover {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+.app-nav a.active,
+.nav-link.active {
+  background: var(--pad-red);
+  color: #fff;
+}
+
+/* Área de contenido */
+.app-main,
+.app-content {
+  flex: 1;
+  padding: 24px;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Tarjetas / paneles */
+.card,
+.panel {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  box-shadow: var(--app-shadow);
+  padding: 20px;
+}
+
+/* Botones */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover {
+  background: var(--app-bg);
+}
+.btn-primary {
+  background: var(--pad-red);
+  border-color: var(--pad-red);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--pad-red-dark);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Inputs */
+.input,
+input[type='text'],
+input[type='email'],
+input[type='number'],
+input[type='date'],
+input[type='time'],
+select,
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--app-text);
+}
+.input:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--pad-red);
+  box-shadow: 0 0 0 3px rgba(200, 68, 62, 0.12);
+}
+
+/* Utilidades */
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.muted {
+  color: var(--app-muted);
+}
+.spacer {
+  flex: 1;
+}

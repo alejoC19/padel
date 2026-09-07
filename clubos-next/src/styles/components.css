@@ -1,0 +1,375 @@
+/* =========================================================================
+   ClubOS — Componentes (parte 2)
+   -------------------------------------------------------------------------
+   Completa las clases que usa el JSX y que no quedaron cubiertas por
+   design-system.css: barra de fecha de la agenda, drawer de cliente,
+   arqueo/denominaciones de caja, campos de formulario, gastos de tesorería,
+   totales del POS, y detalles varios.
+
+   Solo apariencia; no toca lógica. Usa los tokens --ds-* / --sp-* / etc.
+   definidos en design-system.css.
+   ========================================================================= */
+
+/* =========================================================================
+   AGENDA — barra de fecha y grilla (wrappers)
+   ========================================================================= */
+.datebar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md, 12px);
+  flex-wrap: wrap;
+}
+.datebar-spacer { flex: 1; }
+.date-nav {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--ds-border, #e2e7ec);
+  border-radius: var(--r-md, 10px);
+  overflow: hidden;
+}
+.date-nav button {
+  border: none;
+  background: var(--ds-surface, #fff);
+  padding: 8px 11px;
+  cursor: pointer;
+  color: var(--ds-text, #2b3a47);
+  transition: background var(--t-fast, 0.12s);
+}
+.date-nav button:hover { background: var(--ds-surface-2, #f8fafb); }
+.current-date {
+  font-size: var(--fs-h3, 18px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: capitalize;
+}
+.date-relative {
+  font-size: var(--fs-caption, 12px);
+  color: var(--ds-muted, #6b7c8a);
+  font-weight: 600;
+}
+.day-stats {
+  display: flex;
+  gap: var(--sp-lg, 16px);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Grilla de la agenda: wrappers de scroll */
+.grid-wrap {
+  border: 1px solid var(--ds-border, #e2e7ec);
+  border-radius: var(--r-lg, 14px);
+  overflow: hidden;
+  background: var(--ds-surface, #fff);
+}
+.grid-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+.grid {
+  display: flex;
+  position: relative;
+  width: 100%;
+  min-width: max-content;
+}
+/* El gutter (regla horaria) tiene ancho fijo; las canchas se reparten el resto. */
+.grid .gutter { flex: 0 0 56px; }
+.grid .court-col {
+  flex: 1 1 0;
+  min-width: 160px;
+}
+.gutter {
+  border-right: 1px solid var(--ds-border, #e2e7ec);
+  background: var(--ds-surface, #fff);
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  min-width: 56px;
+}
+
+/* Cancha: encabezado con color */
+.court-name { font-weight: 700; font-size: var(--fs-small, 13px); }
+.court-meta { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); }
+.court-swatch {
+  width: 10px; height: 10px; border-radius: 3px; flex: none;
+  display: inline-block; margin-right: 6px;
+}
+
+/* Etiqueta "fantasma" del bloque que se arrastra */
+.ghost-label {
+  font-size: var(--fs-caption, 12px);
+  font-weight: 700;
+  color: #fff;
+}
+
+/* =========================================================================
+   CAJA — apertura y arqueo por denominaciones
+   ========================================================================= */
+.open-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md, 12px);
+  max-width: 420px;
+}
+.denom-grid {
+  display: grid;
+  grid-template-columns: 1fr 70px 1fr;
+  gap: var(--sp-sm, 8px) var(--sp-md, 12px);
+  align-items: center;
+}
+.denom-row { display: contents; }
+.denom-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+.denom-count { width: 100%; text-align: center; }
+.denom-input { width: 100%; text-align: center; }
+.denom-subtotal {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-muted, #6b7c8a);
+}
+.quick-amount {
+  padding: 8px;
+  border: 1px solid var(--ds-border, #e2e7ec);
+  border-radius: var(--r-sm, 6px);
+  background: var(--ds-surface, #fff);
+  cursor: pointer;
+  font-weight: 700;
+  transition: all var(--t-fast, 0.12s);
+}
+.quick-amount:hover {
+  border-color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #c8443e);
+}
+
+/* =========================================================================
+   TOTALES (POS / caja)
+   ========================================================================= */
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+}
+.total-label { color: var(--ds-muted, #6b7c8a); font-size: var(--fs-body, 14px); }
+.total-value { font-weight: 800; font-variant-numeric: tabular-nums; }
+.total-hint { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); }
+.fee { color: var(--ds-warning, #c77d20); font-size: var(--fs-caption, 12px); }
+
+/* =========================================================================
+   CLIENTES — drawer de perfil
+   ========================================================================= */
+.drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(43, 58, 71, 0.5);
+  z-index: 40;
+  animation: ds-fade var(--t-fast, 0.12s);
+}
+.drawer-head {
+  padding: var(--sp-lg, 16px);
+  border-bottom: 1px solid var(--ds-border, #e2e7ec);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md, 12px);
+}
+.drawer-title { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 700; text-transform: uppercase; }
+.drawer-name { font-size: var(--fs-h2, 22px); font-weight: 800; letter-spacing: -0.01em; }
+.drawer-meta { display: flex; gap: var(--sp-md, 12px); flex-wrap: wrap; color: var(--ds-muted, #6b7c8a); font-size: var(--fs-small, 13px); margin-top: 4px; }
+.drawer-body { flex: 1; overflow-y: auto; padding: var(--sp-lg, 16px); display: flex; flex-direction: column; gap: var(--sp-lg, 16px); }
+.drawer-section { display: flex; flex-direction: column; gap: var(--sp-sm, 8px); }
+.drawer-section > h3 {
+  font-size: var(--fs-caption, 12px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ds-muted, #6b7c8a);
+  margin: 0;
+}
+.drawer-loading { padding: var(--sp-2xl, 40px); text-align: center; color: var(--ds-muted, #6b7c8a); }
+
+/* Duplicados al crear cliente */
+.dup-list { display: flex; flex-direction: column; gap: var(--sp-sm, 8px); }
+.dup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md, 12px);
+  padding: var(--sp-md, 12px);
+  border: 1px solid var(--ds-warning, #c77d20);
+  background: var(--ds-warning-soft, #fbf1e0);
+  border-radius: var(--r-md, 10px);
+}
+
+/* Cuenta corriente / saldos en el drawer */
+.account-label { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 600; }
+.account-value { font-size: var(--fs-h3, 18px); font-weight: 800; font-variant-numeric: tabular-nums; }
+.account-hint { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); }
+
+/* Mini estadísticas del cliente */
+.stat-box-label { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 600; }
+
+/* =========================================================================
+   TESORERÍA — gastos
+   ========================================================================= */
+.expense-list { display: flex; flex-direction: column; gap: var(--sp-sm, 8px); }
+.expense-main { display: flex; flex-direction: column; }
+.expense-concept { font-weight: 600; }
+.expense-amount { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* =========================================================================
+   FORMULARIOS (sistema unificado)
+   ========================================================================= */
+.field-group { display: flex; flex-direction: column; gap: var(--sp-md, 12px); }
+.field-block { display: flex; flex-direction: column; gap: 5px; }
+.field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-md, 12px); }
+.field-value { font-weight: 700; }
+.field-hint { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); }
+.field-error { font-size: var(--fs-caption, 12px); color: var(--ds-danger, #c0392b); font-weight: 600; }
+.dialog-title { font-size: var(--fs-h3, 18px); font-weight: 800; margin: 0 0 var(--sp-md, 12px); }
+.dialog-actions {
+  display: flex;
+  gap: var(--sp-sm, 8px);
+  justify-content: flex-end;
+  margin-top: var(--sp-lg, 16px);
+}
+
+/* =========================================================================
+   TORNEOS — detalle, carga de resultados
+   ========================================================================= */
+.tournament-detail { display: flex; flex-direction: column; gap: var(--sp-xl, 24px); }
+.match-score-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--ds-border, #e2e7ec);
+  border-radius: var(--r-sm, 6px);
+  background: var(--ds-surface, #fff);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: var(--fs-small, 13px);
+}
+.match-score-btn:hover { border-color: var(--ds-primary, #c8443e); color: var(--ds-primary, #c8443e); }
+.score-actions { display: flex; gap: var(--sp-sm, 8px); justify-content: flex-end; margin-top: var(--sp-md, 12px); }
+.is-scoring { box-shadow: inset 0 0 0 2px var(--ds-primary, #c8443e); }
+
+/* =========================================================================
+   MODO DEMO — badge y avisos
+   ========================================================================= */
+.demo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill, 999px);
+  background: var(--ds-warning-soft, #fbf1e0);
+  color: var(--ds-warning, #c77d20);
+  font-size: var(--fs-caption, 12px);
+  font-weight: 700;
+}
+.demo-note {
+  background: var(--ds-info-soft, #e8f1fa);
+  border: 1px solid var(--ds-info, #2b6cb0);
+  border-radius: var(--r-md, 10px);
+  padding: var(--sp-md, 12px);
+  font-size: var(--fs-small, 13px);
+  color: var(--ds-text-2, #4a5c6a);
+}
+.demo-link { color: var(--ds-primary, #c8443e); font-weight: 700; text-decoration: none; }
+.demo-link:hover { text-decoration: underline; }
+
+/* =========================================================================
+   LOGIN — selector de club (paso 2)
+   ========================================================================= */
+.clubs { display: flex; flex-direction: column; gap: var(--sp-sm, 8px); }
+.club {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md, 12px);
+  padding: var(--sp-md, 12px);
+  border: 1px solid var(--ds-border, #e2e7ec);
+  border-radius: var(--r-md, 10px);
+  background: var(--ds-surface, #fff);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color var(--t-fast, 0.12s), box-shadow var(--t-fast, 0.12s);
+}
+.club:hover { border-color: var(--ds-primary, #c8443e); box-shadow: var(--sh-subtle, 0 1px 2px rgba(43,58,71,0.06)); }
+.club-mark {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--ds-primary, #c8443e); color: #fff;
+  display: grid; place-items: center; font-weight: 800; flex: none;
+}
+.club-body { flex: 1; display: flex; flex-direction: column; }
+.club-name { font-weight: 700; }
+.club-role { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); }
+.club-arrow { color: var(--ds-muted, #6b7c8a); }
+.club-warn { font-size: var(--fs-caption, 12px); color: var(--ds-warning, #c77d20); font-weight: 700; }
+.auth-link-muted { color: var(--ds-muted, #6b7c8a); font-size: var(--fs-small, 13px); }
+
+/* =========================================================================
+   MISC
+   ========================================================================= */
+.k { font-weight: 600; color: var(--ds-muted, #6b7c8a); }
+.v { font-weight: 700; }
+
+/* =========================================================================
+   NAVEGACIÓN MOBILE — hamburguesa + drawer
+   ========================================================================= */
+/* El hamburguesa vive oculto en desktop; aparece en <=768px. */
+.nav-burger {
+  display: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ds-text, #2b3a47);
+  padding: 6px;
+  border-radius: var(--r-sm, 6px);
+}
+.nav-burger:hover { background: var(--ds-surface-2, #f8fafb); }
+
+.nav-drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(43, 58, 71, 0.5);
+  z-index: 50;
+  animation: ds-fade var(--t-fast, 0.12s);
+}
+.nav-drawer {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: min(280px, 84vw);
+  background: var(--ds-surface, #fff);
+  box-shadow: var(--sh-modal, 0 20px 50px rgba(43,58,71,0.28));
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  animation: nav-slide-in var(--t-normal, 0.2s);
+}
+@keyframes nav-slide-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+.nav-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-lg, 16px);
+  border-bottom: 1px solid var(--ds-border, #e2e7ec);
+}
+.nav-drawer-close {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--ds-muted, #6b7c8a); padding: 4px; border-radius: var(--r-sm, 6px);
+}
+.nav-drawer-close:hover { background: var(--ds-surface-2, #f8fafb); }
+.nav-drawer-links { display: flex; flex-direction: column; padding: var(--sp-sm, 8px); gap: 2px; }
+.nav-drawer-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md, 12px);
+  padding: 12px 14px;
+  border-radius: var(--r-md, 10px);
+  color: var(--ds-text, #2b3a47);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  transition: background var(--t-fast, 0.12s);
+}
+.nav-drawer-link:hover { background: var(--ds-surface-2, #f8fafb); }
+.nav-drawer-link.is-active { background: var(--ds-primary-soft, #fbeceb); color: var(--ds-primary, #c8443e); }
+
+/* En móvil: mostrar hamburguesa, ocultar la nav horizontal */
+@media (max-width: 768px) {
+  .nav-burger { display: inline-flex; }
+}

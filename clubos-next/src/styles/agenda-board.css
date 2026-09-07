@@ -1,0 +1,156 @@
+/* =========================================================================
+   ClubOS — Agenda estilo "app de reserva" (board)
+   Foto/color de cancha + selector + turnos como tarjetas con estado.
+   Pensada para verse vendible y funcionar en desktop y mobile.
+   ========================================================================= */
+
+.board {
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* --- Hero: imagen de la cancha + selector --- */
+.board-hero { position: relative; margin-bottom: 20px; }
+.board-hero-img {
+  height: 150px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 -60px 80px rgba(0,0,0,0.28);
+}
+.board-court-picker {
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #17202b;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(23,32,43,0.32);
+  cursor: pointer;
+  font-size: 16px;
+  white-space: nowrap;
+}
+.board-court-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.board-court-name { font-weight: 800; }
+.board-court-env { font-size: 13px; opacity: 0.7; }
+.board-chevron { transition: transform 0.15s; margin-left: 2px; }
+.board-chevron.open { transform: rotate(180deg); }
+
+/* Lista desplegable de canchas */
+.board-court-list {
+  position: absolute;
+  left: 50%;
+  bottom: -20px;
+  transform: translateX(-50%) translateY(100%);
+  margin-top: 8px;
+  background: #fff;
+  border: 1px solid var(--app-border, #e2e7ec);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(23,32,43,0.22);
+  padding: 6px;
+  z-index: 10;
+  min-width: 240px;
+}
+.board-court-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--app-text, #2b3a47);
+}
+.board-court-opt:hover { background: var(--app-bg, #f4f6f8); }
+.board-court-opt.is-active { background: #eef4ff; }
+
+/* --- Lista de turnos --- */
+.board-slots { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
+
+.slot-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1.5px solid var(--app-border, #e2e7ec);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.1s, box-shadow 0.12s, border-color 0.12s;
+}
+.slot-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(23,32,43,0.1); }
+
+/* Franja horaria izquierda */
+.slot-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--app-text, #2b3a47);
+  min-width: 62px;
+  border-right: 1px solid var(--app-border, #e2e7ec);
+  padding-right: 14px;
+  line-height: 1.25;
+}
+.slot-time span:last-child { color: #93a1ac; font-weight: 700; font-size: 15px; }
+
+.slot-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.slot-state { display: inline-flex; align-items: center; gap: 7px; font-weight: 800; font-size: 15px; }
+.slot-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.slot-name { font-weight: 700; color: var(--app-text, #2b3a47); }
+.slot-sub { font-size: 13px; color: #6b7c8a; }
+.slot-book { font-weight: 800; color: #2e7d5b; font-size: 15px; flex: none; }
+.slot-note { color: #2b6cb0; font-size: 16px; flex: none; }
+
+/* Tonos por estado (fondo suave + acento) */
+.slot-state.ok     { color: #2e7d5b; }
+.slot-state.warn   { color: #c77d20; }
+.slot-state.danger { color: #c0392b; }
+.slot-state.muted  { color: #93a1ac; }
+.slot-dot.ok     { background: #2e7d5b; }
+.slot-dot.warn   { background: #c77d20; }
+.slot-dot.danger { background: #c0392b; }
+.slot-dot.muted  { background: #93a1ac; }
+
+.slot-card.is-free   { background: #f4faf6; border-color: #d6ebdd; }
+.slot-card.is-ok     { background: #fbecec; border-color: #f2d6d3; }
+.slot-card.is-warn   { background: #fdf6ea; border-color: #f3e2c4; }
+.slot-card.is-danger { background: #fbe9e7; border-color: #f2cfca; }
+.slot-card.is-muted  { background: #f6f8f9; border-color: #e6ebee; opacity: 0.75; }
+
+.board-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6b7c8a;
+  border: 1px dashed var(--app-border, #e2e7ec);
+  border-radius: 14px;
+}
+
+/* --- Mobile --- */
+@media (max-width: 640px) {
+  .board-hero-img { height: 120px; }
+  .slot-card { padding: 14px; gap: 12px; }
+  .slot-time { min-width: 54px; font-size: 16px; padding-right: 10px; }
+  .slot-book { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot-card:hover { transform: none; }
+  .board-chevron { transition: none; }
+}
