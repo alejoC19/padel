@@ -20,6 +20,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { HealthModule } from './health/health.module';
 import { PublicModule } from './public/public.module';
+import { BillingModule } from './billing/billing.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -61,6 +62,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     NotificationsModule,
     HealthModule,
     PublicModule,
+    BillingModule,
 
     // Módulos de dominio se agregan acá:
     // BookingsModule, ClientsModule, CashModule, AgendaModule, ...
