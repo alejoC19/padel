@@ -55,7 +55,11 @@ export class PublicController {
     return this.svc.reservar(slug, body);
   }
 
-  /** Reservas del jugador, por teléfono. */
+  /**
+   * Reservas del jugador, por teléfono. Consulta de bajo valor a propósito:
+   * el teléfono no es secreto, así que esto NO devuelve precio ni el
+   * accessToken — solo confirma qué reservó, para encontrar el comprobante.
+   */
   @Get(':slug/mis-reservas')
   misReservas(
     @Param('slug') slug: string,
@@ -64,14 +68,27 @@ export class PublicController {
     return this.svc.misReservas(slug, phone);
   }
 
-  /** Cancelar una reserva del jugador (verifica dueño por teléfono). */
+  /**
+   * Detalle completo / comprobante de una reserva. Requiere el accessToken
+   * que se entregó al crear la reserva (no el teléfono).
+   */
+  @Get(':slug/reservas/:id')
+  consultar(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Query('token') token: string,
+  ) {
+    return this.svc.consultar(slug, id, token);
+  }
+
+  /** Cancelar una reserva del jugador (requiere el accessToken de la reserva). */
   @Post(':slug/reservas/:id/cancelar')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   cancelar(
     @Param('slug') slug: string,
     @Param('id') id: string,
-    @Body() body: { phone: string },
+    @Body() body: { accessToken: string },
   ) {
-    return this.svc.cancelar(slug, id, body.phone);
+    return this.svc.cancelar(slug, id, body.accessToken);
   }
 }

@@ -901,6 +901,14 @@ model Booking {
   source      BookingSource @default(ADMIN)
   createdById String?       @db.Uuid
 
+  /// Prueba de titularidad para el booking público (jugador sin cuenta).
+  /// Se guarda el HASH (SHA-256) de un token aleatorio de 256 bits; el token
+  /// crudo se devuelve UNA vez al crear la reserva y viaja por WhatsApp/email.
+  /// Reemplaza "bookingId + teléfono" como mecanismo de acceso: el teléfono
+  /// no es secreto (lo puede saber cualquiera que conozca al jugador), este
+  /// token sí. Solo se genera para reservas de origen público (ONLINE).
+  accessTokenHash String? @unique @db.VarChar(64)
+
   // --- Recurrencia (turnos fijos: "todos los martes 20hs") ---
   recurrenceId       String? @db.Uuid
   recurrenceRule     String? // RRULE RFC-5545

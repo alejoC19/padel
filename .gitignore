@@ -32,3 +32,6 @@ npm-debug.log*
 
 # Prisma
 clubos/prisma/dev.db*
+
+# Agent tooling scratch state (background-agent worktrees, session data)
+.claude/

@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgendaService } from '../bookings/services/agenda.service';
 import { ClubConfigService } from '../bookings/services/club-config.service';
@@ -33,6 +33,34 @@ export class PublicService {
     private readonly config: ClubConfigService,
     private readonly booking: BookingService,
   ) {}
+
+  /**
+   * Token de acceso a una reserva pública.
+   *
+   * 256 bits aleatorios (no adivinable, no derivado de ningún dato de la
+   * reserva). Se guarda el hash SHA-256; el crudo se devuelve una única vez
+   * (al crear la reserva) y es responsabilidad del jugador guardarlo — es su
+   * "comprobante". Reemplaza a "bookingId + teléfono": el teléfono no es un
+   * secreto (lo puede saber cualquiera que conozca al jugador o lo intente
+   * adivinar dentro del rate-limit), este token sí.
+   */
+  private generateAccessToken(): { raw: string; hash: string } {
+    const raw = randomBytes(32).toString('hex');
+    const hash = createHash('sha256').update(raw).digest('hex');
+    return { raw, hash };
+  }
+
+  private hashAccessToken(raw: string): string {
+    return createHash('sha256').update(raw).digest('hex');
+  }
+
+  /** Compara hashes en tiempo constante (evita timing attacks de fuerza bruta). */
+  private tokensMatch(a: string, b: string): boolean {
+    const bufA = Buffer.from(a, 'hex');
+    const bufB = Buffer.from(b, 'hex');
+    if (bufA.length !== bufB.length) return false;
+    return timingSafeEqual(bufA, bufB);
+  }
 
   /** Resuelve el club por slug (sin tenant, es dato de plataforma). */
   private async resolveClub(slug: string) {
@@ -194,12 +222,22 @@ export class PublicService {
         owner.userId,
       );
 
+      // Token de acceso: se genera acá (no en BookingService, que también
+      // sirve al panel donde esto no aplica) y se guarda el hash. El crudo
+      // se devuelve UNA sola vez en esta respuesta.
+      const { raw: accessToken, hash: accessTokenHash } = this.generateAccessToken();
+      await this.prisma.db.booking.update({
+        where: { id: result.id },
+        data: { accessTokenHash },
+      });
+
       return {
         ok: true,
         booking: {
           id: result.id,
           code: result.code,
           totalPrice: result.totalPrice,
+          accessToken,
         },
       };
     });
@@ -209,8 +247,14 @@ export class PublicService {
    * Reservas de un jugador, identificado por su teléfono.
    *
    * Sin cuenta ni login: la app guarda el teléfono en el celular y pregunta
-   * "¿qué reservó este teléfono?". Devuelve las reservas de hoy en adelante,
-   * ordenadas por fecha, con los datos de la cancha.
+   * "¿qué reservó este teléfono?". Devuelve las reservas de hoy en adelante.
+   *
+   * OJO — el teléfono NO es un secreto (lo sabe cualquiera que conozca al
+   * jugador, o se puede intentar adivinar dentro del rate-limit). Por eso
+   * esta consulta es deliberadamente de bajo valor: ni precio ni el
+   * accessToken viajan acá. Para el detalle completo o para cancelar, hace
+   * falta el accessToken que se entregó al crear la reserva (ver
+   * `consultar`/`cancelar`).
    */
   async misReservas(slug: string, phone: string) {
     const club = await this.resolveClub(slug);
@@ -234,26 +278,20 @@ export class PublicService {
         },
         orderBy: { startsAt: 'asc' },
         select: {
-          id: true,
           code: true,
           startsAt: true,
           endsAt: true,
           status: true,
-          paymentStatus: true,
-          totalPrice: true,
           court: { select: { name: true, color: true } },
         },
       });
 
       return {
         reservas: rows.map((b) => ({
-          id: b.id,
           code: b.code,
           startsAt: b.startsAt,
           endsAt: b.endsAt,
           status: b.status,
-          paymentStatus: b.paymentStatus,
-          totalPrice: Number(b.totalPrice),
           courtName: b.court?.name ?? 'Cancha',
           courtColor: b.court?.color ?? null,
         })),
@@ -262,16 +300,76 @@ export class PublicService {
   }
 
   /**
+   * Detalle completo de una reserva (comprobante), por accessToken.
+   *
+   * Esta es la vía "segura" para ver precio/estado de pago/etc — a
+   * diferencia de `misReservas`, que solo confirma que algo existe.
+   */
+  async consultar(slug: string, bookingId: string, accessToken: string) {
+    const club = await this.resolveClub(slug);
+    if (!accessToken?.trim()) {
+      throw new NotFoundException('Reserva no encontrada.');
+    }
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      const booking = await this.prisma.db.booking.findFirst({
+        where: { id: bookingId },
+        select: {
+          id: true,
+          code: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          paymentStatus: true,
+          totalPrice: true,
+          paidAmount: true,
+          accessTokenHash: true,
+          court: { select: { name: true, color: true } },
+        },
+      });
+      this.assertOwnsToken(booking, accessToken);
+
+      return {
+        id: booking!.id,
+        code: booking!.code,
+        startsAt: booking!.startsAt,
+        endsAt: booking!.endsAt,
+        status: booking!.status,
+        paymentStatus: booking!.paymentStatus,
+        totalPrice: Number(booking!.totalPrice),
+        paidAmount: Number(booking!.paidAmount),
+        courtName: booking!.court?.name ?? 'Cancha',
+        courtColor: booking!.court?.color ?? null,
+      };
+    });
+  }
+
+  /** Tira NotFoundException si el token no corresponde a esta reserva. */
+  private assertOwnsToken(
+    booking: { accessTokenHash: string | null } | null,
+    accessToken: string,
+  ): void {
+    if (!booking || !booking.accessTokenHash) {
+      throw new NotFoundException('Reserva no encontrada.');
+    }
+    const given = this.hashAccessToken(accessToken.trim());
+    if (!this.tokensMatch(given, booking.accessTokenHash)) {
+      throw new NotFoundException('Reserva no encontrada.');
+    }
+  }
+
+  /**
    * Cancela una reserva del jugador.
    *
-   * Verifica que la reserva pertenezca al teléfono que la pide (para que nadie
-   * cancele reservas ajenas). Reusa el cancel del panel, que aplica la política
-   * de cancelación del club (reembolsos, etc.).
+   * Verifica que quien pide la cancelación tenga el accessToken que se le
+   * entregó al crear la reserva (no el teléfono — no es un secreto real).
+   * Reusa el cancel del panel, que aplica la política de cancelación del
+   * club (reembolsos, etc.).
    */
-  async cancelar(slug: string, bookingId: string, phone: string) {
+  async cancelar(slug: string, bookingId: string, accessToken: string) {
     const club = await this.resolveClub(slug);
-    if (!phone?.trim()) {
-      throw new BadRequestException('Falta el teléfono.');
+    if (!accessToken?.trim()) {
+      throw new BadRequestException('Falta el token de acceso de la reserva.');
     }
 
     const owner = await runWithoutTenancy(randomUUID(), async () =>
@@ -285,14 +383,11 @@ export class PublicService {
     }
 
     return runWithTenant(this.publicCtx(club.id), async () => {
-      // Verificar que la reserva sea de este teléfono.
       const booking = await this.prisma.db.booking.findFirst({
         where: { id: bookingId },
-        select: { id: true, client: { select: { phone: true } } },
+        select: { id: true, accessTokenHash: true },
       });
-      if (!booking || booking.client?.phone !== phone.trim()) {
-        throw new NotFoundException('Reserva no encontrada.');
-      }
+      this.assertOwnsToken(booking, accessToken);
 
       await this.booking.cancel(
         bookingId,
