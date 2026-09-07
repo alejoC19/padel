@@ -44,14 +44,22 @@ notifications/
 
 ## Puntos de enganche (dónde se emiten)
 
+- **Crear una reserva** (`BookingService.create`): encola `BOOKING_CONFIRMED`.
+  Un solo punto de enganche cubre tanto el mostrador como el portal público
+  (`PublicService.reservar` llama al mismo `create()`).
+- **Cancelar una reserva** (`BookingService.cancel`): encola `BOOKING_CANCELLED`.
+  Mismo criterio: cubre mostrador y cancelación del jugador desde el portal.
 - **Pago online aprobado** (`payments-gateway`): al confirmarse el webhook de
-  MP, se encola `PAYMENT_RECEIVED` + `BOOKING_CONFIRMED`. Ya está cableado.
+  MP, se encola `PAYMENT_RECEIVED` (más un `BOOKING_CONFIRMED` adicional,
+  histórico de cuando el pago online era el único disparador — quedó
+  redundante con el punto de arriba pero inofensivo: dos avisos de
+  "confirmada" en vez de uno si además pagó por MP).
 - **Recordatorios**: el `ReminderScheduler` los encola solo, buscando reservas
   que arrancan en ~24h y ~2h. No requiere que nadie lo llame.
-- **Pendiente de cablear** (ganchos listos, falta la llamada): confirmación al
-  crear una reserva pagada en mostrador (`booking.service.create`) y cancelación
-  (`booking.service`). Son una línea: `notifications.enqueueBookingConfirmed(...)`
-  dentro de la transacción, pasando el `tx`.
+
+Los tres primeros encolan FUERA de la transacción que crea/cancela/cobra la
+reserva (ya commiteó): si el enqueue falla, se loguea y no se revierte nada —
+perder un aviso no debe perder una reserva ni un pago.
 
 ## Configuración
 
@@ -102,9 +110,12 @@ volumen; si se vuelve crítico, agregar un estado `SENDING` intermedio.
 
 ## Lo que queda
 
-- **Cablear** confirmación/cancelación en `booking.service` (mostrador).
 - **Push** (el canal está en el enum; falta implementar `push.channel.ts` con
   FCM/APNs cuando haya app).
 - **Preferencias de notificación** por cliente (opt-out de recordatorios).
 - **Tests:** unit de plantillas y del parseo de teléfono; e2e del worker
   (encolar → procesar → estado). Fase 4.
+
+Cubierto por `test/integration/booking-notifications.int-spec.ts`: crear y
+cancelar una reserva encolan `BOOKING_CONFIRMED`/`BOOKING_CANCELLED` de
+verdad (prueba `BookingService` real, no una reimplementación).

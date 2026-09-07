@@ -10,8 +10,10 @@ import { BookingService } from './services/booking.service';
 import { PaymentService } from './services/payment.service';
 import { DocumentNumberService } from './services/document-number.service';
 import { CourtBlockService } from './services/court-block.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [AvailabilityController, BookingController, CourtBlockController],
   providers: [
     AvailabilityService,

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
@@ -21,6 +22,11 @@ import type {
   CreateBookingDto,
   RescheduleBookingDto,
 } from '../dto/booking.dto';
+import { NotificationsService } from '../../notifications/services/notifications.service';
+import {
+  formatBookingDate,
+  formatBookingTime,
+} from '../../notifications/services/format.util';
 
 /** Estados desde los que ya no se puede operar. */
 const TERMINAL_STATUSES = [
@@ -33,6 +39,8 @@ const TERMINAL_STATUSES = [
 
 @Injectable()
 export class BookingService {
+  private readonly log = new Logger(BookingService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
@@ -40,6 +48,7 @@ export class BookingService {
     private readonly config: ClubConfigService,
     private readonly payments: PaymentService,
     private readonly docNumber: DocumentNumberService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -134,7 +143,7 @@ export class BookingService {
           timezone: tz,
         });
 
-    return this.prisma.tenantTransaction(async (tx) => {
+    const result = await this.prisma.tenantTransaction(async (tx) => {
       const { code } = await this.docNumber.next(tx, clubId, 'BOOKING');
 
       const booking = await tx.booking.create({
@@ -271,6 +280,20 @@ export class BookingService {
         paidAmount,
       };
     });
+
+    // Fuera de la transacción (ya commiteó): si falla el envío, la reserva
+    // ya está creada y no hay nada que revertir — solo se pierde el aviso.
+    // Cubre tanto una reserva de mostrador como una del portal público
+    // (PublicService.reservar() llama a este mismo create()).
+    try {
+      await this.notifyBookingConfirmed(result.id);
+    } catch (err) {
+      this.log.warn(
+        `Reserva ${result.code} creada, pero falló al encolar el aviso: ${(err as Error).message}`,
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -286,7 +309,7 @@ export class BookingService {
     const club = await this.config.get(clubId);
     const policy = parsePolicy(club.settings);
 
-    return this.prisma.tenantTransaction(async (tx) => {
+    const result = await this.prisma.tenantTransaction(async (tx) => {
       const booking = await tx.booking.findFirst({
         where: { id: bookingId, deletedAt: null },
         select: {
@@ -408,6 +431,16 @@ export class BookingService {
         tierApplied: calc.tierApplied,
       };
     });
+
+    try {
+      await this.notifyBookingCancelled(bookingId);
+    } catch (err) {
+      this.log.warn(
+        `Reserva ${bookingId} cancelada, pero falló al encolar el aviso: ${(err as Error).message}`,
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -793,6 +826,82 @@ export class BookingService {
         lastBookingAt: new Date(),
       },
     });
+  }
+
+  /**
+   * Encola el aviso de confirmación de una reserva recién creada.
+   * Cubre tanto el mostrador como el portal público (mismo `create()`).
+   * Silencioso si la reserva no tiene cliente o el cliente no tiene contacto
+   * — eso ya lo resuelve `NotificationsService.enqueue`.
+   */
+  private async notifyBookingConfirmed(bookingId: string): Promise<void> {
+    const data = await this.loadNotificationData(bookingId);
+    if (!data) return;
+    await this.notifications.enqueueBookingConfirmed({
+      clubId: data.clubId,
+      clientId: data.clientId,
+      contact: data.contact,
+      data: data.bookingData,
+    });
+  }
+
+  /** Encola el aviso de cancelación. Mismo criterio que la confirmación. */
+  private async notifyBookingCancelled(bookingId: string): Promise<void> {
+    const data = await this.loadNotificationData(bookingId);
+    if (!data) return;
+    await this.notifications.enqueueBookingCancelled({
+      clubId: data.clubId,
+      clientId: data.clientId,
+      contact: data.contact,
+      data: data.bookingData,
+    });
+  }
+
+  /**
+   * Lee (fuera de la transacción, ya commiteada) lo que necesita un mensaje
+   * de reserva: cliente + contacto + cancha + club + fecha/hora formateadas
+   * en el huso del club. `null` si la reserva no tiene cliente asociado (no
+   * hay a quién avisarle) — mismo camino silencioso que un walk-in sin datos.
+   */
+  private async loadNotificationData(bookingId: string): Promise<{
+    clubId: string;
+    clientId: string;
+    contact: { phone: string | null; whatsapp: string | null; email: string | null };
+    bookingData: { clubName: string; clientName: string; courtName: string; date: string; time: string; code: string };
+  } | null> {
+    const booking = await this.prisma.db.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        clubId: true,
+        code: true,
+        startsAt: true,
+        court: { select: { name: true } },
+        club: { select: { name: true, timezone: true } },
+        client: {
+          select: { id: true, firstName: true, phone: true, whatsapp: true, email: true },
+        },
+      },
+    });
+    if (!booking?.client) return null;
+
+    const tz = booking.club.timezone ?? 'America/Argentina/Buenos_Aires';
+    return {
+      clubId: booking.clubId,
+      clientId: booking.client.id,
+      contact: {
+        phone: booking.client.phone,
+        whatsapp: booking.client.whatsapp,
+        email: booking.client.email,
+      },
+      bookingData: {
+        clubName: booking.club.name,
+        clientName: booking.client.firstName,
+        courtName: booking.court.name,
+        date: formatBookingDate(booking.startsAt, tz),
+        time: formatBookingTime(booking.startsAt, tz),
+        code: booking.code,
+      },
+    };
   }
 
   private resolvePaymentStatus(paid: number, total: number): string {
