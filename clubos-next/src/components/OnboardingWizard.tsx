@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError, setSession } from '@/lib/api';
 
@@ -61,7 +61,7 @@ export function OnboardingWizard() {
   }, [clubName, slugTouched]);
 
   // Chequeo de disponibilidad del slug con debounce.
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     clearTimeout(debounceRef.current);
     if (slug.length < 3) {

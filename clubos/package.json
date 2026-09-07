@@ -14,7 +14,7 @@
     "test:int": "jest --testPathPattern=\\.int-spec\\.ts$ --runInBand",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy && npm run db:manual",
-    "db:manual": "psql $DATABASE_URL -v ON_ERROR_STOP=1 -f prisma/migrations/manual/001_integrity_and_rls.sql",
+    "db:manual": "psql $DATABASE_URL -v ON_ERROR_STOP=1 -f prisma/manual/001_integrity_and_rls.sql",
     "db:seed": "ts-node prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && npm run db:manual && npm run db:seed",
     "verify:rotation": "node scripts/verify-rotation.cjs",

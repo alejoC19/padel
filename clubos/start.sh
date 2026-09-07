@@ -40,7 +40,14 @@ else
   echo "▸ Puerto de base: 5432"
 fi
 export DB_PASSWORD="${DB_PASSWORD:-clubos_dev}"
-export DATABASE_URL="postgresql://clubos_owner:${DB_PASSWORD}@localhost:${DB_PORT}/clubos?schema=public"
+# DIRECT_URL (owner): DDL — migrate, RLS. DATABASE_URL (clubos_app): runtime
+# del backend, sujeto a RLS. Si el backend corriera como owner, RLS quedaría
+# bypasseada y un club podría leer datos de otro sin que ningún test lo note
+# (ver README "Conexión: usar el rol correcto"). clubos_app lo crea
+# db/init/02-app-role.sql con password 'clubos_dev' fijo — si cambiás
+# DB_PASSWORD acá, actualizá también ese archivo.
+export DIRECT_URL="postgresql://clubos_owner:${DB_PASSWORD}@localhost:${DB_PORT}/clubos?schema=public"
+export DATABASE_URL="postgresql://clubos_app:clubos_dev@localhost:${DB_PORT}/clubos?schema=public"
 
 # --- 2. docker-compose: fijar el puerto elegido ------------------------------
 # Reescribe la línea de mapeo de puerto del servicio db a "<DB_PORT>:5432".
@@ -51,6 +58,7 @@ if [[ "$(uname)" == "Darwin" ]]; then SED=(sed -i ""); else SED=(sed -i); fi
 echo "▸ Escribiendo .env"
 cp .env.example .env
 "${SED[@]}" "s|^DATABASE_URL=.*|DATABASE_URL=${DATABASE_URL}|" .env
+"${SED[@]}" "s|^DIRECT_URL=.*|DIRECT_URL=${DIRECT_URL}|" .env
 "${SED[@]}" "s|^PORT=.*|PORT=3000|" .env
 "${SED[@]}" "s|^API_PUBLIC_URL=.*|API_PUBLIC_URL=http://localhost:3000|" .env
 "${SED[@]}" "s|^WEB_PUBLIC_URL=.*|WEB_PUBLIC_URL=http://localhost:3001|" .env
@@ -78,16 +86,22 @@ npm install
 echo "▸ Generando Prisma Client"
 npx prisma generate
 
-echo "▸ Creando tablas (db push)"
-npx prisma db push --skip-generate
+echo "▸ Extensiones y rol clubos_app"
+docker compose exec -T db psql -U clubos_owner -d clubos < db/init/01-extensions.sql >/dev/null
+docker compose exec -T db psql -U clubos_owner -d clubos < db/init/02-app-role.sql >/dev/null
 
-# --- 6. RLS (opcional; no frena el arranque si falla) ------------------------
-if [[ -f prisma/rls/001_integrity_and_rls.sql ]]; then
-  echo "▸ Aplicando políticas RLS (si falla, seguimos igual)"
-  docker compose exec -T db psql -U clubos_owner -d clubos < prisma/rls/001_integrity_and_rls.sql >/dev/null 2>&1 \
-    && echo "  ✔ RLS aplicada." \
-    || echo "  ⚠ RLS no se aplicó del todo (no bloquea el desarrollo)."
-fi
+echo "▸ Aplicando migraciones"
+npx prisma migrate deploy
+
+# --- 6. RLS -------------------------------------------------------------
+# NO es opcional: sin esto, `clubos_app` (el rol con el que corre el
+# backend) no puede ni escribir (RLS con FORCE rechaza el INSERT) ni ver
+# datos scoped al club. Si esto falla, el arranque tiene que fallar: un
+# backend corriendo sin RLS aplicada silenciosamente "funciona" pero deja
+# de aislar tenants.
+echo "▸ Aplicando políticas RLS"
+docker compose exec -T db psql -v ON_ERROR_STOP=1 -U clubos_owner -d clubos \
+  < prisma/manual/001_integrity_and_rls.sql >/dev/null
 
 # --- 7. Seed -----------------------------------------------------------------
 echo "▸ Sembrando datos base"

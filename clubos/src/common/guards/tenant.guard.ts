@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   setActiveContext,
   clearActiveContext,
+  runWithoutTenancy,
   type TenantContext,
 } from '../../tenancy/tenant-context';
 import type { Permission } from '../permissions';
@@ -114,21 +115,29 @@ export class TenantGuard implements CanActivate {
       );
     }
 
-    const membership = await this.prisma.membership.findFirst({
-      where: {
-        clubId,
-        userId: auth.sub,
-        status: 'ACTIVE',
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        extraPermissions: true,
-        revokedPermissions: true,
-        role: { select: { code: true, permissions: true } },
-        club: { select: { id: true, status: true, deletedAt: true } },
-      },
-    });
+    // Se corre ANTES de montar el TenantContext de esta request (es lo que
+    // lo determina), así que no hay clubId activo todavía. `membership`
+    // tiene RLS: sin bypass, con el rol restringido de la app esto siempre
+    // devuelve null y ninguna request autenticada podría pasar nunca este
+    // guard. Ver PrismaService "BYPASS DE PLATAFORMA".
+    // El callback tiene que ser `async` — ver la nota en token.service.ts.
+    const membership = await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.db.membership.findFirst({
+        where: {
+          clubId,
+          userId: auth.sub,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          extraPermissions: true,
+          revokedPermissions: true,
+          role: { select: { code: true, permissions: true } },
+          club: { select: { id: true, status: true, deletedAt: true } },
+        },
+      }),
+    );
 
     if (!membership) {
       // Mismo mensaje que "club inexistente": no revelar qué clubes existen.

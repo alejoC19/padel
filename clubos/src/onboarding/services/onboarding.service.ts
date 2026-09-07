@@ -99,10 +99,14 @@ export class OnboardingService {
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const requestId = randomUUID();
 
-    // El club aún no existe, así que no hay RLS que aplicar: se crea todo con
-    // el contexto de plataforma (bypass), dentro de una única transacción.
+    // El club todavía no existe, así que no hay un clubId "actual" al que
+    // atarse — pero Membership y Court SÍ tienen RLS (solo Club y User no).
+    // `tenantTransaction` con contexto bypass corre en la conexión elevada
+    // (ver PrismaService "BYPASS DE PLATAFORMA"), no en la restringida de la
+    // app; si esto corriera ahí, el INSERT a `memberships`/`courts` sería
+    // rechazado por la policy de RLS.
     const created = await runWithoutTenancy(requestId, () =>
-      this.prisma.$transaction(
+      this.prisma.tenantTransaction(
         async (tx) => {
           // 1. Club (empieza en TRIAL, 14 días).
           const club = await tx.club.create({

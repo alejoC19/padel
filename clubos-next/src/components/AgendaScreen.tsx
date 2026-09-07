@@ -9,7 +9,7 @@ import { Toasts } from '@/components/Toasts';
 import { DEMO_DAY, DEMO_CLIENTS } from '@/lib/demo-data';
 import { api, type AgendaDay, type ClientSearchResult } from '@/lib/api';
 import {
-  addDays, formatLocalDate, formatMinute, formatMoney, isToday, todayISO,
+  addDays, formatLocalDate, formatMoney, isToday, todayISO,
 } from '@/lib/grid';
 import {
   agendaStore, useAgendaStore, useAutoRefresh,
@@ -220,7 +220,7 @@ export function AgendaScreen() {
             courtId={newBooking.courtId}
             courtName={court?.name ?? 'Cancha'}
             startMinute={newBooking.minute}
-            slotMinutes={day.slotMinutes ?? 90}
+            slotMinutes={court?.slotMinutes ?? 90}
             onClose={() => setNewBooking(null)}
             onCreate={(input) => agendaStore.createBooking(input)}
           />

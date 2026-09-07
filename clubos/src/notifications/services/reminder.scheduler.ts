@@ -55,7 +55,7 @@ export class ReminderScheduler {
       const to = new Date(center + win.toleranceMin * 60_000);
 
       // Reservas activas que caen en la ventana.
-      const bookings = await this.prisma.$transaction((tx) =>
+      const bookings = await this.prisma.platformDb.$transaction((tx) =>
         tx.booking.findMany({
           where: {
             startsAt: { gte: from, lte: to },
@@ -87,7 +87,7 @@ export class ReminderScheduler {
         if (!b.client) continue;
 
         // ¿Ya se encoló este recordatorio (esta ventana) para esta reserva?
-        const already = await this.prisma.$transaction((tx) =>
+        const already = await this.prisma.platformDb.$transaction((tx) =>
           tx.notification.count({
             where: {
               clubId: b.clubId,

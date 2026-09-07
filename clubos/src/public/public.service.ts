@@ -36,13 +36,19 @@ export class PublicService {
 
   /** Resuelve el club por slug (sin tenant, es dato de plataforma). */
   private async resolveClub(slug: string) {
-    const club = await runWithoutTenancy(randomUUID(), () =>
+    const club = await runWithoutTenancy(randomUUID(), async () =>
       this.prisma.club.findUnique({
         where: { slug },
         select: { id: true, name: true, slug: true, status: true },
       }),
     );
-    if (!club || club.status !== 'ACTIVE') {
+    // Un club recién creado por onboarding arranca en TRIAL, no ACTIVE —
+    // exigir 'ACTIVE' acá dejaba el booking público roto durante los 14 días
+    // de prueba de TODO club nuevo, porque nada transiciona TRIAL → ACTIVE
+    // automáticamente. Mismo criterio que TenantGuard para el panel: solo
+    // SUSPENDED/CANCELLED bloquean.
+    const blocked: string[] = ['SUSPENDED', 'CANCELLED'];
+    if (!club || blocked.includes(club.status)) {
       throw new NotFoundException('Club no encontrado');
     }
     return club;
@@ -147,8 +153,8 @@ export class PublicService {
     }
 
     // Dueño del club: lo usamos como "autor" de la reserva online.
-    const owner = await runWithoutTenancy(randomUUID(), () =>
-      this.prisma.membership.findFirst({
+    const owner = await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.db.membership.findFirst({
         where: { clubId: club.id, role: { code: 'OWNER' } },
         select: { userId: true },
       }),
@@ -268,8 +274,8 @@ export class PublicService {
       throw new BadRequestException('Falta el teléfono.');
     }
 
-    const owner = await runWithoutTenancy(randomUUID(), () =>
-      this.prisma.membership.findFirst({
+    const owner = await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.db.membership.findFirst({
         where: { clubId: club.id, role: { code: 'OWNER' } },
         select: { userId: true },
       }),

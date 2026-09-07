@@ -9,7 +9,15 @@
 import { PrismaClient } from '@prisma/client';
 import { ROLE_PRESETS } from '../src/common/permissions';
 
-const prisma = new PrismaClient();
+// El seed crea clubes, planes y membresías de punta a punta: es una
+// operación de plataforma, no de un tenant. Se conecta con DIRECT_URL (rol
+// owner) en vez de DATABASE_URL (rol clubos_app, el que usa el backend en
+// runtime), porque clubos_app está sujeto a RLS y sin `app.current_club_id`
+// seteado (esto no pasa por PrismaService ni por AsyncLocalStorage) toda
+// escritura a una tabla tenant-scoped sería rechazada por la policy.
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+});
 
 // ---------------------------------------------------------------------------
 // Planes de la plataforma

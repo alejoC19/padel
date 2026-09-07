@@ -32,8 +32,14 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://clubos_owner:clubos_test@localhost:5432/clubos_test
-      DATABASE_URL_TEST: postgresql://clubos_owner:clubos_test@localhost:5432/clubos_test
+      # DIRECT_URL: rol owner, solo para DDL (migrate deploy + el SQL manual).
+      DIRECT_URL: postgresql://clubos_owner:clubos_test@localhost:5432/clubos_test
+      # DATABASE_URL: rol restringido `clubos_app`, sujeto a RLS. Es la misma
+      # conexión que usa el backend real — si esto corriera como owner, RLS
+      # quedaría bypasseada y el test de aislamiento multi-tenant no probaría
+      # nada (ver clubos/README.md "Conexión: usar el rol correcto").
+      DATABASE_URL: postgresql://clubos_app:clubos_test@localhost:5432/clubos_test
+      DATABASE_URL_TEST: postgresql://clubos_app:clubos_test@localhost:5432/clubos_test
       PAYMENTS_ENC_KEY: clave-de-test-de-al-menos-treinta-y-dos-chars
       JWT_ACCESS_SECRET: test-secret
 
@@ -53,6 +59,8 @@ jobs:
         run: |
           PGPASSWORD=clubos_test psql -h localhost -U clubos_owner -d clubos_test -f db/init/01-extensions.sql
           PGPASSWORD=clubos_test psql -h localhost -U clubos_owner -d clubos_test -f db/init/02-app-role.sql
+          PGPASSWORD=clubos_test psql -h localhost -U clubos_owner -d clubos_test \
+            -c "ALTER ROLE clubos_app WITH PASSWORD 'clubos_test';"
 
       - name: Generar Prisma Client
         run: npx prisma generate
@@ -61,7 +69,7 @@ jobs:
         run: |
           npx prisma migrate deploy
           PGPASSWORD=clubos_test psql -h localhost -U clubos_owner -d clubos_test \
-            -f prisma/migrations/manual/001_integrity_and_rls.sql
+            -f prisma/manual/001_integrity_and_rls.sql
 
       - name: Typecheck
         run: npm run typecheck
@@ -71,6 +79,9 @@ jobs:
 
       - name: Tests de integración (RLS, multi-tenant)
         run: npm run test:int
+
+      - name: Build
+        run: npm run build
 
   # ==========================================================================
   # FRONTEND — typecheck + E2E (Playwright)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { AgendaDay, AgendaBooking, AgendaCourt } from '@/lib/api';
+import type { AgendaDay, AgendaBooking } from '@/lib/api';
 import { formatMinute, formatMoney } from '@/lib/grid';
 
 interface Props {
@@ -76,7 +76,8 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
       out.push({ kind: 'free', start: cursor, end: cursor + step });
       cursor += step;
     }
-    if (cursor < close && out.length && out[out.length - 1].end < close) {
+    const lastSlot = out[out.length - 1];
+    if (cursor < close && lastSlot && lastSlot.end < close) {
       out.push({ kind: 'free', start: cursor, end: close });
     }
     return out;

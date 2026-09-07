@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { runWithoutTenancy } from '../tenancy/tenant-context';
 
 export interface AccessTokenPayload {
   sub: string;
@@ -163,15 +164,25 @@ export class TokenService {
     // Si se cambia de club, revalidar pertenencia. Sin esto, un usuario
     // expulsado de un club mantendría acceso hasta que expire el refresh.
     if (clubId) {
-      const ok = await this.prisma.membership.findFirst({
-        where: {
-          clubId,
-          userId: session.userId,
-          status: 'ACTIVE',
-          deletedAt: null,
-        },
-        select: { id: true },
-      });
+      // Se corre fuera de cualquier TenantContext de request (recién se
+      // está resolviendo a qué club entra el token nuevo). `membership`
+      // tiene RLS — ver PrismaService "BYPASS DE PLATAFORMA".
+      // OJO: el callback tiene que ser `async` (no una arrow que devuelve la
+      // promesa de Prisma sin resolverla). Si no, el `.then()` se dispara en
+      // el `await` de afuera, cuando `tenantStorage.run()` ya devolvió, y
+      // `getTenantContext()` no ve el contexto de bypass — ver el mismo
+      // comentario en tenant-isolation.int-spec.ts.
+      const ok = await runWithoutTenancy(randomUUID(), async () =>
+        this.prisma.db.membership.findFirst({
+          where: {
+            clubId,
+            userId: session.userId,
+            status: 'ACTIVE',
+            deletedAt: null,
+          },
+          select: { id: true },
+        }),
+      );
       if (!ok) {
         throw new UnauthorizedException('No tenés acceso a este club');
       }

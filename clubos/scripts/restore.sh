@@ -41,4 +41,4 @@ pg_restore \
 
 echo "[$(date -Is)] Restauración completa."
 echo "Recordá aplicar la migración de RLS si la base era nueva:"
-echo "  psql \$TARGET_DATABASE_URL -f prisma/migrations/manual/001_integrity_and_rls.sql"
+echo "  psql \$TARGET_DATABASE_URL -f prisma/manual/001_integrity_and_rls.sql"

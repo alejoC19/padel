@@ -68,7 +68,7 @@ export class NotificationWorker {
     // la fila queda 'SENT' sin haberse mandado. A este volumen es aceptable;
     // si se vuelve crítico, agregar un estado 'SENDING' intermedio + un barrido
     // que reponga a PENDING las 'SENDING' viejas (más de N minutos).
-    const claimed = await this.prisma.$queryRaw<
+    const claimed = await this.prisma.platformDb.$queryRaw<
       Array<{
         id: string;
         channel: string;
@@ -138,7 +138,7 @@ export class NotificationWorker {
 
     if (result.ok) {
       // Ya está en SENT por el claim; solo se confirma con el id del proveedor.
-      await this.prisma.$transaction(async (tx) => {
+      await this.prisma.platformDb.$transaction(async (tx) => {
         await tx.notification.update({
           where: { id: n.id },
           data: {
@@ -156,7 +156,7 @@ export class NotificationWorker {
 
     if (canRetry) {
       // Revertir a PENDING para que el próximo tick lo reintente.
-      await this.prisma.$transaction(async (tx) => {
+      await this.prisma.platformDb.$transaction(async (tx) => {
         await tx.notification.update({
           where: { id: n.id },
           data: {
@@ -176,7 +176,7 @@ export class NotificationWorker {
   }
 
   private async markFailed(id: string, error: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.platformDb.$transaction(async (tx) => {
       await tx.notification.update({
         where: { id },
         data: { status: 'FAILED', error: error.slice(0, 500) },

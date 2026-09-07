@@ -32,7 +32,7 @@ psql "$DATABASE_URL" -f db/init/02-app-role.sql
 # b) schema
 npx prisma migrate deploy
 # c) políticas RLS (CRÍTICO: sin esto no hay aislamiento entre clubes)
-psql "$DATABASE_URL" -f prisma/migrations/manual/001_integrity_and_rls.sql
+psql "$DATABASE_URL" -f prisma/manual/001_integrity_and_rls.sql
 # d) datos base (planes, etc.) — si tu seed los crea
 npm run db:seed
 ```

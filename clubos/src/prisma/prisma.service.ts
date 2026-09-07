@@ -41,6 +41,26 @@ import { getTenantContext } from '../tenancy/tenant-context';
  * al cliente base (`baseClient`) ANTES del extend y se usa esa referencia para
  * abrir la transacción. Usar `this.$transaction` ahí lanza
  * "this.$transaction is not a function".
+ *
+ * ---------------------------------------------------------------------------
+ * BYPASS DE PLATAFORMA (`runWithoutTenancy` / `ctx.bypassTenancy`)
+ * ---------------------------------------------------------------------------
+ * `DATABASE_URL` es el rol restringido `clubos_app`, sujeto a RLS con FORCE.
+ * Eso es intencional para el 99% de las queries (todo lo que cuelga de una
+ * request HTTP), pero un puñado de operaciones son legítimamente
+ * multi-tenant por naturaleza y necesitan saltarse RLS de verdad:
+ *   - alta de club (todavía no existe ningún clubId al que "pertenecer")
+ *   - listar los clubes a los que pertenece un usuario (login)
+ *   - jobs de plataforma (cola de notificaciones, recordatorios)
+ * `bypassTenancy: true` NO alcanza para esto por sí solo: solo salta el
+ * SET LOCAL, pero la conexión sigue siendo `clubos_app` y RLS igual
+ * bloquea (deja 0 filas en SELECT, rechaza el INSERT). Por eso estas
+ * operaciones corren en `platform`, una conexión aparte con el rol owner
+ * (que si es superusuario de Postgres, bypassea RLS pase lo que pase,
+ * incluso con FORCE — ver README "Conexión: usar el rol correcto").
+ * Esta conexión NUNCA se expone directamente a un controller: solo se usa
+ * acá adentro, y solo cuando `ctx.bypassTenancy` viene en true, que a su vez
+ * solo lo setea `runWithoutTenancy` (nunca un guard HTTP normal).
  * ---------------------------------------------------------------------------
  */
 
@@ -53,6 +73,10 @@ const PLATFORM_MODELS = new Set<string>([
   'Session',
 ]);
 
+function lowerFirst(s: string): string {
+  return s.length ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -61,6 +85,13 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   readonly db: PrismaClient;
+
+  /**
+   * Conexión elevada (rol owner) para operaciones de plataforma genuinamente
+   * multi-tenant. Ver "BYPASS DE PLATAFORMA" arriba. Nunca se expone fuera
+   * de esta clase.
+   */
+  private readonly platform: PrismaClient;
 
   constructor() {
     super({
@@ -75,9 +106,17 @@ export class PrismaService
       },
     });
 
+    this.platform = new PrismaClient({
+      datasourceUrl:
+        process.env.PLATFORM_DATABASE_URL ??
+        process.env.DIRECT_URL ??
+        process.env.DATABASE_URL,
+    });
+
     // Referencia al cliente base (este PrismaService), que SÍ tiene
     // $transaction. Se usa dentro del extend, donde `this` no sirve.
     const baseClient = this;
+    const platformClient = this.platform;
 
     /**
      * Cliente tenant-aware. Los servicios inyectan PrismaService y usan
@@ -103,15 +142,28 @@ export class PrismaService
           }) {
             const ctx = getTenantContext();
 
-            // Operaciones de plataforma o modelos sin club_id: paso directo.
+            // Modelos sin club_id o raw queries: paso directo (sin RLS).
             if (
               !model ||
               PLATFORM_MODELS.has(model) ||
-              ctx?.bypassTenancy ||
               operation === '$queryRaw' ||
               operation === '$executeRaw'
             ) {
               return query(args);
+            }
+
+            // Bypass de plataforma explícito: modelo CON club_id (sujeto a
+            // RLS) pero la operación es legítimamente multi-tenant (alta de
+            // club, listar clubes de un usuario, jobs de cola). No alcanza
+            // con saltear el SET LOCAL — la conexión de `clubos_app` igual
+            // queda sujeta a RLS y bloquea todo. Se re-emite la misma
+            // operación sobre `platform` (rol elevado) en vez de forwardear
+            // `query(args)`, que sigue atado al cliente restringido.
+            if (ctx?.bypassTenancy) {
+              const delegate = (platformClient as unknown as Record<string, any>)[
+                lowerFirst(model)
+              ];
+              return delegate[operation](args);
             }
 
             if (!ctx?.clubId) {
@@ -122,12 +174,24 @@ export class PrismaService
             }
 
             // El SET LOCAL y la query comparten transacción => misma conexión.
-            // Se usa baseClient (no `this`) porque dentro del extend `this` no
-            // es el PrismaClient y no tiene $transaction.
-            return baseClient.$transaction(async (tx) => {
-              await tx.$executeRaw`SELECT set_config('app.current_club_id', ${ctx.clubId}, true)`;
-              return query(args);
-            });
+            //
+            // OJO: tiene que ser la forma ARRAY de $transaction, no la forma
+            // interactiva `$transaction(async (tx) => {...})`. En la forma
+            // interactiva, `query(args)` (el forward de la operación original
+            // que da la extensión) NO corre sobre `tx` — sigue atado al
+            // cliente base y Prisma puede abrirlo en OTRA conexión del pool.
+            // Con RLS bypasseada (rol superusuario) esto no se nota porque
+            // cualquier conexión ve todo; con el rol restringido de la app,
+            // el SET LOCAL queda en una conexión y el INSERT/SELECT real en
+            // otra, y la policy de RLS rechaza todo (o no ve ninguna fila).
+            // La forma array SÍ garantiza que todos los statements corran en
+            // la misma transacción/conexión — es el patrón documentado por
+            // Prisma para este caso exacto (RLS vía extensión).
+            const [, result] = await baseClient.$transaction([
+              baseClient.$executeRaw`SELECT set_config('app.current_club_id', ${ctx.clubId}, true)`,
+              query(args) as Prisma.PrismaPromise<unknown>,
+            ]);
+            return result;
           },
         },
       },
@@ -148,6 +212,28 @@ export class PrismaService
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
+    await this.platform.$disconnect();
+  }
+
+  /**
+   * Acceso directo a la conexión elevada, para jobs de plataforma que
+   * necesitan `$queryRaw`/`$transaction` NATIVOS cross-tenant (el worker de
+   * notificaciones, que procesa filas de TODOS los clubes en un mismo
+   * `UPDATE ... RETURNING`). Estos no pasan por `db` ni por
+   * `tenantTransaction` porque no hay UN clubId al que atarse.
+   *
+   * Solo funciona con `bypassTenancy` activo (adentro de
+   * `runWithoutTenancy`), para que sea imposible usarlo por accidente desde
+   * el camino normal de una request HTTP.
+   */
+  get platformDb(): PrismaClient {
+    const ctx = getTenantContext();
+    if (!ctx?.bypassTenancy) {
+      throw new Error(
+        'platformDb requiere bypassTenancy=true (envolver en runWithoutTenancy).',
+      );
+    }
+    return this.platform;
   }
 
   /**
@@ -161,7 +247,10 @@ export class PrismaService
    */
   async tenantTransaction<T>(
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
-    options?: { isolationLevel?: Prisma.TransactionIsolationLevel },
+    options?: {
+      isolationLevel?: Prisma.TransactionIsolationLevel;
+      timeout?: number;
+    },
   ): Promise<T> {
     const ctx = getTenantContext();
 
@@ -169,7 +258,11 @@ export class PrismaService
       throw new Error('tenantTransaction requiere un club activo.');
     }
 
-    return this.$transaction(
+    // Bypass de plataforma (alta de club, etc.): correr en la conexión
+    // elevada, no en la restringida — ver "BYPASS DE PLATAFORMA" arriba.
+    const client = ctx?.bypassTenancy ? this.platform : this;
+
+    return client.$transaction(
       async (tx) => {
         if (ctx?.clubId) {
           await tx.$executeRaw`SELECT set_config('app.current_club_id', ${ctx.clubId}, true)`;
@@ -179,7 +272,7 @@ export class PrismaService
       {
         isolationLevel:
           options?.isolationLevel ?? Prisma.TransactionIsolationLevel.ReadCommitted,
-        timeout: 15_000,
+        timeout: options?.timeout ?? 15_000,
       },
     );
   }
@@ -202,7 +295,8 @@ export class PrismaService
     if (!ctx?.clubId && !ctx?.bypassTenancy) {
       throw new Error('tenantQueryRaw requiere un club activo.');
     }
-    return this.$transaction(async (tx) => {
+    const client = ctx?.bypassTenancy ? this.platform : this;
+    return client.$transaction(async (tx) => {
       if (ctx?.clubId) {
         await tx.$executeRaw`SELECT set_config('app.current_club_id', ${ctx.clubId}, true)`;
       }

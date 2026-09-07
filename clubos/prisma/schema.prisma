@@ -21,7 +21,13 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
+  // DATABASE_URL: rol restringido (clubos_app). Lo usa el cliente en runtime
+  // y por eso queda sujeto a RLS.
   url        = env("DATABASE_URL")
+  // DIRECT_URL: rol owner. Prisma CLI lo usa para `migrate`/`db push` (DDL),
+  // que clubos_app no tiene permiso de ejecutar. Ver README "Conexión: usar
+  // el rol correcto".
+  directUrl  = env("DIRECT_URL")
   extensions = [pgcrypto, citext, pg_trgm]
 }
 
@@ -32,8 +38,8 @@ datasource db {
 
 /// Planes comerciales de la plataforma ClubOS.
 model Plan {
-  id          String   @id @default(uuid()) @db.Uuid
-  code        String   @unique // "starter" | "pro" | "enterprise"
+  id          String  @id @default(uuid()) @db.Uuid
+  code        String  @unique // "starter" | "pro" | "enterprise"
   name        String
   description String?
 
@@ -42,18 +48,18 @@ model Plan {
   currency     String  @default("ARS")
 
   // Límites duros. -1 = ilimitado.
-  maxCourts    Int @default(4)
-  maxUsers     Int @default(5)
-  maxClients   Int @default(500)
-  storageMb    Int @default(1024)
+  maxCourts  Int @default(4)
+  maxUsers   Int @default(5)
+  maxClients Int @default(500)
+  storageMb  Int @default(1024)
 
   // Feature flags por plan. El backend consulta esto, no hardcodea.
   features Json @default("{}")
 
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   clubs Club[]
 
@@ -70,18 +76,18 @@ model Club {
   taxId     String? // CUIT
   taxRegime TaxRegime @default(NOT_APPLICABLE)
 
-  email   String?
-  phone   String?
+  email    String?
+  phone    String?
   whatsapp String?
-  website String?
+  website  String?
 
-  addressStreet String?
-  addressCity   String?
-  addressState  String?
-  addressZip    String?
-  addressCountry String  @default("AR")
-  latitude      Decimal? @db.Decimal(10, 7)
-  longitude     Decimal? @db.Decimal(10, 7)
+  addressStreet  String?
+  addressCity    String?
+  addressState   String?
+  addressZip     String?
+  addressCountry String   @default("AR")
+  latitude       Decimal? @db.Decimal(10, 7)
+  longitude      Decimal? @db.Decimal(10, 7)
 
   timezone String @default("America/Argentina/Buenos_Aires")
   locale   String @default("es-AR")
@@ -93,7 +99,7 @@ model Club {
   secondaryColor String  @default("#134E4A")
 
   status      ClubStatus @default(TRIAL)
-  trialEndsAt DateTime?
+  trialEndsAt DateTime?  @db.Timestamptz(3)
 
   planId String @db.Uuid
   plan   Plan   @relation(fields: [planId], references: [id])
@@ -102,48 +108,48 @@ model Club {
   // recordatorios, reglas de caja). Ver ClubSettings типы en el backend.
   settings Json @default("{}")
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   // --- Relaciones tenant ---
-  memberships     Membership[]
-  roles           Role[]
-  sports          Sport[]
-  courts          Court[]
-  operatingHours  OperatingHour[]
-  priceLists      PriceList[]
-  clients         Client[]
-  clientTags      ClientTag[]
-  clientNotes     ClientNote[]
-  clientDocuments ClientDocument[]
-  bookings        Booking[]
-  bookingPlayers  BookingPlayer[]
-  waitlistEntries WaitlistEntry[]
-  blocks          CourtBlock[]
-  instructors     Instructor[]
-  lessons         Lesson[]
-  memberships_    MembershipPlan[]
+  memberships       Membership[]
+  roles             Role[]
+  sports            Sport[]
+  courts            Court[]
+  operatingHours    OperatingHour[]
+  priceLists        PriceList[]
+  clients           Client[]
+  clientTags        ClientTag[]
+  clientNotes       ClientNote[]
+  clientDocuments   ClientDocument[]
+  bookings          Booking[]
+  bookingPlayers    BookingPlayer[]
+  waitlistEntries   WaitlistEntry[]
+  blocks            CourtBlock[]
+  instructors       Instructor[]
+  lessons           Lesson[]
+  memberships_      MembershipPlan[]
   clientMemberships ClientMembership[]
-  products        Product[]
+  products          Product[]
   productCategories ProductCategory[]
-  stockMovements  StockMovement[]
-  sales           Sale[]
-  saleItems       SaleItem[]
-  cashRegisters   CashRegister[]
-  cashSessions    CashSession[]
-  cashMovements   CashMovement[]
-  paymentMethods  PaymentMethod[]
-  payments        Payment[]
-  bankAccounts    BankAccount[]
-  bankTransactions BankTransaction[]
-  suppliers       Supplier[]
-  expenses        Expense[]
+  stockMovements    StockMovement[]
+  sales             Sale[]
+  saleItems         SaleItem[]
+  cashRegisters     CashRegister[]
+  cashSessions      CashSession[]
+  cashMovements     CashMovement[]
+  paymentMethods    PaymentMethod[]
+  payments          Payment[]
+  bankAccounts      BankAccount[]
+  bankTransactions  BankTransaction[]
+  suppliers         Supplier[]
+  expenses          Expense[]
   expenseCategories ExpenseCategory[]
-  accountEntries  AccountEntry[]
-  tournaments     Tournament[]
-  notifications   Notification[]
-  auditLogs       AuditLog[]
+  accountEntries    AccountEntry[]
+  tournaments       Tournament[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
 
   paymentIntegrations ClubPaymentIntegration[]
   paymentOrders       PaymentOrder[]
@@ -190,7 +196,7 @@ model User {
   phoneVerified Boolean @default(false)
 
   passwordHash      String?
-  passwordChangedAt DateTime?
+  passwordChangedAt DateTime? @db.Timestamptz(3)
 
   firstName String
   lastName  String
@@ -204,19 +210,19 @@ model User {
   mfaEnabled Boolean @default(false)
   mfaSecret  String?
 
-  lastLoginAt DateTime?
+  lastLoginAt DateTime? @db.Timestamptz(3)
   isActive    Boolean   @default(true)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
-  memberships    Membership[]
-  identities     UserIdentity[]
-  sessions       Session[]
-  clientProfiles Client[]
+  memberships        Membership[]
+  identities         UserIdentity[]
+  sessions           Session[]
+  clientProfiles     Client[]
   instructorProfiles Instructor[]
-  auditLogs      AuditLog[]
+  auditLogs          AuditLog[]
 
   @@index([email])
   @@map("users")
@@ -224,16 +230,16 @@ model User {
 
 /// OAuth / social login. Un usuario puede tener varias identidades.
 model UserIdentity {
-  id       String @id @default(uuid()) @db.Uuid
-  userId   String @db.Uuid
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   provider   AuthProvider
   providerId String
   email      String?
   rawProfile Json?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([provider, providerId])
   @@index([userId])
@@ -259,11 +265,11 @@ model Session {
   refreshTokenHash String    @unique
   userAgent        String?
   ipAddress        String?
-  expiresAt        DateTime
-  revokedAt        DateTime?
+  expiresAt        DateTime  @db.Timestamptz(3)
+  revokedAt        DateTime? @db.Timestamptz(3)
   replacedById     String?   @db.Uuid
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
@@ -287,12 +293,12 @@ model Membership {
   revokedPermissions String[] @default([])
 
   status     MembershipStatus @default(ACTIVE)
-  invitedAt  DateTime?
-  acceptedAt DateTime?
+  invitedAt  DateTime?        @db.Timestamptz(3)
+  acceptedAt DateTime?        @db.Timestamptz(3)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   cashSessions CashSession[]
 
@@ -325,9 +331,9 @@ model Role {
   /// Roles del sistema no se pueden borrar ni renombrar el code.
   isSystem Boolean @default(false)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   memberships Membership[]
 
@@ -362,16 +368,16 @@ model Sport {
   name String
 
   /// Jugadores por defecto (pádel=4, fútbol5=10). Usado en validación.
-  defaultPlayers Int @default(4)
+  defaultPlayers  Int @default(4)
   /// Duración por defecto en minutos.
   defaultDuration Int @default(90)
 
   iconUrl   String?
   isActive  Boolean   @default(true)
   sortOrder Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   courts Court[]
 
@@ -391,11 +397,11 @@ model Court {
   name   String // "Cancha 1"
   number Int
 
-  environment  CourtEnvironment @default(INDOOR)
-  surface      CourtSurface     @default(SYNTHETIC_GRASS)
-  wallType     String? // "blindex" | "muro" | "mixta"
-  hasLighting  Boolean          @default(true)
-  capacity     Int              @default(4)
+  environment CourtEnvironment @default(INDOOR)
+  surface     CourtSurface     @default(SYNTHETIC_GRASS)
+  wallType    String? // "blindex" | "muro" | "mixta"
+  hasLighting Boolean          @default(true)
+  capacity    Int              @default(4)
 
   /// Color hex del bloque en la agenda.
   color String @default("#3B82F6")
@@ -413,14 +419,14 @@ model Court {
   slotMinutes Int @default(30)
 
   sortOrder Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
-  operatingHours OperatingHour[]
-  prices         PriceRule[]
-  bookings       Booking[]
-  blocks         CourtBlock[]
+  operatingHours  OperatingHour[]
+  prices          PriceRule[]
+  bookings        Booking[]
+  blocks          CourtBlock[]
   waitlistEntries WaitlistEntry[]
 
   @@unique([clubId, number])
@@ -468,8 +474,8 @@ model OperatingHour {
 
   isClosed Boolean @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   // courtId nullable => unique parcial en SQL.
   @@index([clubId, dayOfWeek])
@@ -495,12 +501,12 @@ model PriceList {
   isDefault   Boolean @default(false)
   isActive    Boolean @default(true)
 
-  validFrom DateTime?
-  validTo   DateTime?
+  validFrom DateTime? @db.Timestamptz(3)
+  validTo   DateTime? @db.Timestamptz(3)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   rules   PriceRule[]
   clients Client[]
@@ -521,7 +527,7 @@ model PriceRule {
   court   Court?  @relation(fields: [courtId], references: [id], onDelete: Cascade)
 
   /// null = aplica todos los días. Sino 0-6.
-  dayOfWeek Int?
+  dayOfWeek  Int?
   /// Ventana horaria en minutos. null = todo el día.
   fromMinute Int?
   toMinute   Int?
@@ -538,9 +544,9 @@ model PriceRule {
   priority Int @default(0)
 
   isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   @@index([clubId, priceListId, isActive])
   @@index([courtId])
@@ -571,13 +577,13 @@ model Client {
   user   User?   @relation(fields: [userId], references: [id])
 
   // --- Personales ---
-  firstName   String
-  lastName    String
-  documentType DocumentType @default(DNI)
+  firstName      String
+  lastName       String
+  documentType   DocumentType @default(DNI)
   documentNumber String?
-  birthDate   DateTime? @db.Date
-  gender      Gender?
-  nationality String?
+  birthDate      DateTime?    @db.Date
+  gender         Gender?
+  nationality    String?
 
   email    String? @db.Citext
   phone    String?
@@ -590,19 +596,19 @@ model Client {
   avatarUrl String?
 
   // --- Deportivo ---
-  skillLevel      SkillLevel?
-  dominantHand    DominantHand?
-  preferredSide   CourtSide?
-  category        String?
-  frequentPartnerId String?     @db.Uuid
-  usualInstructorId String?     @db.Uuid
+  skillLevel        SkillLevel?
+  dominantHand      DominantHand?
+  preferredSide     CourtSide?
+  category          String?
+  frequentPartnerId String?       @db.Uuid
+  usualInstructorId String?       @db.Uuid
 
   // --- Comercial ---
-  status        ClientStatus @default(ACTIVE)
-  clientSince   DateTime     @default(now())
-  priceListId   String?      @db.Uuid
-  priceList     PriceList?   @relation(fields: [priceListId], references: [id])
-  discountPercent Decimal    @default(0) @db.Decimal(5, 2)
+  status          ClientStatus @default(ACTIVE)
+  clientSince     DateTime     @default(now()) @db.Timestamptz(3)
+  priceListId     String?      @db.Uuid
+  priceList       PriceList?   @relation(fields: [priceListId], references: [id])
+  discountPercent Decimal      @default(0) @db.Decimal(5, 2)
 
   /// Saldo de cuenta corriente. Positivo = a favor del cliente.
   /// Negativo = el cliente debe. Fuente de verdad: suma de AccountEntry.
@@ -611,43 +617,44 @@ model Client {
   creditLimit    Decimal @default(0) @db.Decimal(14, 2)
 
   // --- Agregados materializados (recalculados por evento) ---
-  totalSpent        Decimal   @default(0) @db.Decimal(14, 2)
-  bookingsCount     Int       @default(0)
-  cancellationsCount Int      @default(0)
-  noShowCount       Int       @default(0)
-  lessonsCount      Int       @default(0)
-  lastVisitAt       DateTime?
-  lastBookingAt     DateTime?
-  favoriteCourtId   String?   @db.Uuid
-  favoriteInstructorId String? @db.Uuid
+  totalSpent             Decimal   @default(0) @db.Decimal(14, 2)
+  bookingsCount          Int       @default(0)
+  cancellationsCount     Int       @default(0)
+  noShowCount            Int       @default(0)
+  lessonsCount           Int       @default(0)
+  lastVisitAt            DateTime? @db.Timestamptz(3)
+  lastBookingAt          DateTime? @db.Timestamptz(3)
+  favoriteCourtId        String?   @db.Uuid
+  favoriteInstructorId   String?   @db.Uuid
   /// Minuto del día más frecuente y día de semana más frecuente.
-  favoriteStartMinute Int?
-  favoriteDayOfWeek   Int?
+  favoriteStartMinute    Int?
+  favoriteDayOfWeek      Int?
   /// Lifetime value proyectado. Lo escribe el motor de analítica.
-  lifetimeValue     Decimal   @default(0) @db.Decimal(14, 2)
-  avgDaysBetweenBookings Decimal? @db.Decimal(8, 2)
+  lifetimeValue          Decimal   @default(0) @db.Decimal(14, 2)
+  avgDaysBetweenBookings Decimal?  @db.Decimal(8, 2)
 
   /// Consentimientos de comunicación (Ley 25.326).
   acceptsMarketing Boolean @default(false)
   acceptsWhatsapp  Boolean @default(true)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
-  tags        ClientTagAssignment[]
-  notes       ClientNote[]
-  documents   ClientDocument[]
-  bookings    Booking[]
-  bookingPlayers BookingPlayer[]
-  waitlistEntries WaitlistEntry[]
+  tags              ClientTagAssignment[]
+  notes             ClientNote[]
+  documents         ClientDocument[]
+  bookings          Booking[]
+  bookingPlayers    BookingPlayer[]
+  waitlistEntries   WaitlistEntry[]
   lessonAttendances LessonAttendance[]
-  memberships ClientMembership[]
-  sales       Sale[]
-  payments    Payment[]
-  accountEntries AccountEntry[]
-  tournamentTeams TournamentTeamMember[]
-  notifications Notification[]
+  memberships       ClientMembership[]
+  sales             Sale[]
+  payments          Payment[]
+  accountEntries    AccountEntry[]
+  tournamentTeams   TournamentTeamMember[]
+  notifications     Notification[]
+  paymentOrders     PaymentOrder[]
 
   // NOTA: los uniques de email y documento son índices parciales en SQL
   // (ver 001_integrity_and_rls.sql). Prisma no soporta WHERE en @@unique,
@@ -656,8 +663,6 @@ model Client {
   @@index([clubId, lastName, firstName])
   @@index([clubId, phone])
   @@index([clubId, lastVisitAt])
-  paymentOrders PaymentOrder[]
-
   @@map("clients")
 }
 
@@ -708,13 +713,13 @@ model ClientTag {
   clubId String @db.Uuid
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
-  code  String
-  name  String
-  color String  @default("#64748B")
+  code   String
+  name   String
+  color  String  @default("#64748B")
   isAuto Boolean @default(false)
 
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   assignments ClientTagAssignment[]
 
@@ -732,7 +737,7 @@ model ClientTagAssignment {
   tag      ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   assignedById String?  @db.Uuid
-  assignedAt   DateTime @default(now())
+  assignedAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([clientId, tagId])
   @@index([clubId, tagId])
@@ -746,7 +751,7 @@ model ClientNote {
   clientId String @db.Uuid
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  authorId String? @db.Uuid
+  authorId String?      @db.Uuid
   category NoteCategory @default(GENERAL)
   priority NotePriority @default(NORMAL)
   content  String
@@ -754,9 +759,9 @@ model ClientNote {
   /// Visible para el cliente en su portal, o solo interna.
   isInternal Boolean @default(true)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   @@index([clubId, clientId, createdAt])
   @@map("client_notes")
@@ -792,11 +797,11 @@ model ClientDocument {
   mimeType String?
 
   /// Apto médico vencido = alerta operativa.
-  expiresAt DateTime?
+  expiresAt DateTime? @db.Timestamptz(3)
 
   uploadedById String?   @db.Uuid
-  createdAt    DateTime  @default(now())
-  deletedAt    DateTime?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt    DateTime? @db.Timestamptz(3)
 
   @@index([clubId, clientId])
   @@index([clubId, type, expiresAt])
@@ -855,66 +860,67 @@ model Booking {
   type   BookingType   @default(REGULAR)
   status BookingStatus @default(PENDING)
 
-  startsAt DateTime
-  endsAt   DateTime
+  startsAt        DateTime @db.Timestamptz(3)
+  endsAt          DateTime @db.Timestamptz(3)
   durationMinutes Int
 
   playersCount Int @default(4)
 
   // --- Dinero ---
-  basePrice      Decimal @default(0) @db.Decimal(14, 2)
-  discountAmount Decimal @default(0) @db.Decimal(14, 2)
-  totalPrice     Decimal @default(0) @db.Decimal(14, 2)
-  paidAmount     Decimal @default(0) @db.Decimal(14, 2)
+  basePrice      Decimal       @default(0) @db.Decimal(14, 2)
+  discountAmount Decimal       @default(0) @db.Decimal(14, 2)
+  totalPrice     Decimal       @default(0) @db.Decimal(14, 2)
+  paidAmount     Decimal       @default(0) @db.Decimal(14, 2)
   paymentStatus  PaymentStatus @default(UNPAID)
   /// Si el pago se divide entre jugadores.
-  isSplitPayment Boolean @default(false)
+  isSplitPayment Boolean       @default(false)
 
   notes         String?
   internalNotes String?
 
   // --- Ciclo de vida operativo ---
-  checkInAt  DateTime?
-  checkOutAt DateTime?
+  checkInAt  DateTime? @db.Timestamptz(3)
+  checkOutAt DateTime? @db.Timestamptz(3)
 
-  confirmedAt DateTime?
-  cancelledAt DateTime?
-  cancelledById String? @db.Uuid
+  confirmedAt        DateTime? @db.Timestamptz(3)
+  cancelledAt        DateTime? @db.Timestamptz(3)
+  cancelledById      String?   @db.Uuid
   cancellationReason String?
-  cancellationFee Decimal @default(0) @db.Decimal(14, 2)
-  refundAmount    Decimal @default(0) @db.Decimal(14, 2)
+  cancellationFee    Decimal   @default(0) @db.Decimal(14, 2)
+  refundAmount       Decimal   @default(0) @db.Decimal(14, 2)
 
-  noShowAt     DateTime?
+  noShowAt     DateTime? @db.Timestamptz(3)
   noShowReason String?
 
   // --- Reprogramación: cadena, nunca sobrescritura ---
-  rescheduledFromId String?  @db.Uuid
-  rescheduledFrom   Booking? @relation("BookingReschedule", fields: [rescheduledFromId], references: [id])
+  rescheduledFromId String?   @db.Uuid
+  rescheduledFrom   Booking?  @relation("BookingReschedule", fields: [rescheduledFromId], references: [id])
   rescheduledTo     Booking[] @relation("BookingReschedule")
 
   // --- Origen ---
-  source     BookingSource @default(ADMIN)
-  createdById String?      @db.Uuid
+  source      BookingSource @default(ADMIN)
+  createdById String?       @db.Uuid
 
   // --- Recurrencia (turnos fijos: "todos los martes 20hs") ---
-  recurrenceId    String? @db.Uuid
-  recurrenceRule  String? // RRULE RFC-5545
+  recurrenceId       String? @db.Uuid
+  recurrenceRule     String? // RRULE RFC-5545
   isRecurrenceParent Boolean @default(false)
 
-  lessonId    String? @db.Uuid
-  lesson      Lesson? @relation(fields: [lessonId], references: [id])
-  tournamentId String? @db.Uuid
+  lessonId     String?     @db.Uuid
+  lesson       Lesson?     @relation(fields: [lessonId], references: [id])
+  tournamentId String?     @db.Uuid
   tournament   Tournament? @relation(fields: [tournamentId], references: [id])
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
-  players      BookingPlayer[]
-  payments     Payment[]
-  reminders    ScheduledReminder[]
-  statusHistory BookingStatusChange[]
+  players        BookingPlayer[]
+  payments       Payment[]
+  reminders      ScheduledReminder[]
+  statusHistory  BookingStatusChange[]
   accountEntries AccountEntry[]
+  paymentOrders  PaymentOrder[]
 
   @@unique([clubId, code])
   // Índice maestro de la agenda: "dame el día de todas las canchas".
@@ -924,8 +930,6 @@ model Booking {
   @@index([clubId, status, startsAt])
   @@index([clubId, instructorId, startsAt])
   @@index([recurrenceId])
-  paymentOrders PaymentOrder[]
-
   @@map("bookings")
 }
 
@@ -978,11 +982,11 @@ model BookingStatusChange {
   bookingId String  @db.Uuid
   booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  fromStatus BookingStatus?
-  toStatus   BookingStatus
-  reason     String?
-  changedById String? @db.Uuid
-  createdAt  DateTime @default(now())
+  fromStatus  BookingStatus?
+  toStatus    BookingStatus
+  reason      String?
+  changedById String?        @db.Uuid
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, bookingId, createdAt])
   @@map("booking_status_changes")
@@ -1005,17 +1009,17 @@ model BookingPlayer {
   guestEmail String?
 
   invitationStatus InvitationStatus @default(PENDING)
-  respondedAt      DateTime?
+  respondedAt      DateTime?        @db.Timestamptz(3)
 
   /// Monto que le corresponde en pago dividido.
   shareAmount Decimal @default(0) @db.Decimal(14, 2)
   paidAmount  Decimal @default(0) @db.Decimal(14, 2)
 
-  isOrganizer Boolean @default(false)
-  checkedInAt DateTime?
+  isOrganizer Boolean   @default(false)
+  checkedInAt DateTime? @db.Timestamptz(3)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([clubId, bookingId])
   @@index([clubId, clientId])
@@ -1042,7 +1046,7 @@ model WaitlistEntry {
   court   Court?  @relation(fields: [courtId], references: [id])
 
   /// Ventana deseada.
-  desiredDate      DateTime @db.Date
+  desiredDate       DateTime @db.Date
   desiredFromMinute Int
   desiredToMinute   Int
   durationMinutes   Int
@@ -1050,13 +1054,13 @@ model WaitlistEntry {
   position Int
   status   WaitlistStatus @default(WAITING)
 
-  notifiedAt   DateTime?
+  notifiedAt         DateTime? @db.Timestamptz(3)
   /// Tiempo límite para responder tras la notificación.
-  respondsUntil DateTime?
-  convertedBookingId String? @db.Uuid
+  respondsUntil      DateTime? @db.Timestamptz(3)
+  convertedBookingId String?   @db.Uuid
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([clubId, desiredDate, status, position])
   @@index([clubId, clientId])
@@ -1082,20 +1086,20 @@ model CourtBlock {
   courtId String? @db.Uuid
   court   Court?  @relation(fields: [courtId], references: [id], onDelete: Cascade)
 
-  type   BlockType @default(MAINTENANCE)
-  reason String
+  type        BlockType @default(MAINTENANCE)
+  reason      String
   description String?
-  photoUrls String[] @default([])
+  photoUrls   String[]  @default([])
 
-  startsAt DateTime
-  endsAt   DateTime
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt   DateTime @db.Timestamptz(3)
 
   recurrenceRule String? // RRULE
 
   createdById String?   @db.Uuid
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
 
   @@index([clubId, startsAt, endsAt])
   @@index([clubId, courtId, startsAt])
@@ -1117,16 +1121,16 @@ model ScheduledReminder {
   bookingId String  @db.Uuid
   booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  channel   NotificationChannel
+  channel       NotificationChannel
   /// Minutos antes del inicio: 1440, 720, 120, 30.
   offsetMinutes Int
-  scheduledFor  DateTime
+  scheduledFor  DateTime            @db.Timestamptz(3)
 
   status ReminderStatus @default(SCHEDULED)
-  sentAt DateTime?
+  sentAt DateTime?      @db.Timestamptz(3)
   error  String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([status, scheduledFor])
   @@index([clubId, bookingId])
@@ -1159,20 +1163,20 @@ model Instructor {
   avatarUrl String?
   bio       String?
 
-  specialties String[] @default([])
+  specialties String[]     @default([])
   skillLevels SkillLevel[] @default([])
 
   /// Comisión sobre clases. Porcentaje o monto fijo, según commissionType.
-  commissionType   CommissionType @default(PERCENTAGE)
-  commissionValue  Decimal        @default(0) @db.Decimal(14, 2)
-  hourlyRate       Decimal        @default(0) @db.Decimal(14, 2)
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionValue Decimal        @default(0) @db.Decimal(14, 2)
+  hourlyRate      Decimal        @default(0) @db.Decimal(14, 2)
 
-  status    InstructorStatus @default(ACTIVE)
-  hiredAt   DateTime?
+  status  InstructorStatus @default(ACTIVE)
+  hiredAt DateTime?        @db.Timestamptz(3)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   availability InstructorAvailability[]
   bookings     Booking[]
@@ -1201,17 +1205,17 @@ model InstructorAvailability {
   instructorId String     @db.Uuid
   instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
 
-  dayOfWeek   Int
-  fromMinute  Int
-  toMinute    Int
+  dayOfWeek  Int
+  fromMinute Int
+  toMinute   Int
 
   /// Bloqueo puntual (vacaciones) en vez de disponibilidad semanal.
   isBlock     Boolean   @default(false)
-  blockFrom   DateTime?
-  blockTo     DateTime?
+  blockFrom   DateTime? @db.Timestamptz(3)
+  blockTo     DateTime? @db.Timestamptz(3)
   blockReason String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, instructorId, dayOfWeek])
   @@map("instructor_availability")
@@ -1227,7 +1231,7 @@ model Lesson {
 
   name        String
   description String?
-  type        LessonType @default(GROUP)
+  type        LessonType  @default(GROUP)
   skillLevel  SkillLevel?
 
   maxStudents Int     @default(4)
@@ -1236,9 +1240,9 @@ model Lesson {
   recurrenceRule String?
   isActive       Boolean @default(true)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   bookings    Booking[]
   attendances LessonAttendance[]
@@ -1267,7 +1271,7 @@ model LessonAttendance {
   attended Boolean  @default(false)
   notes    String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([lessonId, clientId, date])
   @@index([clubId, clientId])
@@ -1289,11 +1293,11 @@ model InstructorCommission {
   baseAmount       Decimal @db.Decimal(14, 2)
   commissionAmount Decimal @db.Decimal(14, 2)
 
-  status  CommissionStatus @default(PENDING)
-  paidAt  DateTime?
+  status CommissionStatus @default(PENDING)
+  paidAt DateTime?        @db.Timestamptz(3)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([clubId, instructorId, periodFrom])
   @@map("instructor_commissions")
@@ -1315,21 +1319,21 @@ model MembershipPlan {
   clubId String @db.Uuid
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
-  name        String
-  description String?
-  price       Decimal @db.Decimal(14, 2)
+  name         String
+  description  String?
+  price        Decimal      @db.Decimal(14, 2)
   billingCycle BillingCycle @default(MONTHLY)
 
   /// Beneficios: horas incluidas, % descuento, prioridad de reserva.
-  includedHours    Int?
-  discountPercent  Decimal @default(0) @db.Decimal(5, 2)
-  advanceBookingDays Int   @default(7)
-  benefits         String[] @default([])
+  includedHours      Int?
+  discountPercent    Decimal  @default(0) @db.Decimal(5, 2)
+  advanceBookingDays Int      @default(7)
+  benefits           String[] @default([])
 
   isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   clientMemberships ClientMembership[]
 
@@ -1350,24 +1354,24 @@ model ClientMembership {
   clubId String @db.Uuid
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
-  clientId String @db.Uuid
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  planId   String @db.Uuid
+  clientId String         @db.Uuid
+  client   Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  planId   String         @db.Uuid
   plan     MembershipPlan @relation(fields: [planId], references: [id])
 
-  startsAt DateTime
-  endsAt   DateTime
+  startsAt DateTime               @db.Timestamptz(3)
+  endsAt   DateTime               @db.Timestamptz(3)
   status   ClientMembershipStatus @default(ACTIVE)
 
-  autoRenew    Boolean @default(false)
-  hoursUsed    Int     @default(0)
-  pricePaid    Decimal @db.Decimal(14, 2)
+  autoRenew Boolean @default(false)
+  hoursUsed Int     @default(0)
+  pricePaid Decimal @db.Decimal(14, 2)
 
-  cancelledAt DateTime?
+  cancelledAt  DateTime? @db.Timestamptz(3)
   cancelReason String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([clubId, clientId, status])
   @@index([clubId, endsAt, status])
@@ -1393,8 +1397,8 @@ model ProductCategory {
   name      String
   sortOrder Int    @default(0)
 
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   products Product[]
 
@@ -1410,11 +1414,11 @@ model Product {
   categoryId String?          @db.Uuid
   category   ProductCategory? @relation(fields: [categoryId], references: [id])
 
-  sku     String?
-  barcode String?
-  name    String
+  sku         String?
+  barcode     String?
+  name        String
   description String?
-  imageUrl String?
+  imageUrl    String?
 
   /// Costo y precio. El margen se calcula, no se guarda.
   costPrice Decimal @default(0) @db.Decimal(14, 2)
@@ -1430,9 +1434,9 @@ model Product {
   unit        String  @default("unidad")
 
   isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   stockMovements StockMovement[]
   saleItems      SaleItem[]
@@ -1458,8 +1462,8 @@ model StockMovement {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   type     StockMovementType
-  quantity Decimal @db.Decimal(14, 3) // signo según type
-  unitCost Decimal @default(0) @db.Decimal(14, 2)
+  quantity Decimal           @db.Decimal(14, 3) // signo según type
+  unitCost Decimal           @default(0) @db.Decimal(14, 2)
 
   /// Stock resultante tras el movimiento. Permite auditar sin recalcular.
   balanceAfter Decimal @db.Decimal(14, 3)
@@ -1467,7 +1471,7 @@ model StockMovement {
   reference   String? // saleId, purchaseId, etc.
   reason      String?
   createdById String?  @db.Uuid
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, productId, createdAt])
   @@map("stock_movements")
@@ -1504,21 +1508,20 @@ model Sale {
 
   status SaleStatus @default(COMPLETED)
 
-  soldById  String?   @db.Uuid
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  voidedAt  DateTime?
+  soldById   String?   @db.Uuid
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+  voidedAt   DateTime? @db.Timestamptz(3)
   voidReason String?
 
-  items    SaleItem[]
-  payments Payment[]
+  items          SaleItem[]
+  payments       Payment[]
   accountEntries AccountEntry[]
+  paymentOrders  PaymentOrder[]
 
   @@unique([clubId, code])
   @@index([clubId, createdAt])
   @@index([clubId, clientId])
-  paymentOrders PaymentOrder[]
-
   @@map("sales")
 }
 
@@ -1537,18 +1540,18 @@ model SaleItem {
   saleId String @db.Uuid
   sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
-  productId String? @db.Uuid
+  productId String?  @db.Uuid
   product   Product? @relation(fields: [productId], references: [id])
 
   /// Snapshot: si el producto cambia de precio, la venta histórica no muta.
-  description String
-  quantity    Decimal @db.Decimal(14, 3)
-  unitPrice   Decimal @db.Decimal(14, 2)
+  description    String
+  quantity       Decimal @db.Decimal(14, 3)
+  unitPrice      Decimal @db.Decimal(14, 2)
   discountAmount Decimal @default(0) @db.Decimal(14, 2)
-  taxRate     Decimal @default(21) @db.Decimal(5, 2)
-  total       Decimal @db.Decimal(14, 2)
+  taxRate        Decimal @default(21) @db.Decimal(5, 2)
+  total          Decimal @db.Decimal(14, 2)
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, saleId])
   @@map("sale_items")
@@ -1570,9 +1573,9 @@ model CashRegister {
   name     String // "Recepción" | "Buffet"
   isActive Boolean @default(true)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   sessions CashSession[]
 
@@ -1591,24 +1594,24 @@ model CashSession {
   membershipId String     @db.Uuid
   membership   Membership @relation(fields: [membershipId], references: [id])
 
-  openedAt      DateTime @default(now())
+  openedAt      DateTime @default(now()) @db.Timestamptz(3)
   openingAmount Decimal  @db.Decimal(14, 2)
   openingNotes  String?
 
-  closedAt        DateTime?
+  closedAt         DateTime? @db.Timestamptz(3)
   /// Lo que el sistema calcula que debería haber.
-  expectedAmount  Decimal?  @db.Decimal(14, 2)
+  expectedAmount   Decimal?  @db.Decimal(14, 2)
   /// Lo que se contó físicamente (arqueo).
-  countedAmount   Decimal?  @db.Decimal(14, 2)
-  difference      Decimal?  @db.Decimal(14, 2)
+  countedAmount    Decimal?  @db.Decimal(14, 2)
+  difference       Decimal?  @db.Decimal(14, 2)
   differenceReason String?
-  closingNotes    String?
-  closedById      String?   @db.Uuid
+  closingNotes     String?
+  closedById       String?   @db.Uuid
 
   status CashSessionStatus @default(OPEN)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   movements CashMovement[]
   sales     Sale[]
@@ -1655,7 +1658,7 @@ model CashMovement {
   reversesId String? @db.Uuid
 
   createdById String?  @db.Uuid
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, sessionId, createdAt])
   @@index([clubId, type, createdAt])
@@ -1706,9 +1709,9 @@ model PaymentMethod {
 
   isActive  Boolean   @default(true)
   sortOrder Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   payments      Payment[]
   cashMovements CashMovement[]
@@ -1776,20 +1779,21 @@ model Payment {
 
   /// Fecha estimada de acreditación (hoy + settlementDays).
   settlementDate DateTime? @db.Date
-  settledAt      DateTime?
+  settledAt      DateTime? @db.Timestamptz(3)
 
-  refundedAmount Decimal @default(0) @db.Decimal(14, 2)
-  refundedAt     DateTime?
+  refundedAmount Decimal   @default(0) @db.Decimal(14, 2)
+  refundedAt     DateTime? @db.Timestamptz(3)
   refundReason   String?
 
-  notes       String?
+  notes        String?
   receivedById String?  @db.Uuid
-  paidAt      DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  paidAt       DateTime @default(now()) @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
-  cashMovements CashMovement[]
+  cashMovements  CashMovement[]
   accountEntries AccountEntry[]
+  paymentOrder   PaymentOrder?
 
   @@unique([clubId, code])
   @@unique([gatewayProvider, gatewayPaymentId])
@@ -1797,8 +1801,6 @@ model Payment {
   @@index([clubId, clientId, paidAt])
   @@index([clubId, status])
   @@index([clubId, settlementDate, settledAt])
-  paymentOrder PaymentOrder?
-
   @@map("payments")
 }
 
@@ -1820,11 +1822,11 @@ model AccountEntry {
   clientId String @db.Uuid
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  type      AccountEntryType
+  type         AccountEntryType
   /// Positivo = a favor del cliente. Negativo = deuda.
-  amount    Decimal @db.Decimal(14, 2)
+  amount       Decimal          @db.Decimal(14, 2)
   /// Saldo resultante. Permite extracto sin recalcular toda la historia.
-  balanceAfter Decimal @db.Decimal(14, 2)
+  balanceAfter Decimal          @db.Decimal(14, 2)
 
   concept   String
   reference String?
@@ -1839,7 +1841,7 @@ model AccountEntry {
   dueDate DateTime? @db.Date
 
   createdById String?  @db.Uuid
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, clientId, createdAt])
   @@index([clubId, dueDate])
@@ -1865,21 +1867,21 @@ model BankAccount {
   clubId String @db.Uuid
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
-  bankName    String
-  accountName String
-  accountType BankAccountType @default(CHECKING)
-  cbu         String?
-  alias       String?
+  bankName      String
+  accountName   String
+  accountType   BankAccountType @default(CHECKING)
+  cbu           String?
+  alias         String?
   accountNumber String?
-  currency    String @default("ARS")
+  currency      String          @default("ARS")
 
   /// Cache del saldo. Fuente de verdad: BankTransaction.
   currentBalance Decimal @default(0) @db.Decimal(14, 2)
 
   isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   transactions   BankTransaction[]
   paymentMethods PaymentMethod[]
@@ -1903,23 +1905,23 @@ model BankTransaction {
   accountId String      @db.Uuid
   account   BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  date        DateTime @db.Date
-  description String
-  reference   String?
-  amount      Decimal  @db.Decimal(14, 2) // signado
+  date         DateTime @db.Date
+  description  String
+  reference    String?
+  amount       Decimal  @db.Decimal(14, 2) // signado
   balanceAfter Decimal? @db.Decimal(14, 2)
 
   /// Huella para idempotencia en importaciones repetidas de extractos.
   fingerprint String
 
   isReconciled   Boolean   @default(false)
-  reconciledAt   DateTime?
+  reconciledAt   DateTime? @db.Timestamptz(3)
   reconciledWith String? // paymentId | expenseId
 
   source TransactionSource @default(MANUAL)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@unique([clubId, accountId, fingerprint])
   @@index([clubId, accountId, date])
@@ -1951,9 +1953,9 @@ model Supplier {
   currentBalance Decimal @default(0) @db.Decimal(14, 2)
 
   isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   expenses Expense[]
 
@@ -1967,13 +1969,13 @@ model ExpenseCategory {
   clubId String @db.Uuid
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
-  name     String
+  name      String
   /// Fijo vs variable: necesario para punto de equilibrio.
-  isFixed  Boolean @default(false)
-  sortOrder Int    @default(0)
+  isFixed   Boolean @default(false)
+  sortOrder Int     @default(0)
 
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   expenses Expense[]
 
@@ -2003,16 +2005,16 @@ model Expense {
   dueDate DateTime? @db.Date
 
   status ExpenseStatus @default(PENDING)
-  paidAt DateTime?
+  paidAt DateTime?     @db.Timestamptz(3)
 
   documentType   String? // "FACTURA_A" | "TICKET" | "RECIBO"
   documentNumber String?
   attachmentUrl  String?
 
   createdById String?   @db.Uuid
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
 
   @@unique([clubId, code])
   @@index([clubId, date])
@@ -2035,10 +2037,6 @@ enum ExpenseStatus {
 // puntos de venta después obliga a migrar facturas ya emitidas.
 // ============================================================================
 
-
-
-
-
 // ============================================================================
 // SECCIÓN 13 — TORNEOS
 // ============================================================================
@@ -2056,21 +2054,21 @@ model Tournament {
   category   String?
   skillLevel SkillLevel?
 
-  registrationOpensAt  DateTime?
-  registrationClosesAt DateTime?
-  startsAt DateTime
-  endsAt   DateTime?
+  registrationOpensAt  DateTime? @db.Timestamptz(3)
+  registrationClosesAt DateTime? @db.Timestamptz(3)
+  startsAt             DateTime  @db.Timestamptz(3)
+  endsAt               DateTime? @db.Timestamptz(3)
 
-  maxTeams      Int     @default(16)
-  entryFee      Decimal @default(0) @db.Decimal(14, 2)
+  maxTeams         Int     @default(16)
+  entryFee         Decimal @default(0) @db.Decimal(14, 2)
   prizeDescription String?
-  rules         String?
+  rules            String?
 
   status TournamentStatus @default(DRAFT)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   teams    TournamentTeam[]
   matches  TournamentMatch[]
@@ -2109,33 +2107,33 @@ model TournamentTeam {
   groupName     String?
   paymentStatus PaymentStatus @default(UNPAID)
 
-  played Int @default(0)
-  won    Int @default(0)
-  lost   Int @default(0)
-  points Int @default(0)
+  played        Int  @default(0)
+  won           Int  @default(0)
+  lost          Int  @default(0)
+  points        Int  @default(0)
   finalPosition Int?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  members    TournamentTeamMember[]
-  homeMatches TournamentMatch[] @relation("HomeTeam")
-  awayMatches TournamentMatch[] @relation("AwayTeam")
+  members     TournamentTeamMember[]
+  homeMatches TournamentMatch[]      @relation("HomeTeam")
+  awayMatches TournamentMatch[]      @relation("AwayTeam")
 
   @@index([clubId, tournamentId])
   @@map("tournament_teams")
 }
 
 model TournamentTeamMember {
-  id     String @id @default(uuid()) @db.Uuid
-  clubId String @db.Uuid
-  teamId String @db.Uuid
+  id     String         @id @default(uuid()) @db.Uuid
+  clubId String         @db.Uuid
+  teamId String         @db.Uuid
   team   TournamentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   clientId String @db.Uuid
   client   Client @relation(fields: [clientId], references: [id])
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([teamId, clientId])
   @@index([clubId, clientId])
@@ -2157,17 +2155,17 @@ model TournamentMatch {
   awayTeamId String?         @db.Uuid
   awayTeam   TournamentTeam? @relation("AwayTeam", fields: [awayTeamId], references: [id])
 
-  scheduledAt DateTime?
+  scheduledAt DateTime? @db.Timestamptz(3)
   courtId     String?   @db.Uuid
 
   /// [[6,4],[3,6],[7,5]]
-  scoreSets Json?
+  scoreSets    Json?
   winnerTeamId String? @db.Uuid
 
   status MatchStatus @default(SCHEDULED)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([clubId, tournamentId, roundNumber])
   @@map("tournament_matches")
@@ -2197,21 +2195,21 @@ model Notification {
   channel NotificationChannel
   type    NotificationType
 
-  title    String
-  body     String
+  title     String
+  body      String
   /// Deep link al recurso.
   actionUrl String?
-  metadata Json?
+  metadata  Json?
 
-  status NotificationStatus @default(PENDING)
-  sentAt DateTime?
-  readAt DateTime?
-  error  String?
-  retryCount Int @default(0)
+  status     NotificationStatus @default(PENDING)
+  sentAt     DateTime?          @db.Timestamptz(3)
+  readAt     DateTime?          @db.Timestamptz(3)
+  error      String?
+  retryCount Int                @default(0)
 
   providerMessageId String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, clientId, createdAt])
   @@index([status, createdAt])
@@ -2257,15 +2255,15 @@ model AuditLog {
   clubId String @db.Uuid
   club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
-  userId String? @db.Uuid
-  user   User?   @relation(fields: [userId], references: [id])
+  userId    String? @db.Uuid
+  user      User?   @relation(fields: [userId], references: [id])
   /// Snapshot: si el usuario se borra, el log conserva quién fue.
   actorName String?
   actorRole String?
 
   action     AuditAction
   entityType String // "Booking" | "Payment" | "Client"
-  entityId   String? @db.Uuid
+  entityId   String?     @db.Uuid
 
   /// Solo campos que cambiaron: { "status": ["PENDING","CONFIRMED"] }
   changes Json?
@@ -2275,7 +2273,7 @@ model AuditLog {
   userAgent String?
   requestId String?
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([clubId, entityType, entityId, createdAt])
   @@index([clubId, userId, createdAt])
@@ -2299,7 +2297,6 @@ enum AuditAction {
   VOID
 }
 
-
 // ============================================================================
 // PAGOS ONLINE — Mercado Pago (marketplace: cada club cobra a su cuenta)
 // ============================================================================
@@ -2319,18 +2316,18 @@ model ClubPaymentIntegration {
   webhookSecretEnc String? @db.Text
   publicKey        String?
 
-  expiresAt DateTime?
+  expiresAt DateTime? @db.Timestamptz(3)
   scope     String?
 
   status IntegrationStatus @default(PENDING)
 
-  connectedAt DateTime?
-  lastSyncAt  DateTime?
+  connectedAt DateTime? @db.Timestamptz(3)
+  lastSyncAt  DateTime? @db.Timestamptz(3)
   lastError   String?
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   orders PaymentOrder[]
 
@@ -2373,12 +2370,12 @@ model PaymentOrder {
   paymentId String?  @unique @db.Uuid
   payment   Payment? @relation(fields: [paymentId], references: [id])
 
-  expiresAt   DateTime?
-  approvedAt  DateTime?
+  expiresAt   DateTime? @db.Timestamptz(3)
+  approvedAt  DateTime? @db.Timestamptz(3)
   createdById String?   @db.Uuid
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([clubId, status])
   @@index([clubId, createdAt])

@@ -129,5 +129,19 @@ export async function seedClubDefaultsTx(
     select: { id: true },
   });
 
+  // Reglas de precio de arranque, para las duraciones que el booking público
+  // permite (60/90/120 — ver public.service.ts). Sin esto, un club recién
+  // creado no puede cobrar NINGUNA reserva (ni pública ni de mostrador) hasta
+  // que el dueño configure precios a mano, y el wizard de alta no tiene un
+  // paso para eso. El dueño las edita después desde el panel; esto solo
+  // evita que el club arranque completamente inutilizable.
+  await tx.priceRule.createMany({
+    data: [
+      { clubId, priceListId: priceList.id, durationMinutes: 60, price: 8000, priority: 0 },
+      { clubId, priceListId: priceList.id, durationMinutes: 90, price: 12000, priority: 0 },
+      { clubId, priceListId: priceList.id, durationMinutes: 120, price: 15000, priority: 0 },
+    ],
+  });
+
   return { ownerRoleId, sportId: sport.id, priceListId: priceList.id };
 }

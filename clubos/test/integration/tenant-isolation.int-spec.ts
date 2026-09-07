@@ -71,16 +71,24 @@ d('Aislamiento multi-tenant (RLS)', () => {
     });
 
     // Un cliente en cada club (Client tiene RLS).
-    await runWithTenant(ctx(clubA), () =>
-      prisma.db.client.create({
+    //
+    // OJO: el callback de runWithTenant tiene que ser `async` y hacer el
+    // `await` de la query ADENTRO. Si el callback devuelve la promesa de
+    // Prisma sin resolverla (`() => prisma.db.x.create(...)`), el `.then()`
+    // se dispara recién en el `await` de AFUERA, cuando el `tenantStorage.run()`
+    // ya devolvió — en ese momento el store de AsyncLocalStorage activo para
+    // esa promesa ya no es el que le pasamos, y `getTenantContext()` no ve
+    // clubId. Es la única forma segura de usar runWithTenant con Prisma.
+    await runWithTenant(ctx(clubA), async () => {
+      await prisma.db.client.create({
         data: { clubId: clubA, firstName: 'Ana', lastName: 'DelClubA' },
-      }),
-    );
-    await runWithTenant(ctx(clubB), () =>
-      prisma.db.client.create({
+      });
+    });
+    await runWithTenant(ctx(clubB), async () => {
+      await prisma.db.client.create({
         data: { clubId: clubB, firstName: 'Beto', lastName: 'DelClubB' },
-      }),
-    );
+      });
+    });
   });
 
   afterAll(async () => {
@@ -92,7 +100,7 @@ d('Aislamiento multi-tenant (RLS)', () => {
   });
 
   it('el club A solo ve sus propios clientes', async () => {
-    const clients = await runWithTenant(ctx(clubA), () =>
+    const clients = await runWithTenant(ctx(clubA), async () =>
       prisma.db.client.findMany({ select: { firstName: true, clubId: true } }),
     );
     expect(clients.length).toBeGreaterThan(0);
@@ -101,7 +109,7 @@ d('Aislamiento multi-tenant (RLS)', () => {
   });
 
   it('el club B solo ve sus propios clientes', async () => {
-    const clients = await runWithTenant(ctx(clubB), () =>
+    const clients = await runWithTenant(ctx(clubB), async () =>
       prisma.db.client.findMany({ select: { firstName: true, clubId: true } }),
     );
     expect(clients.every((c) => c.clubId === clubB)).toBe(true);
@@ -109,13 +117,13 @@ d('Aislamiento multi-tenant (RLS)', () => {
   });
 
   it('el club A no puede leer un cliente del club B ni por id directo', async () => {
-    const betoDelB = await runWithTenant(ctx(clubB), () =>
+    const betoDelB = await runWithTenant(ctx(clubB), async () =>
       prisma.db.client.findFirst({ where: { firstName: 'Beto' }, select: { id: true } }),
     );
     expect(betoDelB).not.toBeNull();
 
     // Intentar leerlo desde el contexto del club A: la RLS lo oculta.
-    const leak = await runWithTenant(ctx(clubA), () =>
+    const leak = await runWithTenant(ctx(clubA), async () =>
       prisma.db.client.findUnique({ where: { id: betoDelB!.id } }),
     );
     expect(leak).toBeNull();

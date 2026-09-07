@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { TokenService } from './token.service';
 import { runWithoutTenancy } from '../tenancy/tenant-context';
@@ -257,14 +258,24 @@ export class AuthService {
 
   /** Permisos efectivos del usuario en un club. */
   async getPermissions(userId: string, clubId: string): Promise<string[]> {
-    const m = await this.prisma.membership.findFirst({
-      where: { clubId, userId, status: 'ACTIVE', deletedAt: null },
-      select: {
-        extraPermissions: true,
-        revokedPermissions: true,
-        role: { select: { permissions: true } },
-      },
-    });
+    // Se llama desde login/refresh/switch-club, ANTES de que exista un
+    // TenantContext de request (todavía se está decidiendo a qué club se
+    // entra). `membership` tiene RLS: sin bypass, con el rol restringido de
+    // la app esto siempre devuelve 0 filas. Ver PrismaService "BYPASS DE
+    // PLATAFORMA".
+    // El callback tiene que ser `async`: ver la nota en token.service.ts
+    // sobre por qué una arrow que solo reenvía la promesa de Prisma pierde
+    // el contexto de bypass.
+    const m = await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.db.membership.findFirst({
+        where: { clubId, userId, status: 'ACTIVE', deletedAt: null },
+        select: {
+          extraPermissions: true,
+          revokedPermissions: true,
+          role: { select: { permissions: true } },
+        },
+      }),
+    );
 
     if (!m) return [];
 
@@ -279,27 +290,31 @@ export class AuthService {
   // --- internos ---
 
   private async listClubs(userId: string): Promise<ClubSummary[]> {
-    const memberships = await this.prisma.membership.findMany({
-      where: {
-        userId,
-        status: 'ACTIVE',
-        deletedAt: null,
-        club: { deletedAt: null, status: { notIn: ['CANCELLED'] } },
-      },
-      select: {
-        role: { select: { code: true } },
-        club: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            logoUrl: true,
-            status: true,
+    // Cross-tenant por naturaleza (los clubes de un usuario, sin saber
+    // todavía a cuál va a entrar) — mismo motivo que getPermissions arriba.
+    const memberships = await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.db.membership.findMany({
+        where: {
+          userId,
+          status: 'ACTIVE',
+          deletedAt: null,
+          club: { deletedAt: null, status: { notIn: ['CANCELLED'] } },
+        },
+        select: {
+          role: { select: { code: true } },
+          club: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              logoUrl: true,
+              status: true,
+            },
           },
         },
-      },
-      orderBy: { club: { name: 'asc' } },
-    });
+        orderBy: { club: { name: 'asc' } },
+      }),
+    );
 
     return memberships.map(
       (m: {

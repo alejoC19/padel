@@ -306,7 +306,8 @@ export class PaymentOrderService {
 
     if (!order?.booking?.client) return;
     const b = order.booking;
-    const client = b.client; // TS: ya garantizado no-null por el guard
+    const client = b.client;
+    if (!client) return;
     const tz = b.club.timezone ?? 'America/Argentina/Buenos_Aires';
     const data = {
       clubName: b.club.name,
