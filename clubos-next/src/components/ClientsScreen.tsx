@@ -48,7 +48,7 @@ const SKILL_LABEL: Record<string, string> = {
 };
 
 export function ClientsScreen() {
-  const { can } = useSession();
+  const { can, isDemo } = useSession();
   const { toasts, show, dismiss } = useToasts();
 
   const [rows, setRows] = useState<ClientRow[]>([]);
@@ -148,7 +148,7 @@ export function ClientsScreen() {
               : `${total} cliente${total === 1 ? '' : 's'}`}
           </p>
         </div>
-        {can('client.create') && (
+        {(isDemo || can('client.create')) && (
           <div className="screen-actions">
             <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
               Nuevo cliente

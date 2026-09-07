@@ -141,6 +141,28 @@ async function refreshToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
+/**
+ * Cierra la sesión del lado del cliente y manda a `/entrar`.
+ *
+ * Se llama solo ante un 401 genuino: había un token y, ni siquiera después
+ * de intentar renovarlo, el backend lo acepta. Una request sin token para
+ * empezar (modo demostración) nunca llega acá — ese 401 es esperado y lo
+ * maneja cada pantalla mostrando datos de ejemplo, no un logout.
+ *
+ * Sin este redirect, una sesión que vence a mitad de uso deja a la persona
+ * mirando una pantalla rota para siempre: los fetches siguen fallando, pero
+ * nada le avisa que tiene que volver a entrar.
+ */
+function forceLogout(): void {
+  setSession(null, null);
+  if (typeof window === 'undefined') return;
+  try { sessionStorage.clear(); } catch { /* sessionStorage no disponible */ }
+  // Ya estar en /entrar (o yendo para allá) evita un loop de redirects.
+  if (!window.location.pathname.startsWith('/entrar')) {
+    window.location.href = '/entrar';
+  }
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -153,6 +175,10 @@ async function request<T>(
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (activeClubId) headers['x-club-id'] = activeClubId;
 
+  // Se captura antes del fetch: refreshToken() puede reemplazar accessToken
+  // más abajo, y lo que importa acá es si ESTA request salió con un token.
+  const hadToken = accessToken !== null;
+
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers,
@@ -162,6 +188,14 @@ async function request<T>(
   if (res.status === 401 && retry) {
     const ok = await refreshToken();
     if (ok) return request<T>(path, init, false);
+    // La renovación también falló. Sin token no había sesión que perder
+    // (modo demo); con token, es una sesión vencida de verdad.
+    if (hadToken) forceLogout();
+  } else if (res.status === 401 && !retry && hadToken) {
+    // Reintento posterior a una renovación exitosa que igual volvió a
+    // rebotar: el token nuevo tampoco sirve, no tiene sentido seguir
+    // reintentando.
+    forceLogout();
   }
 
   if (!res.ok) {

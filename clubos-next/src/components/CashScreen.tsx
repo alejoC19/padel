@@ -66,7 +66,14 @@ const MOVEMENT_TYPES = [
 ];
 
 export function CashScreen() {
-  const { can } = useSession();
+  const { can, isDemo } = useSession();
+  // En modo demo (sin sesión) se muestran todas las acciones — es la
+  // vidriera de venta, no depende de permisos reales. Con sesión, el
+  // permiso real manda.
+  const canOrDemo = useCallback(
+    (permission: string) => isDemo || can(permission),
+    [isDemo, can],
+  );
   const { toasts, show, dismiss } = useToasts();
 
   const [balance, setBalance] = useState<CashBalance | null>(null);
@@ -150,12 +157,12 @@ export function CashScreen() {
           </p>
         </div>
         <div className="screen-actions">
-          {!closed && can('cash.movement') && (
+          {!closed && canOrDemo('cash.movement') && (
             <button className="btn btn-secondary" onClick={() => setMovementOpen(true)}>
               Registrar movimiento
             </button>
           )}
-          {!closed && can('cash.close') && (
+          {!closed && canOrDemo('cash.close') && (
             <button className="btn btn-primary" onClick={() => setCloseOpen(true)}>
               Cerrar caja
             </button>
@@ -249,7 +256,7 @@ export function CashScreen() {
         <MovementDialog
           sessionId={balance.sessionId}
           available={balance.expectedCash}
-          can={can}
+          can={canOrDemo}
           onClose={() => setMovementOpen(false)}
           onDone={async (msg) => {
             setMovementOpen(false);

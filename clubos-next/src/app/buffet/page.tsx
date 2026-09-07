@@ -2,11 +2,14 @@
 
 import { AppShell } from '@/components/AppShell';
 import { PosScreen } from '@/components/PosScreen';
+import { RouteGuard } from '@/components/RouteGuard';
 
 export default function BuffetRoute() {
   return (
     <AppShell>
-      <PosScreen />
+      <RouteGuard requiredPermission="sale.create">
+        <PosScreen />
+      </RouteGuard>
     </AppShell>
   );
 }

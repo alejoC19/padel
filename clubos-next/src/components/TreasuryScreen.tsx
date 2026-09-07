@@ -26,7 +26,11 @@ import { Toasts } from '@/components/Toasts';
  */
 
 export function TreasuryScreen() {
-  const { can } = useSession();
+  const { can, isDemo } = useSession();
+  const canOrDemo = useCallback(
+    (permission: string) => isDemo || can(permission),
+    [isDemo, can],
+  );
   const { toasts, show, dismiss } = useToasts();
 
   const [flow, setFlow] = useState<CashFlowProjection | null>(null);
@@ -88,7 +92,7 @@ export function TreasuryScreen() {
             Qué plata hay y qué compromisos vienen
           </p>
         </div>
-        {can('expense.create') && (
+        {canOrDemo('expense.create') && (
           <div className="screen-actions">
             <button className="btn btn-primary" onClick={() => setExpenseOpen(true)}>
               Registrar gasto
@@ -222,7 +226,7 @@ export function TreasuryScreen() {
                         </span>
                       </div>
                       <span className="expense-amount">{formatMoney(e.total)}</span>
-                      {can('expense.approve') && (
+                      {canOrDemo('expense.approve') && (
                         <button
                           className="btn-mini"
                           disabled={payingId === e.id}

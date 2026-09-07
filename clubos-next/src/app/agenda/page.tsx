@@ -2,6 +2,7 @@
 
 import { AppShell } from '@/components/AppShell';
 import { AgendaScreen } from '@/components/AgendaScreen';
+import { RouteGuard } from '@/components/RouteGuard';
 
 /**
  * Agenda.
@@ -13,7 +14,9 @@ import { AgendaScreen } from '@/components/AgendaScreen';
 export default function AgendaRoute() {
   return (
     <AppShell>
-      <AgendaScreen />
+      <RouteGuard requiredPermission="booking.view">
+        <AgendaScreen />
+      </RouteGuard>
     </AppShell>
   );
 }

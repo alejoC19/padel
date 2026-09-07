@@ -48,7 +48,11 @@ const STATUS_LABEL: Record<string, string> = {
 const TABLE_FORMATS = ['ROUND_ROBIN', 'GROUPS_PLAYOFF', 'AMERICANO'];
 
 export function TournamentsScreen() {
-  const { can } = useSession();
+  const { can, isDemo } = useSession();
+  const canOrDemo = useCallback(
+    (permission: string) => isDemo || can(permission),
+    [isDemo, can],
+  );
   const { toasts, show, dismiss } = useToasts();
 
   const [list, setList] = useState<TournamentRow[]>([]);
@@ -92,7 +96,7 @@ export function TournamentsScreen() {
       <>
         <TournamentDetail
           tournamentId={selectedId}
-          can={can}
+          can={canOrDemo}
           onBack={() => { setSelectedId(null); void load(); }}
           onMessage={show}
         />

@@ -695,6 +695,22 @@ body {
   padding: var(--sp-2xl); gap: var(--sp-md); text-align: center;
 }
 
+/*
+ * Pantalla de "no tenés permiso", distinta a propósito del cartel de
+ * "esto necesita el backend" (.screen-empty): una es un problema de acceso,
+ * la otra una caída de infraestructura, y confundirlas le enseña al
+ * operador a ignorar justo el mensaje que le importa.
+ */
+.forbidden-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: var(--sp-2xl); gap: var(--sp-sm); text-align: center;
+  max-width: 420px; margin: 0 auto;
+}
+.forbidden-screen svg { color: var(--ds-danger); margin-bottom: var(--sp-xs, 4px); }
+.forbidden-screen h1 { font-size: var(--fs-h3); font-weight: 800; color: var(--ds-text); }
+.forbidden-screen p { color: var(--ds-muted); }
+.forbidden-screen .btn { margin-top: var(--sp-sm); }
+
 /* Skeletons */
 .skeleton {
   background: linear-gradient(90deg, var(--ds-surface-2) 25%, #eef2f4 50%, var(--ds-surface-2) 75%);

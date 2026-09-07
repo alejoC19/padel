@@ -224,25 +224,44 @@ export function clearSession(): void {
   sessionStorage.clear();
 }
 
-export function useSession(): {
+export interface UseSessionResult {
   session: Session | null;
+  /** Se puso false→true una vez que se leyó (o se intentó leer) sessionStorage. */
+  ready: boolean;
+  isAuthenticated: boolean;
+  /**
+   * Sin sesión estamos en modo demostración: es la vidriera de venta del
+   * producto y tiene que poder recorrerse entera sin backend. Es un modo
+   * explícito, no un efecto secundario de `can()` — quien quiera mostrar todo
+   * en modo demo debe chequear `isDemo` a propósito, nunca asumir que
+   * `can()` lo hace por él.
+   */
+  isDemo: boolean;
   can: (permission: string) => boolean;
   logout: () => void;
-} {
+}
+
+export function useSession(): UseSessionResult {
   // Arranca en null y se lee después de montar: si el estado inicial
   // dependiera de sessionStorage, el HTML del servidor y el del cliente
   // diferirían y React tiraría un error de hidratación.
   const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setSession(readSession());
+    setReady(true);
   }, []);
+
+  const isAuthenticated = session !== null;
+  const isDemo = !isAuthenticated;
 
   const can = useCallback(
     (permission: string) => {
-      // Sin sesión estamos en modo demostración: se muestran todas las
-      // acciones para que la pantalla se pueda evaluar sin backend.
-      if (!session) return true;
+      // Fail-closed: sin sesión no hay permisos que conceder. El modo demo
+      // (mostrar todo sin backend) es una decisión de producto explícita —
+      // se resuelve con `isDemo` en el llamador, no acá.
+      if (!session) return false;
       return session.permissions.has(permission);
     },
     [session],
@@ -253,5 +272,5 @@ export function useSession(): {
     setSession(null);
   }, []);
 
-  return { session, can, logout };
+  return { session, ready, isAuthenticated, isDemo, can, logout };
 }

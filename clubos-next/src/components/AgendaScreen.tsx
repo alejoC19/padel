@@ -18,7 +18,7 @@ import {
 
 export function AgendaScreen() {
   const state = useAgendaStore(agendaStore);
-  const { session, can } = useSession();
+  const { can, isDemo } = useSession();
   const { toasts, show, dismiss } = useToasts();
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -26,8 +26,14 @@ export function AgendaScreen() {
 
   // Sin sesión no hay backend al que pedirle nada: se muestra el día de
   // ejemplo para que la pantalla se pueda evaluar igual.
-  const demo = session === null;
+  const demo = isDemo;
   const day: AgendaDay | null = demo ? DEMO_DAY : state.day;
+  // En modo demo se muestran todas las acciones del panel de turno (no hay
+  // sesión real de la que sacar permisos); con sesión, el permiso real manda.
+  const canOrDemo = useCallback(
+    (permission: string) => demo || can(permission),
+    [demo, can],
+  );
 
   useEffect(() => {
     if (!demo) void agendaStore.load(todayISO());
@@ -185,7 +191,7 @@ export function AgendaScreen() {
           booking={selected}
           court={selectedCourt}
           pending={selected ? state.pending.has(selected.id) : false}
-          can={can}
+          can={canOrDemo}
           onClose={() => agendaStore.select(null)}
           onCollect={handleCollect}
           onCheckIn={simple((id) => agendaStore.checkIn(id))}

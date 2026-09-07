@@ -53,7 +53,11 @@ interface PaymentMethod {
 }
 
 export function PosScreen() {
-  const { can } = useSession();
+  const { can, isDemo } = useSession();
+  const canOrDemo = useCallback(
+    (permission: string) => isDemo || can(permission),
+    [isDemo, can],
+  );
   const { toasts, show, dismiss } = useToasts();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -258,7 +262,7 @@ export function PosScreen() {
           </div>
           <button
             className="btn btn-primary btn-lg"
-            disabled={cart.length === 0 || !can('sale.create')}
+            disabled={cart.length === 0 || !canOrDemo('sale.create')}
             onClick={() => setPayOpen(true)}
           >
             Cobrar

@@ -2,11 +2,14 @@
 
 import { AppShell } from '@/components/AppShell';
 import { TreasuryScreen } from '@/components/TreasuryScreen';
+import { RouteGuard } from '@/components/RouteGuard';
 
 export default function TesoreriaRoute() {
   return (
     <AppShell>
-      <TreasuryScreen />
+      <RouteGuard requiredPermission="treasury.view">
+        <TreasuryScreen />
+      </RouteGuard>
     </AppShell>
   );
 }
