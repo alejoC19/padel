@@ -4,9 +4,14 @@ import {
   IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested,
 } from 'class-validator';
 
+// DOUBLE_ELIMINATION existe como valor del enum en el schema (Prisma), pero
+// el cuadro de perdedores no está implementado — generateElimination() lo
+// arma como eliminación simple sin avisar, así que se saca de acá para que
+// nadie pueda pedir un formato que no es el que realmente va a obtener.
+// Sacarlo de este enum (no del de Prisma) alcanza: class-validator lo
+// rechaza en el DTO antes de llegar al servicio.
 export enum FormatEnum {
   ELIMINATION = 'ELIMINATION',
-  DOUBLE_ELIMINATION = 'DOUBLE_ELIMINATION',
   ROUND_ROBIN = 'ROUND_ROBIN',
   GROUPS_PLAYOFF = 'GROUPS_PLAYOFF',
   AMERICANO = 'AMERICANO',
