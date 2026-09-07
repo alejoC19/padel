@@ -43,34 +43,49 @@ clubos/
 │   ├── tournaments/          tournament + bracket, services/, dto/
 │   └── treasury/             treasury + expense + cash-flow, services/, dto/
 ├── prisma/
-│   ├── schema.prisma          (54 modelos, incluye Invoice/InvoiceItem)
+│   ├── schema.prisma          (modelos de negocio, ver el archivo)
 │   ├── seed.ts
-│   └── migrations/manual/001_integrity_and_rls.sql
-├── db/init/                   01-extensions.sql, 02-app-role.sql
-├── test/                      verify-*.cjs, verify-*.mjs, smoke-test.mjs, e2e-day.mjs
+│   ├── migrations/            migraciones reales de Prisma
+│   └── manual/001_integrity_and_rls.sql   (RLS, EXCLUDE constraints, triggers)
+├── db/init/                   01-extensions.sql, 02-app-role.sql (rol clubos_app)
+├── test/                      unit/, integration/ (Jest)
+├── scripts/                   verify-*.cjs, verify-*.mjs, smoke-test.mjs, e2e-day.mjs
 ├── package.json
 ├── tsconfig.json
 ├── docker-compose.yml
-└── README.md                  (README original del backend)
+└── README.md                  (detalle de arquitectura del backend)
 ```
 
 ### Puesta en marcha
+La forma más simple es `bash start.sh` desde `clubos/` (ver `clubos/README.md`
+y `EMPEZAR-ACA.md` en la raíz) — levanta Postgres/Redis con Docker, aplica
+migraciones + RLS + seed, y deja todo listo. Manual, paso a paso:
 ```bash
 cd clubos
 npm install
-docker compose up -d          # levanta PostgreSQL + Redis
-npx prisma migrate dev        # aplica el schema
-npx prisma db seed            # datos de prueba
+docker compose up -d db redis
+cp .env.example .env          # completar DATABASE_URL / DIRECT_URL — ver abajo
+npx prisma generate
+npx prisma migrate deploy     # crea las tablas (usa DIRECT_URL)
+psql "$DIRECT_URL" -f db/init/01-extensions.sql
+psql "$DIRECT_URL" -f db/init/02-app-role.sql
+psql "$DIRECT_URL" -f prisma/manual/001_integrity_and_rls.sql
+npm run db:seed
 npm run start:dev
 ```
 
+**`DATABASE_URL` vs `DIRECT_URL`:** el backend corre con el rol restringido
+`clubos_app` (`DATABASE_URL`), sujeto a Row-Level Security; las migraciones
+corren con el rol owner (`DIRECT_URL`), que tiene permiso de crear tablas.
+Usar el owner como `DATABASE_URL` en runtime bypasea RLS por completo — ver
+`clubos/README.md` "Conexión: usar el rol correcto".
+
 ### Tests
-Los scripts de verificación viven en `test/`. Ejemplos:
 ```bash
-node test/verify-time.cjs
-node test/verify-money.cjs
-node test/smoke-test.mjs
-node test/e2e-day.mjs
+npm test                      # unit + integración (Jest)
+npm run test:unit             # solo unit, sin base de datos
+DATABASE_URL_TEST=... npm run test:int   # integración: RLS, concurrencia de caja, etc.
+npm run verify                 # scripts/verify-*.cjs — algoritmos puros, sin base
 ```
 
 ---
@@ -80,19 +95,25 @@ node test/e2e-day.mjs
 ```
 clubos-next/
 ├── src/
-│   ├── app/                   rutas: agenda, caja, buffet, clientes,
-│   │                          tesoreria, torneos, reportes, entrar
+│   ├── app/
+│   │   ├── agenda/ caja/ buffet/ clientes/ tesoreria/ torneos/ reportes/
+│   │   │   → panel del club (staff logueado). Cada ruta está protegida por
+│   │   │     RouteGuard además del guard del backend — ver src/components/
+│   │   │     RouteGuard.tsx.
+│   │   ├── entrar/ crear-club/  → login y alta de club (self-service)
+│   │   └── (ver el árbol real para las rutas públicas del jugador — sin
+│   │        login, bajo el slug del club)
 │   ├── components/            AgendaScreen, CashScreen, ClientsScreen, POS,
 │   │                          TreasuryScreen, ReportsScreen, TournamentsScreen,
-│   │                          BookingPanel, TimeGrid, etc.
+│   │                          BookingPanel, RouteGuard, etc.
 │   │   └── marketing/         Art.tsx, HeroAgenda.tsx
-│   ├── hooks/                 index.ts
+│   ├── hooks/                 index.ts (useSession: isAuthenticated/isDemo/can)
 │   └── lib/                   api.ts, agenda-store.ts, grid.ts, demo-data.ts
 ├── next.config.mjs
 ├── package.json
 ├── tsconfig.json
-├── verify-grid.cjs
-└── verify-store.cjs
+├── verify-grid.cjs             (algoritmos de grilla/horarios, sin backend)
+└── verify-store.cjs            (agenda-store, sin backend)
 ```
 
 ### Puesta en marcha
@@ -106,16 +127,16 @@ Los imports usan el alias `@/` → `src/` (configurado en `tsconfig.json`).
 
 ---
 
-## 3. `clubos-web/` — Prototipos estáticos
+## 3. `clubos-web/` — Prototipos estáticos (obsoleto)
 
-Landing, login y agenda en HTML plano (versión previa / demo visual).
+Landing, login y agenda en HTML plano — la etapa previa a `clubos-next`, que
+es la implementación real y mantenida. Se conserva solo como referencia
+visual; no tiene build ni tests propios (ver `clubos-web/README.md`).
 ```
 clubos-web/
 ├── landing.html
 ├── agenda.html
 ├── login.html
-├── package.json
-├── tsconfig.json
 └── README.md
 ```
 Abrir cualquiera de los `.html` directamente en el navegador.

@@ -35,12 +35,26 @@ base. Desde tu PC, en la carpeta `clubos`:
 DATABASE_URL="<la-que-copiaste-de-railway>" bash setup-produccion.sh
 ```
 
-Esto crea todo. Si te avisa que `psql` no está instalado para el paso del RLS,
-aplicá el archivo `prisma/rls/001_integrity_and_rls.sql` desde la consola SQL de
-Railway (pestaña **Data** → **Query**).
+Esto crea todo: tablas, el rol restringido `clubos_app`, RLS y los planes. Si
+te avisa que `psql` no está instalado, el script te dice exactamente qué
+archivos aplicar a mano desde la consola SQL de Railway (pestaña **Data** →
+**Query**): `db/init/01-extensions.sql`, `db/init/02-app-role.sql`, y
+`prisma/manual/001_integrity_and_rls.sql`, en ese orden.
 
-> ⚠️ El RLS es la seguridad multi-tenant. No lo saltees: sin él, un club vería
-> los datos de otro.
+Al final el script te imprime DOS variables — **guardalas, las necesitás en
+la Parte 3**:
+
+```
+DATABASE_URL=postgresql://clubos_app:...
+DIRECT_URL=postgresql://<tu-usuario-de-railway>:...
+```
+
+> ⚠️ El RLS es la seguridad multi-tenant, y depende de que la app se conecte
+> como `clubos_app` (`DATABASE_URL` de arriba), NUNCA con el usuario que te
+> dio Railway. Ese usuario (`DIRECT_URL`) es superusuario y bypassea RLS por
+> completo — si la app corriera con esa conexión, un club podría ver los
+> datos de otro pese a que las policies existen. Ver `clubos/README.md`
+> "Conexión: usar el rol correcto".
 
 ---
 
@@ -54,7 +68,8 @@ Railway (pestaña **Data** → **Query**).
 
    | Variable | Valor |
    |---|---|
-   | `DATABASE_URL` | La de tu base (Railway te deja referenciarla) |
+   | `DATABASE_URL` | La `DATABASE_URL` (rol `clubos_app`) que te imprimió `setup-produccion.sh` en la Parte 2 — **no** la que te dio Railway directamente |
+   | `DIRECT_URL` | La `DIRECT_URL` (rol owner) que te imprimió el mismo script — la usan las migraciones futuras, nunca el runtime de la app |
    | `NODE_ENV` | `production` |
    | `JWT_ACCESS_SECRET` | Uno largo y aleatorio (ver abajo) |
    | `ACCESS_TOKEN_TTL` | `900` |
@@ -90,12 +105,10 @@ Railway (pestaña **Data** → **Query**).
 
 ## PARTE 5 — La app del jugador
 
-En `clubos-player-app/src/lib/api.js`, cambiá:
-```js
-export const API_BASE = 'https://<tu-backend-de-railway>/api/v1';
-```
-(antes apuntaba a tu IP local). Ahora la app funciona desde cualquier celular,
-en cualquier red, sin tu PC.
+No es un proyecto aparte: vive dentro de `clubos-next` (rutas públicas, sin
+login, bajo el slug del club — revisá `clubos-next/src/app` para el nombre
+exacto de la carpeta) y se despliega solo, junto con el panel, en el mismo
+paso de la Parte 4. No hay nada extra que configurar acá.
 
 ---
 
@@ -103,7 +116,8 @@ en cualquier red, sin tu PC.
 
 1. `https://<backend>/health` responde `ok`.
 2. Entrás al panel (URL de Vercel) y podés loguearte con el club demo.
-3. La app del jugador (con la URL nueva) trae canchas.
+3. La página pública de reserva de un club (sin loguearte) muestra
+   disponibilidad y te deja reservar.
 4. Apagás tu PC y **todo sigue funcionando**. Ese es el objetivo cumplido.
 
 ---

@@ -5,11 +5,16 @@ NestJS + Prisma + PostgreSQL 16.
 
 ## Puesta en marcha
 
+La forma más simple es `bash start.sh` — hace todo lo de abajo solo, detecta
+puertos ocupados, y es idempotente. Paso a paso, para entender qué hace cada
+cosa:
+
 ```bash
-cp .env.example .env          # ajustar secretos
+cp .env.example .env          # completar DATABASE_URL / DIRECT_URL / secretos
 npm install
-npm run db:up                 # Postgres + Redis en Docker
-npx prisma migrate dev        # tablas desde schema.prisma
+npm run db:up                 # Postgres + Redis en Docker (crea clubos_app solo)
+npx prisma generate
+npx prisma migrate deploy     # tablas desde las migraciones (usa DIRECT_URL)
 npm run db:manual             # constraints, RLS, triggers, funciones
 npm run db:seed               # planes + club demo
 npm run start:dev

@@ -5,11 +5,12 @@ Estrategia de tests del backend y frontend, y cómo correrlos.
 ## Filosofía
 
 **Los tests prueban el código real, no una copia de su lógica.** Los antiguos
-`verify-*.cjs` (ahora en `test/legacy/`) reimplementaban los algoritmos en
-paralelo — su propio comentario decía "si cambia el algoritmo allá, cambiar
-acá". Eso da falsa seguridad: si alguien cambia el código y olvida el test, el
-test sigue verde con la lógica vieja. La suite nueva **importa las funciones y
-clases de producción**, así que un cambio que rompe una regla rompe el test.
+`verify-*.cjs` (ahora en `../scripts/`, corridos con `npm run verify`)
+reimplementaban los algoritmos en paralelo — su propio comentario decía "si
+cambia el algoritmo allá, cambiar acá". Eso da falsa seguridad: si alguien
+cambia el código y olvida el test, el test sigue verde con la lógica vieja. La
+suite nueva **importa las funciones y clases de producción**, así que un
+cambio que rompe una regla rompe el test.
 
 Ejemplo real: al escribir el test de `parsePolicy` se descubrió que la función
 lee la política desde `settings.cancellationPolicy` (anidada), no desde un
@@ -43,7 +44,15 @@ lado sin infraestructura.
 **Integración (requiere Postgres):**
 - `tenant-isolation.int-spec.ts` — **el test más importante de un SaaS**:
   verifica contra la base real que un club NUNCA ve datos de otro (RLS). Es
-  correctitud, argumento de venta y garantía legal a la vez.
+  correctitud, argumento de venta y garantía legal a la vez. Solo detecta una
+  fuga real si corre contra el rol restringido `clubos_app` — ver la nota de
+  `DATABASE_URL_TEST` más abajo, es fácil volarse este punto sin darse cuenta.
+- `cash-concurrency.int-spec.ts` — dos empleados retirando de la misma caja al
+  mismo tiempo no pueden dejarla en negativo. Sin un lock a nivel fila, dos
+  lecturas del saldo antes de que ninguna escritura confirme pasan el chequeo
+  igual; el test fuerza el solapamiento con 5 retiros concurrentes.
+- `trial-expiry.int-spec.ts` — un club con el trial vencido pasa a SUSPENDED
+  (que TenantGuard ya bloquea); uno vigente no se toca.
 
 **E2E (frontend, Playwright):**
 - `onboarding.e2e.ts` — un dueño crea su club de punta a punta por el wizard y
@@ -57,7 +66,12 @@ cd clubos && npm run test:unit
 
 # Integración (necesita Postgres de test)
 cd clubos && npm run db:up          # levanta Postgres + Redis
-DATABASE_URL_TEST=postgresql://clubos_owner:clubos_dev@localhost:5432/clubos \
+# OJO: tiene que ser clubos_app (el rol restringido), NO clubos_owner. El
+# owner es superusuario y bypassea RLS sin importar la policy — corriendo
+# como owner, tenant-isolation.int-spec.ts "pasa" aunque el aislamiento esté
+# roto, porque nunca llega a probar nada real. Ver clubos/README.md
+# "Conexión: usar el rol correcto".
+DATABASE_URL_TEST=postgresql://clubos_app:clubos_dev@localhost:5432/clubos \
   npm run test:int
 
 # Cobertura
@@ -79,9 +93,9 @@ cd clubos-next && npm run test:e2e
 ## Lo que falta (próximas iteraciones)
 
 - **Más integración:** el flujo de cobro completo (pago → caja → cierre cuadra),
-  y el alta de club atómica (que un fallo a mitad no deje club colgado).
+  y el webhook de Mercado Pago de punta a punta (hoy solo `verifyWebhookSignature`
+  tiene test real; el camino completo del controller — firma ausente, éxito,
+  duplicado — no).
 - **E2E full-stack en CI:** hoy el job de front hace build; falta un job que
   levante API + base y corra los E2E que dependen del backend (está comentado
   en el workflow, listo para habilitar).
-- **Reemplazar del todo `test/legacy/`:** portar lo que valga de esos scripts a
-  `*.spec.ts` reales y borrar la carpeta.
