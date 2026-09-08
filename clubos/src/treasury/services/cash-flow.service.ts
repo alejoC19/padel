@@ -149,9 +149,9 @@ export class CashFlowService {
 
   private async getBankBalance(): Promise<number> {
     const rows = await this.prisma.tenantQueryRaw<Array<{ total: unknown }>>(`
-      SELECT COALESCE(SUM(current_balance), 0)::numeric AS total
+      SELECT COALESCE(SUM("currentBalance"), 0)::numeric AS total
       FROM bank_accounts
-      WHERE "clubId" = current_club_id() AND "deletedAt" IS NULL AND is_active = true
+      WHERE "clubId" = current_club_id() AND "deletedAt" IS NULL AND "isActive" = true
     `);
     return this.num(rows[0]?.total);
   }
@@ -170,8 +170,8 @@ export class CashFlowService {
         + COALESCE((
           SELECT SUM(CASE WHEN m.direction = 'IN' THEN m.amount ELSE -m.amount END)
           FROM cash_movements m
-          LEFT JOIN payment_methods pm ON pm.id = m."methodId"
-          WHERE m.sessionId = s.id
+          LEFT JOIN payment_methods pm ON pm.id = m."paymentMethodId"
+          WHERE m."sessionId" = s.id
             AND COALESCE(pm."affectsCashCount", true) = true
         ), 0)
       ), 0)::numeric AS total

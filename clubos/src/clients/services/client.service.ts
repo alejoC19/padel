@@ -318,9 +318,9 @@ export class ClientService {
       // Prisma no expresa EXTRACT; se resuelve con raw en el índice creado.
       const ids = await this.prisma.db.$queryRawUnsafe<Array<{ id: string }>>(
         `SELECT id FROM clients
-         WHERE club_id = current_club_id() AND deleted_at IS NULL
-           AND birth_date IS NOT NULL
-           AND EXTRACT(MONTH FROM birth_date) = $1`,
+         WHERE "clubId" = current_club_id() AND "deletedAt" IS NULL
+           AND "birthDate" IS NOT NULL
+           AND EXTRACT(MONTH FROM "birthDate") = $1`,
         q.birthdayMonth,
       );
       where.id = { in: ids.map((r: { id: string }) => r.id) };

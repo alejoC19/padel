@@ -75,7 +75,7 @@ export class ProfitabilityService {
       FROM sale_items si
       JOIN sales s ON s.id = si."saleId"
       JOIN products p ON p.id = si."productId"
-      LEFT JOIN product_categories pc ON pc.id = p.categoryId
+      LEFT JOIN product_categories pc ON pc.id = p."categoryId"
       WHERE s."clubId" = current_club_id()
         AND s.status = 'COMPLETED'
         AND s."createdAt" >= $1::timestamptz

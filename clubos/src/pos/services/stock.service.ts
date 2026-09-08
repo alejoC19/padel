@@ -311,14 +311,14 @@ export class StockService {
     const products = await this.prisma.tenantQueryRaw<
       Array<Record<string, unknown>>
     >(`
-      SELECT id, name, stock_qty, min_stock_qty, unit
+      SELECT id, name, "stockQty", "minStockQty", unit
       FROM products
       WHERE "clubId" = current_club_id()
         AND "deletedAt" IS NULL
-        AND is_active = true
-        AND track_stock = true
-        AND stock_qty <= min_stock_qty
-      ORDER BY (stock_qty - min_stock_qty) ASC
+        AND "isActive" = true
+        AND "trackStock" = true
+        AND "stockQty" <= "minStockQty"
+      ORDER BY ("stockQty" - "minStockQty") ASC
       LIMIT 100
     `);
 
@@ -395,13 +395,13 @@ export class StockService {
     >(`
       SELECT
         COUNT(*)::int AS products,
-        COALESCE(SUM(stock_qty * cost_price), 0)::numeric AS cost_value,
-        COALESCE(SUM(stock_qty * sale_price), 0)::numeric AS sale_value,
-        COUNT(*) FILTER (WHERE stock_qty <= 0)::int AS out_of_stock,
-        COUNT(*) FILTER (WHERE stock_qty > 0 AND stock_qty <= min_stock_qty)::int AS low_stock
+        COALESCE(SUM("stockQty" * "costPrice"), 0)::numeric AS cost_value,
+        COALESCE(SUM("stockQty" * "salePrice"), 0)::numeric AS sale_value,
+        COUNT(*) FILTER (WHERE "stockQty" <= 0)::int AS out_of_stock,
+        COUNT(*) FILTER (WHERE "stockQty" > 0 AND "stockQty" <= "minStockQty")::int AS low_stock
       FROM products
       WHERE "clubId" = current_club_id()
-        AND "deletedAt" IS NULL AND is_active = true AND track_stock = true
+        AND "deletedAt" IS NULL AND "isActive" = true AND "trackStock" = true
     `);
 
     const r = rows[0] ?? {};

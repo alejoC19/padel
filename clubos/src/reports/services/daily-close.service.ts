@@ -221,7 +221,7 @@ export class DailyCloseService {
       LEFT JOIN operating_hours oh
         ON oh."clubId" = c."clubId"
        AND (oh."courtId" = c.id OR oh."courtId" IS NULL)
-       AND oh.day_of_week = EXTRACT(DOW FROM $1::timestamptz AT TIME ZONE 'UTC')
+       AND oh."dayOfWeek" = EXTRACT(DOW FROM $1::timestamptz AT TIME ZONE 'UTC')
        AND oh."isClosed" = false
       WHERE c."clubId" = current_club_id()
         AND c."deletedAt" IS NULL

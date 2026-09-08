@@ -223,7 +223,7 @@ export class ExpenseService {
         END AS days_to_due
       FROM expenses e
       LEFT JOIN suppliers s ON s.id = e."supplierId"
-      LEFT JOIN expense_categories ec ON ec.id = e.categoryId
+      LEFT JOIN expense_categories ec ON ec.id = e."categoryId"
       WHERE e."clubId" = current_club_id()
         AND e."deletedAt" IS NULL
         AND e.status IN ('PENDING','PARTIALLY_PAID')
@@ -258,7 +258,7 @@ export class ExpenseService {
         COUNT(*)::int AS count,
         COALESCE(SUM(e.total), 0)::numeric AS total
       FROM expenses e
-      LEFT JOIN expense_categories ec ON ec.id = e.categoryId
+      LEFT JOIN expense_categories ec ON ec.id = e."categoryId"
       WHERE e."clubId" = current_club_id()
         AND e."deletedAt" IS NULL
         AND e.status <> 'CANCELLED'
