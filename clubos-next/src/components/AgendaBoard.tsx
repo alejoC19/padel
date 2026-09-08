@@ -89,12 +89,13 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
     <div className="board">
       {/* Selector de cancha con foto */}
       <div className="board-hero">
-        <div className="board-hero-img" style={{ background: court.color }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.5" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="16" rx="1.5" />
-            <path d="M12 4v16M3 12h18" />
-          </svg>
-        </div>
+        <div
+          className="board-hero-img"
+          style={{
+            backgroundColor: court.color,
+            backgroundImage: `url(/illustrations/court-${court.environment === 'OUTDOOR' ? 'outdoor' : 'indoor'}.jpg)`,
+          }}
+        />
         <button
           className="board-court-picker"
           onClick={() => setPickerOpen((v) => !v)}

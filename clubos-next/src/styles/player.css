@@ -485,29 +485,72 @@
 .menu-category:first-child { margin-top: 0; }
 .menu-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-md, 12px);
   padding: var(--sp-md, 12px) 0;
   border-bottom: 1px solid var(--ds-border, #e2e7ec);
 }
 .menu-item:last-child { border-bottom: none; }
-.menu-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.menu-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .menu-item-name { font-weight: 700; }
 .menu-item-desc { font-size: var(--fs-small, 13px); color: var(--ds-muted, #6b7c8a); }
 .menu-item-price { font-weight: 800; white-space: nowrap; }
 
-/* --- Torneos --- */
+/* Ícono de categoría (ver CategoryIcon) o foto del producto si el club
+   cargó una — mismo tamaño y forma para que la lista quede prolija en
+   cualquiera de los dos casos. */
+.category-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.menu-item-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex: none;
+  background: var(--ds-surface-2, #f8fafb);
+}
+
+/* --- Torneos ---
+   Banner con foto (la del club si cargó una, si no la ilustración de la
+   copa) + insignia de formato encima: mismo espíritu que la foto de cancha
+   en la agenda — se ve "profesional" sin depender de que el club suba nada. */
 .tournament-card {
   display: block;
-  padding: var(--sp-lg, 16px);
   border-radius: var(--r-lg, 14px);
   background: var(--ds-surface, #fff);
   border: 1px solid var(--ds-border, #e2e7ec);
   text-decoration: none;
   color: inherit;
+  overflow: hidden;
 }
 .tournament-card + .tournament-card { margin-top: var(--sp-md, 12px); }
+.tournament-card-banner {
+  height: 96px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 10px;
+}
+.tournament-card-format {
+  background: rgba(17, 22, 33, 0.55);
+  backdrop-filter: blur(2px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.tournament-card-body { padding: var(--sp-lg, 16px); }
 .tournament-card-name { font-weight: 800; font-size: var(--fs-h3, 17px); margin-bottom: 4px; }
 .tournament-card-meta {
   display: flex;
@@ -519,6 +562,14 @@
 }
 .tournament-card-foot { display: flex; align-items: center; justify-content: space-between; }
 .tournament-fee { font-weight: 800; color: var(--ds-primary, #c8443e); }
+
+.tournament-banner-lg {
+  height: 150px;
+  border-radius: var(--r-lg, 14px);
+  background-size: cover;
+  background-position: center;
+  margin-bottom: var(--sp-md, 12px);
+}
 
 .team-form-players { display: flex; flex-direction: column; gap: var(--sp-md, 12px); }
 .team-player-block {

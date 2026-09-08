@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '@/lib/api';
 import { publicApi, type PublicProduct } from '@/lib/publicApi';
 import { formatMoney } from '@/lib/grid';
+import { CategoryIcon } from '@/components/player/CategoryIcon';
 
 type Load =
   | { status: 'loading' }
@@ -84,6 +85,11 @@ export function PlayerBuffetScreen({ slug }: { slug: string }) {
           <div className="menu-category">{category}</div>
           {products.map((p) => (
             <div className="menu-item" key={p.id}>
+              {p.imageUrl ? (
+                <img className="menu-item-photo" src={p.imageUrl} alt="" />
+              ) : (
+                <CategoryIcon category={category} />
+              )}
               <div className="menu-item-main">
                 <span className="menu-item-name">{p.name}</span>
                 {p.description && <span className="menu-item-desc">{p.description}</span>}

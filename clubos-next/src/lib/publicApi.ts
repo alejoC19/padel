@@ -142,6 +142,7 @@ export interface PublicProduct {
   description: string | null;
   price: number;
   category: string;
+  imageUrl: string | null;
 }
 
 /** Fila de /torneos: lo justo para decidir si entrar al detalle. */

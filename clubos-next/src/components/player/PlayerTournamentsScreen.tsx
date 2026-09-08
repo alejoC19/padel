@@ -80,19 +80,26 @@ export function PlayerTournamentsScreen({ slug }: { slug: string }) {
       <section>
         {load.torneos.map((t) => (
           <a key={t.id} href={`/c/${slug}/torneos/${t.id}`} className="tournament-card">
-            <div className="tournament-card-name">{t.name}</div>
-            <div className="tournament-card-meta">
-              <span>{startLabel(t.startsAt)}</span>
-              <span>{FORMAT_LABEL[t.format] ?? t.format}</span>
-              {t.category && <span>{t.category}</span>}
+            <div
+              className="tournament-card-banner"
+              style={{ backgroundImage: `url(${t.imageUrl || '/illustrations/trophy.jpg'})` }}
+            >
+              <span className="tournament-card-format">{FORMAT_LABEL[t.format] ?? t.format}</span>
             </div>
-            <div className="tournament-card-foot">
-              <span className="tournament-fee">
-                {t.entryFee > 0 ? formatMoney(t.entryFee) : 'Gratis'}
-              </span>
-              <span className={`badge ${t.registrationOpen ? 'success' : 'warning'}`}>
-                {t.registrationOpen ? `${t.spotsLeft} lugares` : 'Cerrado'}
-              </span>
+            <div className="tournament-card-body">
+              <div className="tournament-card-name">{t.name}</div>
+              <div className="tournament-card-meta">
+                <span>{startLabel(t.startsAt)}</span>
+                {t.category && <span>{t.category}</span>}
+              </div>
+              <div className="tournament-card-foot">
+                <span className="tournament-fee">
+                  {t.entryFee > 0 ? formatMoney(t.entryFee) : 'Gratis'}
+                </span>
+                <span className={`badge ${t.registrationOpen ? 'success' : 'warning'}`}>
+                  {t.registrationOpen ? `${t.spotsLeft} lugares` : 'Cerrado'}
+                </span>
+              </div>
             </div>
           </a>
         ))}

@@ -459,6 +459,7 @@ export class PublicService {
           name: true,
           description: true,
           salePrice: true,
+          imageUrl: true,
           category: { select: { name: true, sortOrder: true } },
         },
         orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
@@ -471,6 +472,7 @@ export class PublicService {
           description: p.description,
           price: this.num(p.salePrice),
           category: p.category?.name ?? 'Otros',
+          imageUrl: p.imageUrl,
         })),
       };
     });

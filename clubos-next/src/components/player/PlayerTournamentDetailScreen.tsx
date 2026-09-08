@@ -143,6 +143,11 @@ export function PlayerTournamentDetailScreen({ slug, id }: { slug: string; id: s
 
   return (
     <>
+      <div
+        className="tournament-banner-lg"
+        style={{ backgroundImage: `url(${t.imageUrl || '/illustrations/trophy.jpg'})` }}
+      />
+
       <header className="player-header">
         <div className="player-eyebrow">Torneo</div>
         <h1 className="player-club-name">{t.name}</h1>
