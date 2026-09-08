@@ -57,13 +57,13 @@
   font-size: 12px;
   font-weight: 600;
 }
-.badge-green { background: #e6f5ec; color: #167a4a; }
-.badge-blue  { background: #e6f0fb; color: #1f5fbf; }
-.badge-yellow{ background: #fdf3d9; color: #9a6b00; }
-.badge-red   { background: #fdecea; color: #b3261e; }
-.badge-gray  { background: #eef1f4; color: #6b7c8a; }
-.badge-violet{ background: #f0e9fb; color: #6b3fbf; }
-.badge-orange{ background: #fdeede; color: #b5600f; }
+.badge-green { background: rgba(46, 157, 110, 0.18); color: #4ecb92; }
+.badge-blue  { background: rgba(43, 108, 176, 0.2); color: #5da8e8; }
+.badge-yellow{ background: rgba(199, 125, 32, 0.18); color: #e3ab52; }
+.badge-red   { background: rgba(192, 57, 43, 0.2); color: #ef6b5f; }
+.badge-gray  { background: var(--app-border); color: var(--app-muted); }
+.badge-violet{ background: rgba(139, 92, 246, 0.2); color: #b19af7; }
+.badge-orange{ background: rgba(197, 108, 27, 0.2); color: #e59a56; }
 
 /* Grilla tipo agenda (placeholder funcional) */
 .agenda-grid {
@@ -178,7 +178,7 @@
   font-weight: 700; font-size: 14px; color: var(--app-muted);
   transition: all 0.15s;
 }
-.seg-btn.on { border-color: var(--pad-red); background: #fff; color: var(--pad-red); }
+.seg-btn.on { border-color: var(--pad-red); background: var(--app-surface); color: var(--pad-red); }
 .picked-client {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px; background: var(--app-bg);
@@ -186,7 +186,7 @@
 }
 .link-btn { background: none; border: none; color: var(--pad-red); cursor: pointer; font-weight: 700; font-size: 13px; }
 .full { width: 100%; }
-.dialog-error { color: #b3261e; font-size: 13px; font-weight: 600; margin: 4px 0 0; }
+.dialog-error { color: #ef6b5f; font-size: 13px; font-weight: 600; margin: 4px 0 0; }
 .icon-btn {
   background: none; border: none; cursor: pointer; font-size: 16px;
   color: var(--app-muted); padding: 4px 8px; border-radius: 6px;

@@ -12,30 +12,35 @@
 
 :root {
   /* --- Color: superficies --- */
-  --ds-bg: var(--app-bg, #f4f6f8);
-  --ds-surface: var(--app-surface, #ffffff);
-  --ds-surface-2: #f8fafb;
-  --ds-border: var(--app-border, #e2e7ec);
-  --ds-border-strong: #cfd8df;
+  --ds-bg: var(--app-bg, #12151d);
+  --ds-surface: var(--app-surface, #1c212c);
+  --ds-surface-2: #262c3a;
+  --ds-border: var(--app-border, rgba(255, 255, 255, 0.09));
+  --ds-border-strong: rgba(255, 255, 255, 0.18);
 
   /* --- Color: texto --- */
-  --ds-text: var(--app-text, #2b3a47);
-  --ds-text-2: #4a5c6a;
-  --ds-muted: var(--app-muted, #6b7c8a);
-  --ds-faint: #93a1ac;
+  --ds-text: var(--app-text, #eef1f5);
+  --ds-text-2: #c3cad4;
+  --ds-muted: var(--app-muted, #98a2b3);
+  --ds-faint: #707a8c;
 
-  /* --- Color: marca y semánticos --- */
-  --ds-primary: var(--pad-red, #c8443e);
-  --ds-primary-hover: var(--pad-red-dark, #a5352f);
-  --ds-primary-soft: #fbeceb;
-  --ds-success: #2e7d5b;
-  --ds-success-soft: #e6f4ee;
-  --ds-warning: #c77d20;
-  --ds-warning-soft: #fbf1e0;
-  --ds-danger: #c0392b;
-  --ds-danger-soft: #fbe9e7;
-  --ds-info: #2b6cb0;
-  --ds-info-soft: #e8f1fa;
+  /* --- Color: marca y semánticos ---
+     Los "-soft" eran fondos pastel pensados para tarjetas blancas; sobre
+     superficie oscura, un pastel claro se ve como un parche desprolijo.
+     Pasan a ser tinte translúcido del color (chip "glow" sobre oscuro,
+     patrón estándar de dashboards dark), y los textos semánticos se
+     aclaran un poco para seguir siendo legibles sobre --ds-surface. */
+  --ds-primary: var(--pad-red, #0ea5a0);
+  --ds-primary-hover: var(--pad-red-dark, #0b8480);
+  --ds-primary-soft: rgba(14, 165, 160, 0.16);
+  --ds-success: #4ecb92;
+  --ds-success-soft: rgba(46, 157, 110, 0.18);
+  --ds-warning: #e3ab52;
+  --ds-warning-soft: rgba(199, 125, 32, 0.18);
+  --ds-danger: #ef6b5f;
+  --ds-danger-soft: rgba(192, 57, 43, 0.2);
+  --ds-info: #5da8e8;
+  --ds-info-soft: rgba(43, 108, 176, 0.2);
 
   /* --- Tipografía --- */
   --ds-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -64,10 +69,10 @@
   --r-pill: 999px;
 
   /* --- Sombras --- */
-  --sh-subtle: 0 1px 2px rgba(43, 58, 71, 0.06);
-  --sh-card: 0 1px 3px rgba(43, 58, 71, 0.09), 0 1px 2px rgba(43, 58, 71, 0.05);
-  --sh-elevated: 0 6px 18px rgba(43, 58, 71, 0.14);
-  --sh-modal: 0 20px 50px rgba(43, 58, 71, 0.28);
+  --sh-subtle: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --sh-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --sh-elevated: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --sh-modal: 0 24px 60px rgba(0, 0, 0, 0.55);
 
   /* --- Transiciones --- */
   --t-fast: 0.12s ease;
@@ -628,10 +633,10 @@ body {
 }
 .gutter-head, .gutter-body { border-right: 1px solid var(--ds-border); background: var(--ds-surface); }
 .tick-label { font-size: var(--fs-caption); color: var(--ds-muted); text-align: right; padding: 4px 8px 0 0; }
-.slot { border-bottom: 1px solid rgba(0,0,0,0.04); transition: background var(--t-fast); cursor: pointer; }
+.slot { border-bottom: 1px solid rgba(255,255,255,0.05); transition: background var(--t-fast); cursor: pointer; }
 .slot:hover { background: var(--ds-primary-soft); }
 .slot-plus { color: var(--ds-primary); font-weight: 700; font-size: var(--fs-caption); padding: 4px 8px; }
-.slot.is-past { background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(0,0,0,0.02) 6px, rgba(0,0,0,0.02) 12px); }
+.slot.is-past { background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.03) 6px, rgba(255,255,255,0.03) 12px); }
 .now-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--ds-primary); z-index: 6; }
 .now-line::before { content: ""; position: absolute; left: 0; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--ds-primary); }
 
@@ -674,7 +679,7 @@ body {
    ========================================================================= */
 .overlay {
   position: fixed; inset: 0;
-  background: rgba(43, 58, 71, 0.5);
+  background: rgba(4, 6, 10, 0.6);
   z-index: 40;
   animation: ds-fade var(--t-fast);
 }
@@ -727,7 +732,7 @@ body {
 
 /* Skeletons */
 .skeleton {
-  background: linear-gradient(90deg, var(--ds-surface-2) 25%, #eef2f4 50%, var(--ds-surface-2) 75%);
+  background: linear-gradient(90deg, var(--ds-surface-2) 25%, var(--ds-border-strong) 50%, var(--ds-surface-2) 75%);
   background-size: 200% 100%;
   animation: ds-shimmer 1.3s infinite;
   border-radius: var(--r-sm);

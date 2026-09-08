@@ -7,14 +7,14 @@
    ========================================================================= */
 
 :root {
-  --turf: #5aa469;
-  --lp-ink: #1e2a33;
-  --lp-muted: #5c6b76;
-  --lp-primary: var(--pad-red, #c8443e);
-  --lp-primary-dark: var(--pad-red-dark, #a5352f);
-  --lp-bg: #ffffff;
-  --lp-bg-soft: #f6f8f9;
-  --lp-border: #e4e9ec;
+  --turf: #4ecb92;
+  --lp-ink: #f2f4f8;
+  --lp-muted: #9aa5b5;
+  --lp-primary: var(--pad-red, #0ea5a0);
+  --lp-primary-dark: var(--pad-red-dark, #0b8480);
+  --lp-bg: #12151d;
+  --lp-bg-soft: #1c212c;
+  --lp-border: rgba(255, 255, 255, 0.1);
 }
 
 .lp {
@@ -35,7 +35,7 @@
   margin: 0 auto;
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(18, 21, 29, 0.85);
   backdrop-filter: blur(8px);
   z-index: 20;
 }
@@ -72,8 +72,8 @@
   transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
 }
 .lp-btn-primary { background: var(--lp-primary); color: #fff; }
-.lp-btn-primary:hover { background: var(--lp-primary-dark); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(200,68,62,0.28); }
-.lp-btn-ghost { background: #fff; color: var(--lp-ink); border-color: var(--lp-border); }
+.lp-btn-primary:hover { background: var(--lp-primary-dark); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(14,165,160,0.4); }
+.lp-btn-ghost { background: transparent; color: var(--lp-ink); border-color: var(--lp-border); }
 .lp-btn-ghost:hover { background: var(--lp-bg-soft); }
 .lp-btn-lg { padding: 14px 28px; font-size: 16px; border-radius: 13px; }
 
@@ -119,7 +119,7 @@
   padding: 26px;
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.lp-feature:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(30,42,51,0.1); }
+.lp-feature:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
 .lp-feature-icon { font-size: 30px; margin-bottom: 12px; }
 .lp-feature-name { font-size: 19px; font-weight: 800; margin: 0 0 8px; }
 .lp-feature-desc { color: var(--lp-muted); font-size: 15px; line-height: 1.5; margin: 0; }
@@ -149,7 +149,7 @@
   max-width: 1200px;
   margin: 0 auto 40px;
   padding: 72px 40px;
-  background: linear-gradient(135deg, #fff, var(--lp-bg-soft));
+  background: linear-gradient(135deg, rgba(14,165,160,0.16), var(--lp-bg-soft));
   border: 1px solid var(--lp-border);
   border-radius: 28px;
 }
@@ -175,10 +175,10 @@
    COMPONENTES DE MARKETING (HeroAgenda, Art) — clases lp-* que usan
    ========================================================================= */
 .lp-demo {
-  background: #fff;
+  background: var(--lp-bg-soft);
   border: 1px solid var(--lp-border);
   border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(30,42,51,0.14);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   overflow: hidden;
 }
 .lp-demo-bar {
@@ -206,9 +206,9 @@
   animation: lp-pulse-anim 1.4s infinite;
 }
 @keyframes lp-pulse-anim {
-  0% { box-shadow: 0 0 0 0 rgba(90,164,105,0.5); }
-  70% { box-shadow: 0 0 0 7px rgba(90,164,105,0); }
-  100% { box-shadow: 0 0 0 0 rgba(90,164,105,0); }
+  0% { box-shadow: 0 0 0 0 rgba(78,203,146,0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(78,203,146,0); }
+  100% { box-shadow: 0 0 0 0 rgba(78,203,146,0); }
 }
 
 /* Mini agenda */
@@ -245,7 +245,7 @@
   padding: 3px;
 }
 .lp-ag-cell.is-last { border-right: none; }
-.lp-free { color: #c9d3d8; font-weight: 700; display: grid; place-items: center; height: 100%; }
+.lp-free { color: #4a5262; font-weight: 700; display: grid; place-items: center; height: 100%; }
 .lp-bk {
   border-radius: 7px;
   padding: 5px 7px;
@@ -260,11 +260,18 @@
 .lp-bk-n { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lp-bk-w { font-size: 10px; opacity: 0.85; }
 
+/* Color por tipo de turno en la mini agenda del hero. */
+.lp-bk.is-ok  { background: #2e9d6e; }
+.lp-bk.is-pay { background: #17a094; }
+.lp-bk.is-due { background: #c77d20; }
+.lp-bk.is-les { background: #2b6cb0; }
+.lp-bk.is-mnt { background: #4a5262; }
+
 /* Arte suelto (pelota, raqueta, cancha, cuaderno) */
 .lp-ball-shadow { fill: rgba(0,0,0,0.1); }
 .lp-ball-seam { fill: none; stroke: #fff; stroke-width: 2; }
 .lp-court { opacity: 0.9; }
-.lp-notebook { filter: drop-shadow(0 8px 16px rgba(30,42,51,0.12)); }
+.lp-notebook { filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
 .lp-float { animation: lp-float-anim 4s ease-in-out infinite; }
 .lp-ball-bounce { animation: lp-bounce-anim 2.4s ease-in-out infinite; }
 .lp-racket-swing { animation: lp-swing-anim 5s ease-in-out infinite; transform-origin: 50% 90%; }

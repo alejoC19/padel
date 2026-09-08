@@ -28,8 +28,8 @@ export async function GET(
       start_url: scope,
       scope,
       display: 'standalone',
-      background_color: '#f4f6f8',
-      theme_color: '#c8443e',
+      background_color: '#12151d',
+      theme_color: '#0ea5a0',
       orientation: 'portrait',
       icons: [
         { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

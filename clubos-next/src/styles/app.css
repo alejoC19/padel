@@ -5,22 +5,36 @@
    ordenadas y navegables. No pretenden ser el diseño final; el objetivo es que
    la app sea usable mientras se desarrolla el sistema visual definitivo. */
 
+/* =========================================================================
+   PALETA — oscura, con acento turquesa + lima (ver docs/DESIGN.md si hace
+   falta el detalle). Reemplaza a la paleta clara original a pedido: se
+   quería más color y sensación "profesional/moderna", en la misma línea
+   que apps de referencia oscuras con foto y acento flúo.
+
+   --pad-red se mantiene con ESE NOMBRE por compatibilidad (lo usan decenas
+   de componentes vía var(--pad-red, ...)), pero el valor ahora es el
+   turquesa de marca — no rojo. --accent-lime es el acento secundario
+   (activo de tabbar, highlights puntuales) para las piezas donde se
+   controla texto Y fondo a la vez (no genera el problema de contraste de
+   "texto blanco sobre lima" que tendría si fuera el primario).
+   ========================================================================= */
 :root {
-  --pad-red: #c8443e;
-  --pad-red-dark: #a5352f;
+  --pad-red: #0ea5a0;
+  --pad-red-dark: #0b8480;
+  --accent-lime: #c6ff4d;
   --pad-sky: #8fd3f4;
   --pad-dark: #2b3a47;
   --pad-slate: #4a6070;
   --pad-cream: #f2efe4;
   --pad-lime: #edf56b;
 
-  --app-bg: #f4f6f8;
-  --app-surface: #ffffff;
-  --app-border: #e2e7ec;
-  --app-text: #2b3a47;
-  --app-muted: #6b7c8a;
+  --app-bg: #12151d;
+  --app-surface: #1c212c;
+  --app-border: rgba(255, 255, 255, 0.09);
+  --app-text: #eef1f5;
+  --app-muted: #98a2b3;
   --app-radius: 12px;
-  --app-shadow: 0 1px 3px rgba(43, 58, 71, 0.08);
+  --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 /* Contenedor general */
@@ -155,7 +169,7 @@ textarea {
   border: 1px solid var(--app-border);
   border-radius: 8px;
   font-size: 14px;
-  background: #fff;
+  background: var(--app-surface);
   color: var(--app-text);
 }
 .input:focus,
@@ -164,7 +178,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--pad-red);
-  box-shadow: 0 0 0 3px rgba(200, 68, 62, 0.12);
+  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.22);
 }
 
 /* Utilidades */

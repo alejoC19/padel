@@ -17,8 +17,8 @@ interface IconDef {
 
 const DEFS = {
   bebidas: {
-    bg: '#e6f4fb',
-    fg: '#2b8fc4',
+    bg: 'rgba(43, 143, 196, 0.18)',
+    fg: '#5da8e8',
     icon: (
       <>
         <path d="M6 3h9l-.9 12.5a2 2 0 0 1-2 1.5H8.9a2 2 0 0 1-2-1.5L6 3Z" />
@@ -28,8 +28,8 @@ const DEFS = {
     ),
   },
   snacks: {
-    bg: '#fdf1e2',
-    fg: '#c77d20',
+    bg: 'rgba(199, 125, 32, 0.2)',
+    fg: '#e3ab52',
     icon: (
       <>
         <circle cx="12" cy="12" r="8" />
@@ -41,8 +41,8 @@ const DEFS = {
     ),
   },
   paletas: {
-    bg: '#fbe9e7',
-    fg: '#c8443e',
+    bg: 'rgba(139, 92, 246, 0.2)',
+    fg: '#b19af7',
     icon: (
       <>
         <rect x="6" y="3" width="12" height="14" rx="6" />
@@ -52,8 +52,8 @@ const DEFS = {
     ),
   },
   pelotas: {
-    bg: '#f4f9dd',
-    fg: '#8ba018',
+    bg: 'rgba(139, 168, 24, 0.22)',
+    fg: '#d4e457',
     icon: (
       <>
         <circle cx="12" cy="12" r="8" />
@@ -63,8 +63,8 @@ const DEFS = {
     ),
   },
   accesorios: {
-    bg: '#f1ecfb',
-    fg: '#7c5cc4',
+    bg: 'rgba(219, 86, 150, 0.2)',
+    fg: '#ef7bb0',
     icon: (
       <>
         <path d="M9 8V6a3 3 0 0 1 6 0v2" />
@@ -73,8 +73,8 @@ const DEFS = {
     ),
   },
   alquiler: {
-    bg: '#eafaf1',
-    fg: '#2e9e63',
+    bg: 'rgba(46, 157, 110, 0.2)',
+    fg: '#4ecb92',
     icon: (
       <>
         <circle cx="8" cy="15" r="3.5" />
@@ -85,8 +85,8 @@ const DEFS = {
     ),
   },
   otros: {
-    bg: '#eef1f4',
-    fg: '#6b7c8a',
+    bg: 'rgba(255, 255, 255, 0.08)',
+    fg: '#98a2b3',
     icon: (
       <>
         <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />

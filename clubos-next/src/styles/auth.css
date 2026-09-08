@@ -15,21 +15,21 @@
  * ========================================================================== */
 
 :root {
-  --pad-red: #c8443e;
-  --pad-red-dark: #a5352f;
+  --pad-red: #0ea5a0;
+  --pad-red-dark: #0b8480;
   --pad-sky: #8fd3f4;
   --pad-dark: #2b3a47;
   --pad-slate: #4a6070;
   --pad-cream: #f2efe4;
   --pad-lime: #edf56b;
 
-  --auth-bg: #eef1f4;
-  --auth-card-bg: #ffffff;
-  --auth-border: #dfe4ea;
-  --auth-text: var(--pad-dark);
-  --auth-muted: var(--pad-slate);
+  --auth-bg: #12151d;
+  --auth-card-bg: #1c212c;
+  --auth-border: rgba(255, 255, 255, 0.1);
+  --auth-text: #eef1f5;
+  --auth-muted: #98a2b3;
   --auth-radius: 14px;
-  --auth-shadow: 0 10px 40px rgba(43, 58, 71, 0.12);
+  --auth-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
 /* ---- Contenedor de página ---- */
@@ -39,8 +39,8 @@
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(1200px 600px at 100% -10%, rgba(143, 211, 244, 0.25), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(200, 68, 62, 0.12), transparent 55%),
+    radial-gradient(1200px 600px at 100% -10%, rgba(143, 211, 244, 0.1), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(14, 165, 160, 0.16), transparent 55%),
     var(--auth-bg);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--auth-text);
@@ -122,16 +122,16 @@
   border-radius: 10px;
   font-size: 15px;
   color: var(--auth-text);
-  background: #fff;
+  background: var(--auth-bg);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .input:focus {
   outline: none;
   border-color: var(--pad-red);
-  box-shadow: 0 0 0 3px rgba(200, 68, 62, 0.15);
+  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.22);
 }
-.input:disabled { background: #f6f7f9; color: var(--auth-muted); }
-.input.has-error { border-color: var(--pad-red); }
+.input:disabled { background: rgba(255,255,255,0.03); color: var(--auth-muted); }
+.input.has-error { border-color: #ef6b5f; }
 
 /* Prefijo/sufijo (para el slug: club .clubos.com) */
 .input-affix {
@@ -143,7 +143,7 @@
 }
 .input-affix:focus-within {
   border-color: var(--pad-red);
-  box-shadow: 0 0 0 3px rgba(200, 68, 62, 0.15);
+  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.22);
 }
 .input-affix .input {
   border: none;
@@ -155,7 +155,7 @@
   color: var(--auth-muted);
   font-size: 14px;
   white-space: nowrap;
-  background: #f6f7f9;
+  background: rgba(255,255,255,0.04);
   align-self: stretch;
   display: flex;
   align-items: center;
@@ -166,8 +166,8 @@
   margin-top: 6px;
   color: var(--auth-muted);
 }
-.hint.ok { color: #167a4a; }
-.hint.bad { color: var(--pad-red); }
+.hint.ok { color: #4ecb92; }
+.hint.bad { color: #ef6b5f; }
 
 /* ---- Contraseña ---- */
 .pw-wrap { position: relative; }
@@ -217,9 +217,9 @@
 
 /* ---- Alertas ---- */
 .alert {
-  background: #fdecea;
-  border: 1px solid #f5c2c0;
-  color: #8a231f;
+  background: rgba(192, 57, 43, 0.16);
+  border: 1px solid rgba(192, 57, 43, 0.4);
+  color: #ef6b5f;
   border-radius: 10px;
   padding: 11px 13px;
   font-size: 14px;
@@ -284,7 +284,7 @@
   border-radius: 10px;
   padding: 14px 16px;
   margin: 16px 0;
-  background: #fafbfc;
+  background: rgba(255,255,255,0.03);
 }
 .summary-row {
   display: flex;
@@ -305,7 +305,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #167a4a;
+  background: #2e9d6e;
   color: #fff;
   display: grid;
   place-items: center;

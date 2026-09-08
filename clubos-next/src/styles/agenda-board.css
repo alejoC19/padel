@@ -37,11 +37,11 @@
   align-items: center;
   gap: 10px;
   padding: 12px 20px;
-  background: #17202b;
+  background: #060809;
   color: #fff;
   border: none;
   border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(23,32,43,0.32);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   cursor: pointer;
   font-size: 16px;
   white-space: nowrap;
@@ -59,10 +59,10 @@
   bottom: -20px;
   transform: translateX(-50%) translateY(100%);
   margin-top: 8px;
-  background: #fff;
-  border: 1px solid var(--app-border, #e2e7ec);
+  background: var(--app-surface, #1c212c);
+  border: 1px solid var(--app-border, rgba(255,255,255,0.09));
   border-radius: 14px;
-  box-shadow: 0 16px 40px rgba(23,32,43,0.22);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
   padding: 6px;
   z-index: 10;
   min-width: 240px;
@@ -78,10 +78,10 @@
   border-radius: 10px;
   cursor: pointer;
   font-size: 15px;
-  color: var(--app-text, #2b3a47);
+  color: var(--app-text, #eef1f5);
 }
-.board-court-opt:hover { background: var(--app-bg, #f4f6f8); }
-.board-court-opt.is-active { background: #eef4ff; }
+.board-court-opt:hover { background: var(--app-bg, #12151d); }
+.board-court-opt.is-active { background: rgba(14, 165, 160, 0.16); }
 
 /* --- Lista de turnos --- */
 .board-slots { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
@@ -92,14 +92,14 @@
   gap: 16px;
   width: 100%;
   padding: 16px 18px;
-  border: 1.5px solid var(--app-border, #e2e7ec);
+  border: 1.5px solid var(--app-border, rgba(255,255,255,0.09));
   border-radius: 14px;
-  background: #fff;
+  background: var(--app-surface, #1c212c);
   cursor: pointer;
   text-align: left;
   transition: transform 0.1s, box-shadow 0.12s, border-color 0.12s;
 }
-.slot-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(23,32,43,0.1); }
+.slot-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
 
 /* Franja horaria izquierda */
 .slot-time {
@@ -109,43 +109,43 @@
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   font-size: 18px;
-  color: var(--app-text, #2b3a47);
+  color: var(--app-text, #eef1f5);
   min-width: 62px;
-  border-right: 1px solid var(--app-border, #e2e7ec);
+  border-right: 1px solid var(--app-border, rgba(255,255,255,0.09));
   padding-right: 14px;
   line-height: 1.25;
 }
-.slot-time span:last-child { color: #93a1ac; font-weight: 700; font-size: 15px; }
+.slot-time span:last-child { color: #98a2b3; font-weight: 700; font-size: 15px; }
 
 .slot-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .slot-state { display: inline-flex; align-items: center; gap: 7px; font-weight: 800; font-size: 15px; }
 .slot-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.slot-name { font-weight: 700; color: var(--app-text, #2b3a47); }
-.slot-sub { font-size: 13px; color: #6b7c8a; }
-.slot-book { font-weight: 800; color: #2e7d5b; font-size: 15px; flex: none; }
-.slot-note { color: #2b6cb0; font-size: 16px; flex: none; }
+.slot-name { font-weight: 700; color: var(--app-text, #eef1f5); }
+.slot-sub { font-size: 13px; color: #98a2b3; }
+.slot-book { font-weight: 800; color: #4ecb92; font-size: 15px; flex: none; }
+.slot-note { color: #5da8e8; font-size: 16px; flex: none; }
 
 /* Tonos por estado (fondo suave + acento) */
-.slot-state.ok     { color: #2e7d5b; }
-.slot-state.warn   { color: #c77d20; }
-.slot-state.danger { color: #c0392b; }
-.slot-state.muted  { color: #93a1ac; }
-.slot-dot.ok     { background: #2e7d5b; }
-.slot-dot.warn   { background: #c77d20; }
-.slot-dot.danger { background: #c0392b; }
-.slot-dot.muted  { background: #93a1ac; }
+.slot-state.ok     { color: #4ecb92; }
+.slot-state.warn   { color: #e3ab52; }
+.slot-state.danger { color: #ef6b5f; }
+.slot-state.muted  { color: #98a2b3; }
+.slot-dot.ok     { background: #4ecb92; }
+.slot-dot.warn   { background: #e3ab52; }
+.slot-dot.danger { background: #ef6b5f; }
+.slot-dot.muted  { background: #98a2b3; }
 
-.slot-card.is-free   { background: #f4faf6; border-color: #d6ebdd; }
-.slot-card.is-ok     { background: #fbecec; border-color: #f2d6d3; }
-.slot-card.is-warn   { background: #fdf6ea; border-color: #f3e2c4; }
-.slot-card.is-danger { background: #fbe9e7; border-color: #f2cfca; }
-.slot-card.is-muted  { background: #f6f8f9; border-color: #e6ebee; opacity: 0.75; }
+.slot-card.is-free   { background: rgba(46, 157, 110, 0.12); border-color: rgba(46, 157, 110, 0.3); }
+.slot-card.is-ok     { background: rgba(46, 157, 110, 0.12); border-color: rgba(46, 157, 110, 0.3); }
+.slot-card.is-warn   { background: rgba(199, 125, 32, 0.14); border-color: rgba(199, 125, 32, 0.32); }
+.slot-card.is-danger { background: rgba(192, 57, 43, 0.14); border-color: rgba(192, 57, 43, 0.32); }
+.slot-card.is-muted  { background: var(--app-surface, #1c212c); border-color: var(--app-border, rgba(255,255,255,0.09)); opacity: 0.6; }
 
 .board-empty {
   padding: 40px 20px;
   text-align: center;
-  color: #6b7c8a;
-  border: 1px dashed var(--app-border, #e2e7ec);
+  color: #98a2b3;
+  border: 1px dashed var(--app-border, rgba(255,255,255,0.09));
   border-radius: 14px;
 }
 

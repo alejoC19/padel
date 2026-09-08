@@ -158,7 +158,7 @@
    ========================================================================= */
 .drawer-backdrop {
   position: fixed; inset: 0;
-  background: rgba(43, 58, 71, 0.5);
+  background: rgba(4, 6, 10, 0.6);
   z-index: 40;
   animation: ds-fade var(--t-fast, 0.12s);
 }
@@ -326,7 +326,7 @@
 
 .nav-drawer-backdrop {
   position: fixed; inset: 0;
-  background: rgba(43, 58, 71, 0.5);
+  background: rgba(4, 6, 10, 0.6);
   z-index: 50;
   animation: ds-fade var(--t-fast, 0.12s);
 }
