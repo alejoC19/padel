@@ -140,6 +140,93 @@ export class PaymentOrderService {
   }
 
   /**
+   * Crea una orden de pago para la inscripción de un equipo a un torneo y
+   * devuelve el link de Checkout Pro. Mismo circuito que `createForBooking`
+   * (PENDING → preferencia MP → webhook → Payment), pero liquidando contra
+   * `TournamentTeam.paymentStatus` en vez de `Booking.paymentStatus`.
+   */
+  async createForTournamentTeam(input: {
+    clubId: string;
+    teamId: string;
+    createdById?: string | null;
+  }): Promise<{ orderId: string; initPoint: string }> {
+    const team = await this.prisma.db.tournamentTeam.findFirst({
+      where: { id: input.teamId, clubId: input.clubId },
+      select: {
+        id: true,
+        name: true,
+        paymentStatus: true,
+        tournament: { select: { id: true, name: true, entryFee: true } },
+        members: { select: { clientId: true }, take: 1, orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!team) throw new NotFoundException('Equipo no encontrado.');
+
+    if (team.paymentStatus === 'PAID') {
+      throw new BadRequestException('La inscripción ya está pagada.');
+    }
+
+    const fee = this.round(this.num(team.tournament.entryFee));
+    if (fee <= 0) {
+      throw new BadRequestException('Este torneo no tiene costo de inscripción.');
+    }
+
+    const integration = await this.prisma.db.clubPaymentIntegration.findUnique({
+      where: { clubId_provider: { clubId: input.clubId, provider: 'MERCADO_PAGO' } },
+      select: { id: true, status: true },
+    });
+    if (!integration || integration.status !== 'CONNECTED') {
+      throw new BadRequestException(
+        'El club no tiene Mercado Pago conectado.',
+      );
+    }
+
+    const externalReference = `clubos:${input.clubId}:team:${input.teamId}:${randomUUID()}`;
+    const expiresAt = new Date(Date.now() + 30 * 60_000);
+
+    const order = await this.prisma.db.paymentOrder.create({
+      data: {
+        clubId: input.clubId,
+        integrationId: integration.id,
+        teamId: team.id,
+        clientId: team.members[0]?.clientId ?? null,
+        amount: fee,
+        concept: `Inscripción ${team.tournament.name} · ${team.name}`,
+        status: 'PENDING',
+        externalReference,
+        provider: 'MERCADO_PAGO',
+        expiresAt,
+        createdById: input.createdById ?? null,
+      },
+      select: { id: true, concept: true },
+    });
+
+    const accessToken = await this.integration.getUsableAccessToken(input.clubId);
+
+    const pref = await this.mp.createPreference(accessToken, {
+      clubId: input.clubId,
+      externalReference,
+      concept: order.concept,
+      amount: fee,
+      currency: 'ARS',
+      notificationUrl: `${this.apiUrl()}/payments/mercadopago/webhook?club=${input.clubId}`,
+      backUrls: {
+        success: `${this.webUrl()}/torneos/${team.tournament.id}?equipo=${team.id}&pago=ok`,
+        pending: `${this.webUrl()}/torneos/${team.tournament.id}?equipo=${team.id}&pago=pendiente`,
+        failure: `${this.webUrl()}/torneos/${team.tournament.id}?equipo=${team.id}&pago=error`,
+      },
+      expiresAt,
+    });
+
+    await this.prisma.db.paymentOrder.update({
+      where: { id: order.id },
+      data: { preferenceId: pref.preferenceId, initPoint: pref.initPoint },
+    });
+
+    return { orderId: order.id, initPoint: pref.initPoint };
+  }
+
+  /**
    * Procesa una notificación de webhook de MP. IDEMPOTENTE.
    *
    * MP no manda el detalle en el webhook: manda un id y hay que consultar el
@@ -201,7 +288,10 @@ export class PaymentOrderService {
       // (dos webhooks en paralelo).
       const fresh = await tx.paymentOrder.findUnique({
         where: { id: order.id },
-        select: { paymentId: true, bookingId: true, clientId: true, amount: true, concept: true },
+        select: {
+          paymentId: true, bookingId: true, teamId: true,
+          clientId: true, amount: true, concept: true,
+        },
       });
       if (!fresh || fresh.paymentId) return; // ya lo hizo otra ejecución
 
@@ -243,9 +333,11 @@ export class PaymentOrderService {
         },
       });
 
-      // Actualizar el estado de pago de la reserva.
+      // Actualizar el estado de pago de la reserva o de la inscripción.
       if (fresh.bookingId) {
         await this.settleBooking(tx, fresh.bookingId);
+      } else if (fresh.teamId) {
+        await this.settleTeam(tx, fresh.teamId);
       }
 
       // Cerrar la orden.
@@ -281,8 +373,10 @@ export class PaymentOrderService {
   }
 
   /**
-   * Encola los avisos de un pago aprobado (pago recibido + reserva confirmada).
-   * Lee los datos de contacto y de la reserva ya persistidos.
+   * Encola los avisos de un pago aprobado. Bifurca según qué financia la
+   * orden: reserva (pago recibido + reserva confirmada) o inscripción a
+   * torneo (inscripción confirmada). Lee los datos de contacto ya
+   * persistidos.
    */
   private async notifyPaymentApproved(orderId: string): Promise<void> {
     const order = await this.prisma.db.paymentOrder.findUnique({
@@ -302,40 +396,89 @@ export class PaymentOrderService {
             },
           },
         },
+        team: {
+          select: {
+            name: true,
+            tournament: {
+              select: { name: true, club: { select: { name: true } } },
+            },
+            members: {
+              take: 1,
+              orderBy: { createdAt: 'asc' },
+              select: {
+                client: {
+                  select: { firstName: true, phone: true, whatsapp: true, email: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
+    if (!order) return;
 
-    if (!order?.booking?.client) return;
-    const b = order.booking;
-    const client = b.client;
-    if (!client) return;
-    const tz = b.club.timezone ?? 'America/Argentina/Buenos_Aires';
-    const data = {
-      clubName: b.club.name,
-      clientName: client.firstName,
-      courtName: b.court.name,
-      date: formatBookingDate(b.startsAt, tz),
-      time: formatBookingTime(b.startsAt, tz),
-      code: b.code,
-    };
-    const contact = {
-      phone: client.phone,
-      whatsapp: client.whatsapp,
-      email: client.email,
-    };
+    if (order.booking?.client) {
+      const b = order.booking;
+      const client = b.client!;
+      const tz = b.club.timezone ?? 'America/Argentina/Buenos_Aires';
+      const data = {
+        clubName: b.club.name,
+        clientName: client.firstName,
+        courtName: b.court.name,
+        date: formatBookingDate(b.startsAt, tz),
+        time: formatBookingTime(b.startsAt, tz),
+        code: b.code,
+      };
+      const contact = {
+        phone: client.phone,
+        whatsapp: client.whatsapp,
+        email: client.email,
+      };
 
-    await this.notifications.enqueuePaymentReceived({
+      await this.notifications.enqueuePaymentReceived({
+        clubId: order.clubId,
+        clientId: order.clientId,
+        contact,
+        data,
+        amount: formatMoney(this.num(order.amount)),
+      });
+      await this.notifications.enqueueBookingConfirmed({
+        clubId: order.clubId,
+        clientId: order.clientId,
+        contact,
+        data,
+      });
+      return;
+    }
+
+    const team = order.team;
+    const member = team?.members[0]?.client;
+    if (!team || !member) return;
+
+    await this.notifications.enqueueTournamentEntryPaid({
       clubId: order.clubId,
       clientId: order.clientId,
-      contact,
-      data,
-      amount: formatMoney(this.num(order.amount)),
+      contact: { phone: member.phone, whatsapp: member.whatsapp, email: member.email },
+      data: {
+        clubName: team.tournament.club.name,
+        clientName: member.firstName,
+        tournamentName: team.tournament.name,
+        teamName: team.name,
+        amount: formatMoney(this.num(order.amount)),
+      },
     });
-    await this.notifications.enqueueBookingConfirmed({
-      clubId: order.clubId,
-      clientId: order.clientId,
-      contact,
-      data,
+  }
+
+  /**
+   * Marca la inscripción del equipo como pagada. A diferencia de una reserva,
+   * el checkout online de una inscripción siempre cobra el total (ver
+   * `createForTournamentTeam`, que exige `fee > 0` y no admite pago parcial
+   * online) — no hace falta reagregar pagos parciales.
+   */
+  private async settleTeam(tx: Prisma.TransactionClient, teamId: string): Promise<void> {
+    await tx.tournamentTeam.update({
+      where: { id: teamId },
+      data: { paymentStatus: 'PAID' },
     });
   }
 

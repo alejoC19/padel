@@ -19,15 +19,17 @@
   width: 100%;
   max-width: 560px;
   margin: 0 auto;
-  padding: var(--sp-lg, 16px) var(--sp-lg, 16px) calc(96px + env(safe-area-inset-bottom));
+  /* 64px de tabbar + 96px de CTA fija: nunca se solapan con el contenido. */
+  padding: var(--sp-lg, 16px) var(--sp-lg, 16px) calc(96px + 64px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: var(--sp-lg, 16px);
 }
 
-/* Cuando no hay CTA fija abajo (recibo, mis reservas). */
+/* Cuando no hay CTA fija abajo (recibo, mis reservas, torneos, buffet):
+   solo hace falta el espacio del tabbar. */
 .player-main.no-sticky {
-  padding-bottom: var(--sp-xl, 24px);
+  padding-bottom: calc(64px + env(safe-area-inset-bottom) + var(--sp-xl, 24px));
 }
 
 /* --- Encabezado del club --- */
@@ -247,13 +249,14 @@
    (padding-bottom) para que el contenido nunca quede tapado detrás. */
 .sticky-cta {
   position: fixed;
-  bottom: 0;
+  /* Justo arriba del tabbar (64px), no en bottom:0 — si no, se lo tapa. */
+  bottom: 64px;
   left: 0;
   right: 0;
   z-index: 20;
   background: var(--ds-surface, #fff);
   border-top: 1px solid var(--ds-border, #e2e7ec);
-  padding: var(--sp-md, 12px) var(--sp-lg, 16px) calc(var(--sp-md, 12px) + env(safe-area-inset-bottom));
+  padding: var(--sp-md, 12px) var(--sp-lg, 16px);
 }
 .sticky-cta-inner {
   max-width: 560px;
@@ -299,8 +302,14 @@
   font-size: var(--fs-body, 14px);
 }
 .receipt-row:last-child { border-bottom: none; }
-.receipt-row .k { color: var(--ds-muted, #6b7c8a); }
-.receipt-row .v { font-weight: 700; text-align: right; }
+/* `.receipt-k`/`.receipt-v`, NO `.k`/`.v`: esos nombres genéricos ya existen
+   en design-system.css (`.kbd, .k { ... }`, estilo de tecla con fondo y
+   borde) para otra cosa — mismo problema de colisión de clases que
+   booking-dialog.css, ver el comentario ahí. Con el nombre corto, ganaba
+   SIEMPRE el estilo de tecla por encima del texto plano que se quería acá
+   (las etiquetas del comprobante aparecían como píldoras). */
+.receipt-row .receipt-k { color: var(--ds-muted, #6b7c8a); }
+.receipt-row .receipt-v { font-weight: 700; text-align: right; }
 
 .token-box {
   display: flex;
@@ -389,6 +398,153 @@
 
 @media (min-width: 480px) {
   .slot-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* --- Banner de instalación de la PWA --- */
+.install-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm, 8px);
+  padding: var(--sp-md, 12px);
+  border-radius: var(--r-lg, 14px);
+  background: var(--ds-surface, #fff);
+  border: 1px solid var(--ds-border, #e2e7ec);
+  box-shadow: 0 4px 16px rgba(21, 24, 30, 0.06);
+}
+.install-banner-icon { font-size: 24px; flex: none; }
+.install-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-small, 13px);
+}
+.install-banner-text strong { font-size: var(--fs-body, 14px); }
+.install-banner-text span { color: var(--ds-muted, #6b7c8a); }
+.install-banner-close {
+  border: none;
+  background: none;
+  color: var(--ds-faint, #93a1ac);
+  cursor: pointer;
+  font-size: 14px;
+  flex: none;
+  padding: 4px;
+}
+
+/* =========================================================================
+   Tabbar inferior: navegación del jugador, A PROPÓSITO limitada a 3 secciones
+   (Turnos / Torneos / Buffet) — el jugador no necesita ver nada más del panel
+   de staff. Fija al viewport (no al documento), visible en TODO el portal
+   `/c/[slug]/*` porque vive en el layout.
+   ========================================================================= */
+.player-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  display: flex;
+  background: var(--ds-surface, #fff);
+  border-top: 1px solid var(--ds-border, #e2e7ec);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.player-tabbar-inner {
+  display: flex;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+.player-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 64px;
+  color: var(--ds-muted, #6b7c8a);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 700;
+}
+.player-tab svg { flex: none; }
+.player-tab.is-active {
+  color: var(--ds-primary, #c8443e);
+}
+
+/* --- Producto/menú del buffet (solo lectura) --- */
+.menu-category {
+  font-size: var(--fs-caption, 12px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-muted, #6b7c8a);
+  margin: var(--sp-md, 12px) 0 var(--sp-xs, 4px);
+}
+.menu-category:first-child { margin-top: 0; }
+.menu-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-md, 12px);
+  padding: var(--sp-md, 12px) 0;
+  border-bottom: 1px solid var(--ds-border, #e2e7ec);
+}
+.menu-item:last-child { border-bottom: none; }
+.menu-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.menu-item-name { font-weight: 700; }
+.menu-item-desc { font-size: var(--fs-small, 13px); color: var(--ds-muted, #6b7c8a); }
+.menu-item-price { font-weight: 800; white-space: nowrap; }
+
+/* --- Torneos --- */
+.tournament-card {
+  display: block;
+  padding: var(--sp-lg, 16px);
+  border-radius: var(--r-lg, 14px);
+  background: var(--ds-surface, #fff);
+  border: 1px solid var(--ds-border, #e2e7ec);
+  text-decoration: none;
+  color: inherit;
+}
+.tournament-card + .tournament-card { margin-top: var(--sp-md, 12px); }
+.tournament-card-name { font-weight: 800; font-size: var(--fs-h3, 17px); margin-bottom: 4px; }
+.tournament-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: var(--fs-small, 13px);
+  color: var(--ds-muted, #6b7c8a);
+  margin-bottom: 8px;
+}
+.tournament-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.tournament-fee { font-weight: 800; color: var(--ds-primary, #c8443e); }
+
+.team-form-players { display: flex; flex-direction: column; gap: var(--sp-md, 12px); }
+.team-player-block {
+  padding: var(--sp-md, 12px);
+  border-radius: var(--r-md, 10px);
+  background: var(--ds-surface-2, #f8fafb);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm, 8px);
+}
+.team-player-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-small, 13px);
+  font-weight: 700;
+  color: var(--ds-muted, #6b7c8a);
+}
+.player-link-btn {
+  background: none;
+  border: none;
+  color: var(--ds-primary, #c8443e);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: var(--fs-small, 13px);
+  padding: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

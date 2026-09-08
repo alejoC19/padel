@@ -81,6 +81,27 @@ export const templates = {
       waParams: [d.clientName, d.amount, d.code],
     };
   },
+
+  TOURNAMENT_ENTRY_PAID(d: TournamentEntryData): RenderedMessage {
+    return {
+      subject: `Inscripción confirmada — ${d.clubName}`,
+      body:
+        `¡Gracias ${d.clientName}! Tu equipo "${d.teamName}" quedó anotado en ` +
+        `${d.tournamentName} (${d.clubName}).\n\n` +
+        `Inscripción pagada: ${d.amount}.\n` +
+        `¡Nos vemos en la cancha! 🎾`,
+      waTemplate: 'tournament_entry_paid',
+      waParams: [d.clientName, d.teamName, d.tournamentName, d.amount],
+    };
+  },
 };
+
+export interface TournamentEntryData {
+  clubName: string;
+  clientName: string;
+  tournamentName: string;
+  teamName: string;
+  amount: string;
+}
 
 export type TemplateKey = keyof typeof templates;

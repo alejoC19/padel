@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma, $Enums } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { templates, type BookingData } from '../templates/message-templates';
+import {
+  templates, type BookingData, type TournamentEntryData,
+} from '../templates/message-templates';
 
 /**
  * Punto de entrada para EMITIR notificaciones. Nunca envía sincrónico:
@@ -118,6 +120,37 @@ export class NotificationsService {
    * WhatsApp si hay teléfono/whatsapp; email si hay email. Una notificación
    * lógica puede volverse 1 o 2 filas (una por canal).
    */
+  /**
+   * Inscripción a torneo pagada online. Se usa `TOURNAMENT_UPDATE` como tipo
+   * (no hay uno dedicado en el enum) — igual que el resto, encola por canal
+   * según el contacto disponible.
+   */
+  async enqueueTournamentEntryPaid(
+    input: {
+      clubId: string;
+      clientId?: string | null;
+      contact: ContactInfo;
+      data: TournamentEntryData;
+      actionUrl?: string | null;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const rendered = templates.TOURNAMENT_ENTRY_PAID(input.data);
+    await this.enqueue(
+      {
+        clubId: input.clubId,
+        clientId: input.clientId,
+        type: 'TOURNAMENT_UPDATE',
+        title: rendered.subject,
+        rendered,
+        contact: input.contact,
+        actionUrl: input.actionUrl,
+        metadata: { teamName: input.data.teamName, waParams: rendered.waParams },
+      },
+      tx,
+    );
+  }
+
   private async enqueue(
     input: EnqueueInput,
     tx?: Prisma.TransactionClient,

@@ -194,50 +194,50 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
 
       <section className="card">
         <div className="receipt-row">
-          <span className="k">Cancha</span>
-          <span className="v">
+          <span className="receipt-k">Cancha</span>
+          <span className="receipt-v">
             <span className="court-dot" style={{ background: detail.courtColor || '#c8443e', display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }} />
             {detail.courtName}
           </span>
         </div>
         <div className="receipt-row">
-          <span className="k">Día</span>
-          <span className="v">{formatLocalDate(detail.startsAt.slice(0, 10))}</span>
+          <span className="receipt-k">Día</span>
+          <span className="receipt-v">{formatLocalDate(detail.startsAt.slice(0, 10))}</span>
         </div>
         <div className="receipt-row">
-          <span className="k">Horario</span>
-          <span className="v">
+          <span className="receipt-k">Horario</span>
+          <span className="receipt-v">
             {formatMinute(new Date(detail.startsAt).getHours() * 60 + new Date(detail.startsAt).getMinutes())}
             {' – '}
             {formatMinute(new Date(detail.endsAt).getHours() * 60 + new Date(detail.endsAt).getMinutes())}
           </span>
         </div>
         <div className="receipt-row">
-          <span className="k">Estado</span>
+          <span className="receipt-k">Estado</span>
           <span className={`badge ${isCancelled ? 'danger' : 'success'}`}>
             {STATUS_LABEL[detail.status] ?? detail.status}
           </span>
         </div>
         <div className="receipt-row">
-          <span className="k">Pago</span>
+          <span className="receipt-k">Pago</span>
           <span className={`badge ${detail.paymentStatus === 'PAID' ? 'success' : 'warning'}`}>
             {PAYMENT_LABEL[detail.paymentStatus] ?? detail.paymentStatus}
           </span>
         </div>
         <div className="receipt-row">
-          <span className="k">Total</span>
-          <span className="v">{formatMoney(detail.totalPrice)}</span>
+          <span className="receipt-k">Total</span>
+          <span className="receipt-v">{formatMoney(detail.totalPrice)}</span>
         </div>
         {detail.paidAmount > 0 && (
           <div className="receipt-row">
-            <span className="k">Pagado</span>
-            <span className="v">{formatMoney(detail.paidAmount)}</span>
+            <span className="receipt-k">Pagado</span>
+            <span className="receipt-v">{formatMoney(detail.paidAmount)}</span>
           </div>
         )}
         {pending > 0 && (
           <div className="receipt-row">
-            <span className="k">Saldo pendiente</span>
-            <span className="v">{formatMoney(pending)}</span>
+            <span className="receipt-k">Saldo pendiente</span>
+            <span className="receipt-v">{formatMoney(pending)}</span>
           </div>
         )}
       </section>

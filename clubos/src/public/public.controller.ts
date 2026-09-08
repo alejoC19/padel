@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public, SkipTenant } from '../common/decorators';
 import { PublicService } from './public.service';
-import { AccessTokenDto, ReservarDto } from './dto/public-booking.dto';
+import { AccessTokenDto, InscribirEquipoDto, ReservarDto } from './dto/public-booking.dto';
 
 /**
  * Endpoints PÚBLICOS para la app del jugador. Sin login.
@@ -94,5 +94,55 @@ export class PublicController {
     @Body() body: AccessTokenDto,
   ) {
     return this.svc.cancelar(slug, id, body.accessToken);
+  }
+
+  /** Menú del buffet: solo ver nombre, precio y categoría. */
+  @Get(':slug/productos')
+  menu(@Param('slug') slug: string) {
+    return this.svc.menu(slug);
+  }
+
+  /** Torneos con inscripción abierta o próximos a jugarse. */
+  @Get(':slug/torneos')
+  tournaments(@Param('slug') slug: string) {
+    return this.svc.tournaments(slug);
+  }
+
+  /** Detalle de un torneo (equipos ya anotados). */
+  @Get(':slug/torneos/:id')
+  tournamentDetail(@Param('slug') slug: string, @Param('id') id: string) {
+    return this.svc.tournamentDetail(slug, id);
+  }
+
+  /** Inscribe un equipo (invitado, sin login). Devuelve el accessToken del equipo. */
+  @Post(':slug/torneos/:id/inscribir')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  inscribirEquipo(
+    @Param('slug') slug: string,
+    @Param('id') id: string,
+    @Body() body: InscribirEquipoDto,
+  ) {
+    return this.svc.inscribirEquipo(slug, id, body);
+  }
+
+  /** Comprobante de la inscripción de un equipo (requiere su accessToken). */
+  @Get(':slug/equipos/:teamId')
+  equipoDetalle(
+    @Param('slug') slug: string,
+    @Param('teamId') teamId: string,
+    @Query('token') token: string,
+  ) {
+    return this.svc.equipoDetalle(slug, teamId, token);
+  }
+
+  /** Checkout online (Mercado Pago) de la inscripción de un equipo. */
+  @Post(':slug/equipos/:teamId/checkout')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  checkoutInscripcion(
+    @Param('slug') slug: string,
+    @Param('teamId') teamId: string,
+    @Body() body: AccessTokenDto,
+  ) {
+    return this.svc.checkoutInscripcion(slug, teamId, body.accessToken);
   }
 }

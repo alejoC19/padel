@@ -66,3 +66,44 @@ export function savePublicBooking(slug: string, booking: StoredBooking): void {
     /* noop: el comprobante sigue siendo válido vía el link con el token */
   }
 }
+
+/** Mismo patrón que StoredBooking, para la inscripción de un equipo a un torneo. */
+export interface StoredTeam {
+  id: string;
+  name: string;
+  tournamentId: string;
+  tournamentName: string;
+  accessToken: string;
+  createdAt: string;
+}
+
+function teamsStorageKey(slug: string): string {
+  return `clubos.public.${slug}.teams`;
+}
+
+export function getPublicTeams(slug: string): StoredTeam[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(teamsStorageKey(slug));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as StoredTeam[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getPublicTeam(slug: string, id: string): StoredTeam | undefined {
+  return getPublicTeams(slug).find((t) => t.id === id);
+}
+
+export function savePublicTeam(slug: string, team: StoredTeam): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const rest = getPublicTeams(slug).filter((t) => t.id !== team.id);
+    const next = [team, ...rest].slice(0, MAX_PER_CLUB);
+    localStorage.setItem(teamsStorageKey(slug), JSON.stringify(next));
+  } catch {
+    /* noop: el comprobante sigue siendo válido vía el link con el token */
+  }
+}

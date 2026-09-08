@@ -438,4 +438,318 @@ export class PublicService {
       return { ok: true };
     });
   }
+
+  // ---------------------------------------------------------------------
+  // Buffet — menú de solo lectura
+  // ---------------------------------------------------------------------
+
+  /**
+   * Menú público del buffet: solo nombre, precio y categoría de productos
+   * activos vendibles (GOOD/SERVICE). Nada de stock, costo ni datos internos
+   * — el jugador solo mira qué hay y cuánto sale, no se pide ni se paga acá.
+   */
+  async menu(slug: string) {
+    const club = await this.resolveClub(slug);
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      const products = await this.prisma.db.product.findMany({
+        where: { clubId: club.id, isActive: true, deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          salePrice: true,
+          category: { select: { name: true, sortOrder: true } },
+        },
+        orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
+      });
+
+      return {
+        productos: products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: this.num(p.salePrice),
+          category: p.category?.name ?? 'Otros',
+        })),
+      };
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Torneos — ver e inscribirse
+  // ---------------------------------------------------------------------
+
+  /** Torneos con inscripción abierta o próximos a jugarse. */
+  async tournaments(slug: string) {
+    const club = await this.resolveClub(slug);
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      const rows = await this.prisma.db.tournament.findMany({
+        where: {
+          clubId: club.id,
+          deletedAt: null,
+          status: { in: ['REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'IN_PROGRESS'] },
+        },
+        select: {
+          id: true, name: true, description: true, imageUrl: true,
+          format: true, category: true, skillLevel: true,
+          startsAt: true, endsAt: true, status: true,
+          maxTeams: true, entryFee: true,
+          registrationOpensAt: true, registrationClosesAt: true,
+          _count: { select: { teams: true } },
+        },
+        orderBy: { startsAt: 'asc' },
+        take: 30,
+      });
+
+      return {
+        torneos: rows.map((t) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          imageUrl: t.imageUrl,
+          format: t.format,
+          category: t.category,
+          skillLevel: t.skillLevel,
+          startsAt: t.startsAt,
+          endsAt: t.endsAt,
+          status: t.status,
+          entryFee: this.num(t.entryFee),
+          spotsLeft: Math.max(0, t.maxTeams - t._count.teams),
+          registrationOpen:
+            t.status === 'REGISTRATION_OPEN' &&
+            t._count.teams < t.maxTeams &&
+            (!t.registrationClosesAt || t.registrationClosesAt > new Date()),
+        })),
+      };
+    });
+  }
+
+  /** Detalle de un torneo (equipos ya anotados, sin datos de contacto). */
+  async tournamentDetail(slug: string, tournamentId: string) {
+    const club = await this.resolveClub(slug);
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      const t = await this.prisma.db.tournament.findFirst({
+        where: { id: tournamentId, clubId: club.id, deletedAt: null },
+        select: {
+          id: true, name: true, description: true, imageUrl: true,
+          format: true, category: true, skillLevel: true,
+          startsAt: true, endsAt: true, status: true,
+          maxTeams: true, entryFee: true, prizeDescription: true, rules: true,
+          registrationOpensAt: true, registrationClosesAt: true,
+          teams: {
+            select: { id: true, name: true, seed: true },
+            orderBy: [{ seed: 'asc' }, { name: 'asc' }],
+          },
+          _count: { select: { teams: true } },
+        },
+      });
+      if (!t) throw new NotFoundException('Torneo no encontrado.');
+
+      return {
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        imageUrl: t.imageUrl,
+        format: t.format,
+        category: t.category,
+        skillLevel: t.skillLevel,
+        startsAt: t.startsAt,
+        endsAt: t.endsAt,
+        status: t.status,
+        entryFee: this.num(t.entryFee),
+        prizeDescription: t.prizeDescription,
+        rules: t.rules,
+        spotsLeft: Math.max(0, t.maxTeams - t._count.teams),
+        registrationOpen:
+          t.status === 'REGISTRATION_OPEN' &&
+          t._count.teams < t.maxTeams &&
+          (!t.registrationClosesAt || t.registrationClosesAt > new Date()),
+        teams: t.teams.map((team) => ({ id: team.id, name: team.name, seed: team.seed })),
+      };
+    });
+  }
+
+  /**
+   * Inscribe un equipo desde la app, sin login. Los jugadores dan nombre y
+   * teléfono (mismo patrón "invitado" que `reservar`): se busca o crea el
+   * Client por teléfono. El equipo queda UNPAID si el torneo cobra
+   * inscripción — el jugador paga después con `checkoutInscripcion`.
+   */
+  async inscribirEquipo(
+    slug: string,
+    tournamentId: string,
+    input: { teamName: string; players: { firstName: string; lastName?: string; phone: string }[] },
+  ) {
+    const club = await this.resolveClub(slug);
+
+    if (!input.teamName?.trim()) {
+      throw new BadRequestException('El equipo necesita un nombre.');
+    }
+    if (!input.players?.length) {
+      throw new BadRequestException('El equipo necesita al menos un jugador.');
+    }
+    for (const p of input.players) {
+      if (!p.firstName?.trim() || !p.phone?.trim()) {
+        throw new BadRequestException('Nombre y teléfono son obligatorios para cada jugador.');
+      }
+    }
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      return this.prisma.tenantTransaction(async (tx) => {
+        const tournament = await tx.tournament.findFirst({
+          where: { id: tournamentId, clubId: club.id, deletedAt: null },
+          select: {
+            id: true, name: true, status: true, maxTeams: true, entryFee: true,
+            registrationClosesAt: true,
+            _count: { select: { teams: true } },
+          },
+        });
+        if (!tournament) throw new NotFoundException('Torneo no encontrado.');
+        if (tournament.status !== 'REGISTRATION_OPEN') {
+          throw new BadRequestException('La inscripción está cerrada para este torneo.');
+        }
+        if (tournament._count.teams >= tournament.maxTeams) {
+          throw new BadRequestException(`El torneo está completo (${tournament.maxTeams} equipos).`);
+        }
+        if (tournament.registrationClosesAt && tournament.registrationClosesAt < new Date()) {
+          throw new BadRequestException('El plazo de inscripción venció.');
+        }
+
+        // Buscar o crear cada jugador por teléfono, igual que en `reservar`.
+        const clientIds: string[] = [];
+        for (const p of input.players) {
+          let client = await tx.client.findFirst({
+            where: { phone: p.phone.trim() },
+            select: { id: true },
+          });
+          if (!client) {
+            client = await tx.client.create({
+              data: {
+                clubId: club.id,
+                firstName: p.firstName.trim(),
+                lastName: p.lastName?.trim() || '—',
+                phone: p.phone.trim(),
+              },
+              select: { id: true },
+            });
+          }
+          if (!clientIds.includes(client.id)) clientIds.push(client.id);
+        }
+
+        const alreadyIn = await tx.tournamentTeamMember.findFirst({
+          where: { clientId: { in: clientIds }, team: { tournamentId } },
+          select: { client: { select: { firstName: true, lastName: true } } },
+        });
+        if (alreadyIn) {
+          throw new BadRequestException(
+            `${alreadyIn.client.firstName} ${alreadyIn.client.lastName} ya está inscripto en este torneo.`,
+          );
+        }
+
+        const { raw: accessToken, hash: accessTokenHash } = this.generateAccessToken();
+
+        const team = await tx.tournamentTeam.create({
+          data: {
+            clubId: club.id,
+            tournamentId,
+            name: input.teamName.trim(),
+            seed: tournament._count.teams + 1,
+            paymentStatus: 'UNPAID',
+            accessTokenHash,
+          },
+          select: { id: true, name: true },
+        });
+
+        await tx.tournamentTeamMember.createMany({
+          data: clientIds.map((clientId) => ({ clubId: club.id, teamId: team.id, clientId })),
+        });
+
+        return {
+          ok: true,
+          team: {
+            id: team.id,
+            name: team.name,
+            entryFee: this.num(tournament.entryFee),
+            accessToken,
+          },
+        };
+      });
+    });
+  }
+
+  /** Detalle/comprobante de la inscripción de un equipo, por accessToken. */
+  async equipoDetalle(slug: string, teamId: string, accessToken: string) {
+    const club = await this.resolveClub(slug);
+    if (!accessToken?.trim()) throw new NotFoundException('Equipo no encontrado.');
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      const team = await this.prisma.db.tournamentTeam.findFirst({
+        where: { id: teamId, clubId: club.id },
+        select: {
+          id: true, name: true, paymentStatus: true, accessTokenHash: true,
+          tournament: { select: { id: true, name: true, entryFee: true, startsAt: true } },
+          members: { select: { client: { select: { firstName: true, lastName: true } } } },
+        },
+      });
+      this.assertTeamOwnsToken(team, accessToken);
+
+      return {
+        id: team!.id,
+        name: team!.name,
+        paymentStatus: team!.paymentStatus,
+        entryFee: this.num(team!.tournament.entryFee),
+        tournamentName: team!.tournament.name,
+        tournamentStartsAt: team!.tournament.startsAt,
+        players: team!.members.map((m) => `${m.client.firstName} ${m.client.lastName}`),
+      };
+    });
+  }
+
+  /**
+   * Checkout online (Mercado Pago) de la inscripción de un equipo. Requiere
+   * el accessToken del equipo. Mismo patrón que `checkout` de reservas.
+   */
+  async checkoutInscripcion(slug: string, teamId: string, accessToken: string) {
+    const club = await this.resolveClub(slug);
+    if (!accessToken?.trim()) {
+      throw new BadRequestException('Falta el token de acceso del equipo.');
+    }
+
+    return runWithTenant(this.publicCtx(club.id), async () => {
+      const team = await this.prisma.db.tournamentTeam.findFirst({
+        where: { id: teamId, clubId: club.id },
+        select: { id: true, accessTokenHash: true },
+      });
+      this.assertTeamOwnsToken(team, accessToken);
+
+      const { initPoint } = await this.orders.createForTournamentTeam({
+        clubId: club.id,
+        teamId,
+      });
+      return { initPoint };
+    });
+  }
+
+  /** Tira NotFoundException si el token no corresponde a este equipo. */
+  private assertTeamOwnsToken(
+    team: { accessTokenHash: string | null } | null,
+    accessToken: string,
+  ): void {
+    if (!team || !team.accessTokenHash) {
+      throw new NotFoundException('Equipo no encontrado.');
+    }
+    const given = this.hashAccessToken(accessToken.trim());
+    if (!this.tokensMatch(given, team.accessTokenHash)) {
+      throw new NotFoundException('Equipo no encontrado.');
+    }
+  }
+
+  private num(v: unknown): number {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number') return v;
+    return Number((v as { toString(): string }).toString());
+  }
 }

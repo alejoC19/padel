@@ -135,6 +135,65 @@ export interface PublicBookingDetail {
   courtColor: string | null;
 }
 
+/** Producto del buffet: solo lo que un jugador necesita para decidir qué pedir en el mostrador. */
+export interface PublicProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  category: string;
+}
+
+/** Fila de /torneos: lo justo para decidir si entrar al detalle. */
+export interface PublicTournamentSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  format: string;
+  category: string | null;
+  skillLevel: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+  entryFee: number;
+  spotsLeft: number;
+  registrationOpen: boolean;
+}
+
+export interface PublicTournamentDetail extends PublicTournamentSummary {
+  prizeDescription: string | null;
+  rules: string | null;
+  teams: { id: string; name: string; seed: number | null }[];
+}
+
+export interface PublicTeamPlayer {
+  firstName: string;
+  lastName?: string;
+  phone: string;
+}
+
+export interface PublicTeamCreated {
+  ok: true;
+  team: {
+    id: string;
+    name: string;
+    entryFee: number;
+    /** Se devuelve UNA sola vez: es el comprobante para pagar/consultar después. */
+    accessToken: string;
+  };
+}
+
+export interface PublicTeamDetail {
+  id: string;
+  name: string;
+  paymentStatus: string;
+  entryFee: number;
+  tournamentName: string;
+  tournamentStartsAt: string;
+  players: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Endpoints
 // ---------------------------------------------------------------------------
@@ -183,6 +242,42 @@ export const publicApi = {
   cancelar: (slug: string, id: string, accessToken: string) =>
     request<{ ok: true }>(
       `/public/clubs/${encodeURIComponent(slug)}/reservas/${encodeURIComponent(id)}/cancelar`,
+      { method: 'POST', body: JSON.stringify({ accessToken }) },
+    ),
+
+  menu: (slug: string) =>
+    request<{ productos: PublicProduct[] }>(
+      `/public/clubs/${encodeURIComponent(slug)}/productos`,
+    ),
+
+  tournaments: (slug: string) =>
+    request<{ torneos: PublicTournamentSummary[] }>(
+      `/public/clubs/${encodeURIComponent(slug)}/torneos`,
+    ),
+
+  tournamentDetail: (slug: string, id: string) =>
+    request<PublicTournamentDetail>(
+      `/public/clubs/${encodeURIComponent(slug)}/torneos/${encodeURIComponent(id)}`,
+    ),
+
+  inscribirEquipo: (
+    slug: string,
+    tournamentId: string,
+    input: { teamName: string; players: PublicTeamPlayer[] },
+  ) =>
+    request<PublicTeamCreated>(
+      `/public/clubs/${encodeURIComponent(slug)}/torneos/${encodeURIComponent(tournamentId)}/inscribir`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+
+  equipoDetalle: (slug: string, teamId: string, token: string) =>
+    request<PublicTeamDetail>(
+      `/public/clubs/${encodeURIComponent(slug)}/equipos/${encodeURIComponent(teamId)}?token=${encodeURIComponent(token)}`,
+    ),
+
+  checkoutInscripcion: (slug: string, teamId: string, accessToken: string) =>
+    request<{ initPoint: string }>(
+      `/public/clubs/${encodeURIComponent(slug)}/equipos/${encodeURIComponent(teamId)}/checkout`,
       { method: 'POST', body: JSON.stringify({ accessToken }) },
     ),
 };

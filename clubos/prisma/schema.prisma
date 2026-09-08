@@ -2152,12 +2152,18 @@ model TournamentTeam {
   points        Int  @default(0)
   finalPosition Int?
 
+  /// Hash SHA-256 del token de acceso público (comprobante del jugador que
+  /// inscribió el equipo desde la app, sin login). Mismo patrón que
+  /// Booking.accessTokenHash.
+  accessTokenHash String? @unique @db.VarChar(64)
+
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  members     TournamentTeamMember[]
-  homeMatches TournamentMatch[]      @relation("HomeTeam")
-  awayMatches TournamentMatch[]      @relation("AwayTeam")
+  members       TournamentTeamMember[]
+  homeMatches   TournamentMatch[]      @relation("HomeTeam")
+  awayMatches   TournamentMatch[]      @relation("AwayTeam")
+  paymentOrders PaymentOrder[]
 
   @@index([clubId, tournamentId])
   @@map("tournament_teams")
@@ -2388,6 +2394,8 @@ model PaymentOrder {
   booking   Booking? @relation(fields: [bookingId], references: [id])
   saleId    String?  @db.Uuid
   sale      Sale?    @relation(fields: [saleId], references: [id])
+  teamId    String?         @db.Uuid
+  team      TournamentTeam? @relation(fields: [teamId], references: [id])
   clientId  String?  @db.Uuid
   client    Client?  @relation(fields: [clientId], references: [id])
 
