@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlanLimitsService } from '../../common/services/plan-limits.service';
+import { csvCell } from '../../common/utils/csv.util';
 import { ClientSearchService } from './client-search.service';
 import type {
   CreateClientDto,
@@ -302,7 +303,69 @@ export class ClientService {
   async list(q: ListClientsDto) {
     const take = Math.min(q.limit ?? 50, 100);
     const skip = q.offset ?? 0;
+    const where = await this.buildWhere(q);
+    const orderBy = this.orderByFor(q.sortBy);
 
+    const [items, total] = await Promise.all([
+      this.prisma.db.client.findMany({
+        where: where as never,
+        select: {
+          id: true, firstName: true, lastName: true, phone: true,
+          email: true, status: true, accountBalance: true,
+          totalSpent: true, bookingsCount: true, lastVisitAt: true,
+          avatarUrl: true, skillLevel: true,
+          tags: { select: { tag: { select: { code: true, name: true, color: true } } } },
+        },
+        orderBy,
+        take,
+        skip,
+      }),
+      this.prisma.db.client.count({ where: where as never }),
+    ]);
+
+    return { items, total, limit: take, offset: skip };
+  }
+
+  /**
+   * CSV de clientes para bajar a Excel/Sheets. Mismos filtros que `list()`
+   * (comparten `buildWhere`) pero sin paginar — un límite de 5000 alcanza de
+   * sobra para un club real y evita cargar la tabla entera en memoria si
+   * alguien pide el export de una base gigante por error.
+   */
+  async exportCsv(q: ListClientsDto): Promise<string> {
+    const where = await this.buildWhere(q);
+    const orderBy = this.orderByFor(q.sortBy);
+
+    const clients = await this.prisma.db.client.findMany({
+      where: where as never,
+      select: {
+        firstName: true, lastName: true, phone: true, email: true,
+        documentNumber: true, status: true, accountBalance: true,
+        totalSpent: true, bookingsCount: true, lastVisitAt: true,
+        skillLevel: true, createdAt: true,
+      },
+      orderBy,
+      take: 5000,
+    });
+
+    const header = [
+      'Nombre', 'Apellido', 'Teléfono', 'Email', 'Documento', 'Estado',
+      'Saldo cuenta', 'Total gastado', 'Reservas', 'Última visita',
+      'Nivel', 'Alta',
+    ];
+    const rows = clients.map((c: Record<string, unknown>) => [
+      c.firstName, c.lastName, c.phone ?? '', c.email ?? '',
+      c.documentNumber ?? '', c.status,
+      this.num(c.accountBalance), this.num(c.totalSpent), c.bookingsCount,
+      c.lastVisitAt ? new Date(c.lastVisitAt as string).toISOString().slice(0, 10) : '',
+      c.skillLevel ?? '',
+      new Date(c.createdAt as string).toISOString().slice(0, 10),
+    ]);
+
+    return [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+  }
+
+  private async buildWhere(q: ListClientsDto): Promise<Record<string, unknown>> {
     const where: Record<string, unknown> = { deletedAt: null };
 
     if (q.status) where.status = q.status;
@@ -326,31 +389,15 @@ export class ClientService {
       where.id = { in: ids.map((r: { id: string }) => r.id) };
     }
 
-    const orderBy =
-      q.sortBy === 'recent'
-        ? [{ lastVisitAt: 'desc' as const }]
-        : q.sortBy === 'spent'
-          ? [{ totalSpent: 'desc' as const }]
-          : [{ lastName: 'asc' as const }, { firstName: 'asc' as const }];
+    return where;
+  }
 
-    const [items, total] = await Promise.all([
-      this.prisma.db.client.findMany({
-        where: where as never,
-        select: {
-          id: true, firstName: true, lastName: true, phone: true,
-          email: true, status: true, accountBalance: true,
-          totalSpent: true, bookingsCount: true, lastVisitAt: true,
-          avatarUrl: true, skillLevel: true,
-          tags: { select: { tag: { select: { code: true, name: true, color: true } } } },
-        },
-        orderBy,
-        take,
-        skip,
-      }),
-      this.prisma.db.client.count({ where: where as never }),
-    ]);
-
-    return { items, total, limit: take, offset: skip };
+  private orderByFor(sortBy: ListClientsDto['sortBy']) {
+    return sortBy === 'recent'
+      ? [{ lastVisitAt: 'desc' as const }]
+      : sortBy === 'spent'
+        ? [{ totalSpent: 'desc' as const }]
+        : [{ lastName: 'asc' as const }, { firstName: 'asc' as const }];
   }
 
   /**

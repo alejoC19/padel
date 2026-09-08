@@ -12,7 +12,9 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ClientService } from './services/client.service';
 import { ClientSearchService } from './services/client-search.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -56,6 +58,20 @@ export class ClientController {
   @RequirePermissions(PERMISSIONS.CLIENT_VIEW)
   async list(@Query() q: ListClientsDto) {
     return this.clients.list(q);
+  }
+
+  /** CSV de clientes (mismos filtros que el listado) para bajar a Excel/Sheets. */
+  @Get('export')
+  @RequirePermissions(PERMISSIONS.CLIENT_EXPORT)
+  async export(@Query() q: ListClientsDto, @Res({ passthrough: true }) res: Response) {
+    const csv = await this.clients.exportCsv(q);
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="clientes-${new Date().toISOString().slice(0, 10)}.csv"`,
+    });
+    // BOM: sin esto, Excel en Windows (el caso real de un club) muestra
+    // "Última visita" y demás tildes como caracteres rotos.
+    return '﻿' + csv;
   }
 
   @Post()

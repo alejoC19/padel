@@ -148,13 +148,30 @@ export function ClientsScreen() {
               : `${total} cliente${total === 1 ? '' : 's'}`}
           </p>
         </div>
-        {(isDemo || can('client.create')) && (
-          <div className="screen-actions">
+        <div className="screen-actions">
+          {can('client.export') && (
+            <button
+              className="btn btn-secondary"
+              onClick={async () => {
+                try {
+                  await api.clients.exportCsv({
+                    debtorsOnly: filter === 'debtors' || undefined,
+                    inactiveDays: filter === 'inactive' ? 60 : undefined,
+                  });
+                } catch {
+                  show('No pudimos generar el archivo.', 'error');
+                }
+              }}
+            >
+              Exportar CSV
+            </button>
+          )}
+          {(isDemo || can('client.create')) && (
             <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
               Nuevo cliente
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       <div className="clients-toolbar">

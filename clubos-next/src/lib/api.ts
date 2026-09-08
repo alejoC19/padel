@@ -409,6 +409,38 @@ export interface ClientSearchResult {
   score: number;
 }
 
+/**
+ * Descarga un archivo autenticado (CSV, etc.) y dispara el guardado en el
+ * navegador. Fetch directo, no pasa por `request()`: la respuesta no es
+ * JSON, así que `request()` (que siempre hace `res.json()`) no sirve acá.
+ */
+async function downloadFile(path: string, filenameFallback: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  if (activeClubId) headers['x-club-id'] = activeClubId;
+
+  const res = await fetch(`${BASE}${path}`, { headers, credentials: 'include' });
+  if (!res.ok) {
+    let body: Record<string, unknown> = {};
+    try { body = await res.json(); } catch { /* sin cuerpo */ }
+    throw new ApiError(res.status, String(body.error ?? 'UNKNOWN'), String(body.message ?? `Error ${res.status}`));
+  }
+
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename="([^"]+)"/.exec(disposition);
+  const filename = match?.[1] ?? filenameFallback;
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ---------------------------------------------------------------------------
 // Endpoints
 // ---------------------------------------------------------------------------
@@ -556,6 +588,19 @@ export const api = {
 
     statement: (id: string) =>
       request<Record<string, unknown>>(`/clients/${id}/statement`),
+
+    /** Mismos filtros que `list()`. Dispara la descarga del CSV. */
+    exportCsv: (params: {
+      status?: string; tagCode?: string; debtorsOnly?: boolean;
+      inactiveDays?: number; birthdayMonth?: number;
+      sortBy?: 'alpha' | 'recent' | 'spent';
+    } = {}) => {
+      const q = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== '') q.set(k, String(v));
+      }
+      return downloadFile(`/clients/export?${q}`, `clientes-${new Date().toISOString().slice(0, 10)}.csv`);
+    },
   },
 
   tournaments: {
