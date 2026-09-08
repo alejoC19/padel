@@ -93,7 +93,13 @@ DIRECT_URL=postgresql://<tu-usuario-de-railway>:...
 ## PARTE 4 — El frontend (panel del club) en Vercel
 
 1. En Vercel: **Add New** → **Project** → importá tu repo de GitHub.
-2. **Root Directory** = `clubos-next`.
+2. **Root Directory** = `clubos-next`. Es un monorepo (`clubos`, `clubos-next`,
+   `clubos-web`) — sin este paso Vercel no encuentra ningún framework en la
+   raíz y "despliega" un build vacío en segundos (`framework: null` en la
+   API, sin error visible). Si ya importaste el proyecto sin este paso,
+   arreglalo en **Settings → General → Root Directory** y después andá a
+   **Deployments** → deploy más reciente → menú `⋮` → **Redeploy** (cambiar
+   el Root Directory no dispara un build nuevo por sí solo).
 3. En **Environment Variables** agregá:
    - `NEXT_PUBLIC_API_URL` = `https://<tu-backend-de-railway>/api/v1`
 4. Deploy. Vercel te da una URL (`clubos-xxx.vercel.app`).
