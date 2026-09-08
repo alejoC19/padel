@@ -71,6 +71,7 @@ const PLATFORM_MODELS = new Set<string>([
   'User',
   'UserIdentity',
   'Session',
+  'PasswordResetToken',
 ]);
 
 function lowerFirst(s: string): string {

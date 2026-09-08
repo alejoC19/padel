@@ -24,6 +24,11 @@ import { ReminderScheduler } from './services/reminder.scheduler';
     NotificationWorker,
     ReminderScheduler,
   ],
-  exports: [NotificationsService],
+  // EmailChannel también se exporta: AuthModule y TeamModule lo usan
+  // directo para mails transaccionales de cuenta (reset de contraseña,
+  // invitación de staff) que no son notificaciones de negocio ligadas a un
+  // Client — no tiene sentido pasarlas por la cola de `Notification`
+  // (tenant-scoped, pensada para clientes de un club).
+  exports: [NotificationsService, EmailChannel],
 })
 export class NotificationsModule {}

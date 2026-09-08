@@ -17,6 +17,7 @@ import { TreasuryModule } from './treasury/treasury.module';
 import { TournamentsModule } from './tournaments/tournaments.module';
 import { PaymentsGatewayModule } from './payments-gateway/payments-gateway.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { TeamModule } from './team/team.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { HealthModule } from './health/health.module';
 import { PublicModule } from './public/public.module';
@@ -67,6 +68,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     TournamentsModule,
     PaymentsGatewayModule,
     OnboardingModule,
+    TeamModule,
     NotificationsModule,
     HealthModule,
     PublicModule,

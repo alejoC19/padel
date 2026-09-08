@@ -13,10 +13,13 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import {
+  AcceptInviteDto,
   ChangePasswordDto,
+  ForgotPasswordDto,
   LoginDto,
   RefreshDto,
   RegisterDto,
+  ResetPasswordDto,
   SwitchClubDto,
   type AuthResponse,
 } from './dto/auth.dto';
@@ -113,6 +116,40 @@ export class AuthController {
   ): Promise<void> {
     await this.auth.logoutAll(userId);
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions(0));
+  }
+
+  /**
+   * Siempre 204, exista o no la cuenta — no revelar qué emails están
+   * registrados (mismo criterio que el mensaje de error de login).
+   */
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 900_000 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.auth.forgotPassword(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.auth.resetPassword(dto);
+  }
+
+  /** Fija contraseña de una cuenta invitada por un club y la deja logueada. */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Post('accept-invite')
+  @HttpCode(HttpStatus.OK)
+  async acceptInvite(
+    @Body() dto: AcceptInviteDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Omit<AuthResponse, 'refreshToken'>> {
+    const result = await this.auth.acceptInvite(dto, this.device(req));
+    return this.respond(res, result);
   }
 
   @SkipTenant()

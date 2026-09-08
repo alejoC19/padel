@@ -89,6 +89,41 @@ export class SwitchClubDto {
   clubId!: string;
 }
 
+export class ForgotPasswordDto {
+  @lower()
+  @IsEmail({}, { message: 'Email inválido' })
+  @MaxLength(255)
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @MaxLength(128)
+  token!: string;
+
+  @IsString()
+  @MinLength(10, { message: 'La contraseña debe tener al menos 10 caracteres' })
+  @MaxLength(128)
+  @Matches(/^(?=.*[a-zA-Z])(?=.*\d).+$/, {
+    message: 'La contraseña debe incluir al menos una letra y un número',
+  })
+  newPassword!: string;
+}
+
+export class AcceptInviteDto {
+  @IsString()
+  @MaxLength(128)
+  token!: string;
+
+  @IsString()
+  @MinLength(10, { message: 'La contraseña debe tener al menos 10 caracteres' })
+  @MaxLength(128)
+  @Matches(/^(?=.*[a-zA-Z])(?=.*\d).+$/, {
+    message: 'La contraseña debe incluir al menos una letra y un número',
+  })
+  password!: string;
+}
+
 export class ChangePasswordDto {
   @IsString()
   @MaxLength(128)

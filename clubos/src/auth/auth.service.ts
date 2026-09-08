@@ -5,18 +5,24 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { TokenService } from './token.service';
 import { runWithoutTenancy } from '../tenancy/tenant-context';
 import { ROLE_PRESETS } from '../common/permissions';
+import { EmailChannel } from '../notifications/services/channels/email.channel';
+import { generateSecureToken, hashToken } from '../common/utils/secure-token.util';
 import type {
+  AcceptInviteDto,
   AuthResponse,
   ChangePasswordDto,
   ClubSummary,
+  ForgotPasswordDto,
   LoginDto,
   RegisterDto,
+  ResetPasswordDto,
 } from './dto/auth.dto';
 
 interface DeviceInfo {
@@ -55,6 +61,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
+    private readonly config: ConfigService,
+    private readonly email: EmailChannel,
   ) {}
 
   async login(dto: LoginDto, device: DeviceInfo): Promise<AuthResponse> {
@@ -256,6 +264,106 @@ export class AuthService {
     await this.tokens.revokeAllForUser(userId);
   }
 
+  /**
+   * "Olvidé mi contraseña". Siempre responde igual exista o no la cuenta
+   * (evita enumeración de emails) — el controller no distingue los casos,
+   * este método directamente no lanza si el usuario no existe.
+   */
+  async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true, firstName: true, isActive: true, deletedAt: true },
+    });
+
+    if (!user || !user.isActive || user.deletedAt) return;
+
+    const { raw, hash } = generateSecureToken();
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hash,
+        purpose: 'RESET',
+        expiresAt: new Date(Date.now() + 60 * 60_000), // 1 hora
+      },
+    });
+
+    const link = `${this.webUrl()}/restablecer-contrasena?token=${raw}`;
+    await this.email.send({
+      to: dto.email,
+      subject: 'Restablecé tu contraseña — ClubOS',
+      body:
+        `Hola ${user.firstName},\n\n` +
+        `Pediste restablecer tu contraseña de ClubOS. Entrá acá para elegir una nueva ` +
+        `(el link vence en 1 hora):\n\n${link}\n\n` +
+        `Si no fuiste vos, ignorá este mensaje — tu contraseña actual sigue funcionando.`,
+    });
+  }
+
+  /** Consume el token de "olvidé mi contraseña" y fija la nueva. */
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    const userId = await this.consumeToken(dto.token, 'RESET');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: await bcrypt.hash(dto.newPassword, 12),
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    // Mismo motivo que en changePassword: una sesión robada no debe
+    // sobrevivir a un reset.
+    await this.tokens.revokeAllForUser(userId);
+  }
+
+  /**
+   * Acepta una invitación de staff: fija la contraseña de una cuenta creada
+   * por TeamService.invite() sin una (ver team.service.ts), activa la
+   * membership pendiente y devuelve sesión iniciada — evita un paso extra
+   * de login justo después de aceptar.
+   */
+  async acceptInvite(
+    dto: AcceptInviteDto,
+    device: DeviceInfo,
+  ): Promise<AuthResponse> {
+    const userId = await this.consumeToken(dto.token, 'INVITE');
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: await bcrypt.hash(dto.password, 12),
+        passwordChangedAt: new Date(),
+        emailVerified: true, // llegó al link del mail: probó tener acceso a la cuenta.
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        isPlatformAdmin: true,
+      },
+    });
+
+    // Activa TODAS las membership INVITED del usuario (en la práctica, la
+    // única que TeamService.invite() creó) — el token no lleva clubId
+    // porque pertenece a la cuenta, no a un club puntual.
+    await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.db.membership.updateMany({
+        where: { userId, status: 'INVITED' },
+        data: { status: 'ACTIVE', acceptedAt: new Date() },
+      }),
+    );
+
+    const clubs = await this.listClubs(userId);
+    const activeClubId = clubs.length === 1 ? clubs[0].id : null;
+    const issued = await this.tokens.issue(user, activeClubId, device);
+
+    if (activeClubId) await this.logAuthEvent(activeClubId, userId, 'LOGIN', device);
+
+    return this.buildResponse(user, issued, activeClubId, clubs);
+  }
+
   /** Permisos efectivos del usuario en un club. */
   async getPermissions(userId: string, clubId: string): Promise<string[]> {
     // Se llama desde login/refresh/switch-club, ANTES de que exista un
@@ -288,6 +396,43 @@ export class AuthService {
   }
 
   // --- internos ---
+
+  private webUrl(): string {
+    return this.config.get<string>('WEB_PUBLIC_URL') ?? 'http://localhost:3001';
+  }
+
+  /**
+   * Valida un PasswordResetToken (reset o invite), lo marca usado y
+   * devuelve el userId. Un solo camino para ambos flujos: misma tabla,
+   * mismo criterio de validez (no usado, no vencido), solo cambia qué hace
+   * el caller después de fijar la contraseña.
+   */
+  private async consumeToken(
+    raw: string,
+    purpose: 'RESET' | 'INVITE',
+  ): Promise<string> {
+    const hash = hashToken(raw);
+    const token = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash: hash },
+      select: { id: true, userId: true, purpose: true, usedAt: true, expiresAt: true },
+    });
+
+    if (
+      !token ||
+      token.purpose !== purpose ||
+      token.usedAt ||
+      token.expiresAt < new Date()
+    ) {
+      throw new BadRequestException('El link venció o ya fue usado. Pedí uno nuevo.');
+    }
+
+    await this.prisma.passwordResetToken.update({
+      where: { id: token.id },
+      data: { usedAt: new Date() },
+    });
+
+    return token.userId;
+  }
 
   private async listClubs(userId: string): Promise<ClubSummary[]> {
     // Cross-tenant por naturaleza (los clubes de un usuario, sin saber
