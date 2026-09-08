@@ -4,15 +4,28 @@
    Solo apariencia. La lógica de ambos componentes ya funciona; esto les da
    el nivel visual del resto del producto (antes se veían "de principiante"
    porque varias clases no tenían estilo).
+
+   TODAS las clases de este archivo van con el prefijo `nb-` (New Booking) o
+   son exclusivas de ClientSearch (`client-search-*`/`search-*`) A PROPÓSITO:
+   antes usaban nombres genéricos (`.overlay`, `.dialog`, `.seg`, `.icon-btn`,
+   `.link-btn`, `.picked-client`) que YA existían con otra definición en
+   screens.css/design-system.css (usados por TeamScreen, CourtsScreen,
+   ClientsScreen, CashScreen, etc.). Con el nombre repetido, cuál de las dos
+   definiciones "gana" depende del orden en que Next.js inyecta el CSS —
+   que en `next dev` no es estable entre sesiones (varía según qué ruta se
+   visitó primero), y fue exactamente la causa de que el buscador de
+   cliente apareciera tapado por el diálogo de nueva reserva en un dev y no
+   en otro. Nombres únicos = cero dependencia del orden de carga.
    ========================================================================= */
 
-/* --- Overlay compartido (centrado, con blur suave) --- */
-.overlay {
+/* --- Overlay del buscador de cliente: SIEMPRE por encima de cualquier otro
+   diálogo, porque se puede abrir desde adentro de uno (la reserva nueva). --- */
+.client-search-overlay {
   position: fixed;
   inset: 0;
   background: rgba(21, 24, 30, 0.45);
   backdrop-filter: blur(3px);
-  z-index: 60;
+  z-index: 70;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -131,14 +144,14 @@
 /* =========================================================================
    DIÁLOGO DE NUEVA RESERVA
    ========================================================================= */
-.dialog-backdrop {
+.nb-dialog-backdrop {
   position: fixed; inset: 0;
   background: rgba(21, 24, 30, 0.45);
   backdrop-filter: blur(3px);
   z-index: 55;
   animation: ov-fade 0.14s ease;
 }
-.dialog {
+.nb-dialog {
   position: fixed;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
@@ -151,30 +164,30 @@
   overflow: hidden;
   animation: sb-pop 0.16s ease;
 }
-.dialog-head {
+.nb-dialog-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   padding: 20px 22px 16px;
   border-bottom: 1px solid var(--app-border, #e2e7ec);
 }
-.dialog-head h3 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
-.dialog-sub {
+.nb-dialog-head h3 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+.nb-dialog-sub {
   margin: 4px 0 0;
   color: var(--pad-red, #c8443e);
   font-weight: 700;
   font-size: 14px;
 }
-.icon-btn {
+.nb-icon-btn {
   border: none; background: transparent; cursor: pointer;
   font-size: 17px; color: #93a1ac;
   width: 30px; height: 30px; border-radius: 8px;
   display: grid; place-items: center;
 }
-.icon-btn:hover { background: var(--app-bg, #f4f6f8); color: var(--app-text, #2b3a47); }
+.nb-icon-btn:hover { background: var(--app-bg, #f4f6f8); color: var(--app-text, #2b3a47); }
 
-.dialog-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; }
-.dialog-body .field-label {
+.nb-dialog-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; }
+.nb-dialog-body .field-label {
   font-size: 12px;
   font-weight: 700;
   color: #6b7c8a;
@@ -183,11 +196,11 @@
   margin-top: 14px;
   margin-bottom: 6px;
 }
-.dialog-body .field-label:first-child { margin-top: 0; }
+.nb-dialog-body .field-label:first-child { margin-top: 0; }
 
 /* Segmentos (duración, jugadores): botones tipo pill */
-.seg { display: flex; gap: 8px; }
-.seg-btn {
+.nb-seg { display: flex; gap: 8px; }
+.nb-seg-btn {
   flex: 1;
   padding: 11px 12px;
   border: 1.5px solid var(--app-border, #e2e7ec);
@@ -199,15 +212,15 @@
   cursor: pointer;
   transition: all 0.12s;
 }
-.seg-btn:hover { border-color: #cfd8df; }
-.seg-btn.on {
+.nb-seg-btn:hover { border-color: #cfd8df; }
+.nb-seg-btn.on {
   border-color: var(--pad-red, #c8443e);
   background: #fbeceb;
   color: var(--pad-red, #c8443e);
 }
 
 /* Cliente elegido */
-.picked-client {
+.nb-picked-client {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -217,16 +230,16 @@
   font-weight: 600;
   font-size: 15px;
 }
-.link-btn {
+.nb-link-btn {
   border: none; background: none; cursor: pointer;
   color: var(--pad-red, #c8443e);
   font-weight: 700; font-size: 13px;
 }
-.link-btn:hover { text-decoration: underline; }
+.nb-link-btn:hover { text-decoration: underline; }
 
 .btn.full { width: 100%; }
 
-.dialog-error {
+.nb-dialog-error {
   margin: 12px 0 0;
   color: #c0392b;
   background: #fbe9e7;
@@ -236,15 +249,15 @@
   font-weight: 600;
 }
 
-.dialog-foot {
+.nb-dialog-foot {
   display: flex;
   gap: 10px;
   padding: 16px 22px 20px;
   border-top: 1px solid var(--app-border, #e2e7ec);
 }
-.dialog-foot .btn { flex: 1; padding: 12px; font-size: 15px; }
+.nb-dialog-foot .btn { flex: 1; padding: 12px; font-size: 15px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .overlay, .search-box, .dialog, .dialog-backdrop { animation: none; }
+  .client-search-overlay, .search-box, .nb-dialog, .nb-dialog-backdrop { animation: none; }
   .mini-spinner { animation-duration: 0.001ms; }
 }

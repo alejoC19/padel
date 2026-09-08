@@ -60,25 +60,25 @@ export function NewBookingDialog({
 
   return (
     <>
-      <div className="dialog-backdrop" onClick={onClose} />
-      <div className="dialog" role="dialog" aria-label="Nueva reserva">
-        <div className="dialog-head">
+      <div className="nb-dialog-backdrop" onClick={onClose} />
+      <div className="nb-dialog" role="dialog" aria-label="Nueva reserva">
+        <div className="nb-dialog-head">
           <div>
             <h3>Nueva reserva</h3>
-            <p className="dialog-sub">
+            <p className="nb-dialog-sub">
               {courtName} · {formatMinute(startMinute)}–{formatMinute(endMinute)}
             </p>
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Cerrar">✕</button>
+          <button className="nb-icon-btn" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
 
-        <div className="dialog-body">
+        <div className="nb-dialog-body">
           <label className="field-label">Duración</label>
-          <div className="seg">
+          <div className="nb-seg">
             {durations.map((d) => (
               <button
                 key={d}
-                className={`seg-btn ${duration === d ? 'on' : ''}`}
+                className={`nb-seg-btn ${duration === d ? 'on' : ''}`}
                 onClick={() => setDuration(d)}
               >
                 {d} min
@@ -88,9 +88,9 @@ export function NewBookingDialog({
 
           <label className="field-label">Cliente</label>
           {client ? (
-            <div className="picked-client">
+            <div className="nb-picked-client">
               <span>{client.firstName} {client.lastName}</span>
-              <button className="link-btn" onClick={() => setClient(null)}>Quitar</button>
+              <button className="nb-link-btn" onClick={() => setClient(null)}>Quitar</button>
             </div>
           ) : (
             <button className="btn btn-secondary full" onClick={() => setSearchOpen(true)}>
@@ -99,11 +99,11 @@ export function NewBookingDialog({
           )}
 
           <label className="field-label">Jugadores</label>
-          <div className="seg">
+          <div className="nb-seg">
             {[1, 2, 3, 4].map((n) => (
               <button
                 key={n}
-                className={`seg-btn ${players === n ? 'on' : ''}`}
+                className={`nb-seg-btn ${players === n ? 'on' : ''}`}
                 onClick={() => setPlayers(n)}
               >
                 {n}
@@ -111,10 +111,10 @@ export function NewBookingDialog({
             ))}
           </div>
 
-          {error && <p className="dialog-error">{error}</p>}
+          {error && <p className="nb-dialog-error">{error}</p>}
         </div>
 
-        <div className="dialog-foot">
+        <div className="nb-dialog-foot">
           <button className="btn btn-secondary" onClick={onClose} disabled={saving}>
             Cancelar
           </button>

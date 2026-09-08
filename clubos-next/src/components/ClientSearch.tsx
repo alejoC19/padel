@@ -108,7 +108,7 @@ export function ClientSearch({ open, demoResults, onClose, onPick }: Props) {
 
   return (
     <div
-      className="overlay"
+      className="client-search-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
