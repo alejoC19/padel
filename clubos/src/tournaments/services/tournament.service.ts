@@ -155,6 +155,125 @@ export class TournamentService {
     };
   }
 
+  /**
+   * Edita datos del torneo. Solo mientras no tiene fixture: una vez sorteado,
+   * los equipos ya coordinaron horarios sobre esos datos (fecha, formato de
+   * cobro) y cambiarlos por atrás es la misma razón por la que el fixture no
+   * se regenera (ver el comentario de clase). Corregir un typo en el nombre
+   * o la fecha antes de sortear es el caso real que esto cubre.
+   */
+  async update(
+    tournamentId: string,
+    input: {
+      name?: string; startsAt?: string; endsAt?: string; maxTeams?: number;
+      entryFee?: number; category?: string; skillLevel?: string;
+      description?: string; rules?: string; prizeDescription?: string;
+      registrationOpensAt?: string; registrationClosesAt?: string;
+    },
+  ) {
+    const tournament = await this.prisma.db.tournament.findFirst({
+      where: { id: tournamentId, deletedAt: null },
+      select: { status: true, _count: { select: { matches: true } } },
+    });
+    if (!tournament) throw new NotFoundException('Torneo no encontrado');
+    if (tournament._count.matches > 0) {
+      throw new ConflictException(
+        'El torneo ya tiene fixture — no se puede editar. Cancelalo si necesitás rehacerlo.',
+      );
+    }
+    if (tournament.status === 'CANCELLED') {
+      throw new ConflictException('El torneo está cancelado.');
+    }
+
+    if (input.maxTeams !== undefined) {
+      const teamCount = await this.prisma.db.tournamentTeam.count({
+        where: { tournamentId },
+      });
+      if (input.maxTeams < teamCount) {
+        throw new BadRequestException(
+          `Ya hay ${teamCount} equipos inscriptos — no se puede bajar el cupo por debajo de eso.`,
+        );
+      }
+    }
+
+    const starts = input.startsAt ? new Date(input.startsAt) : undefined;
+    if (starts && Number.isNaN(starts.getTime())) {
+      throw new BadRequestException('Fecha de inicio inválida.');
+    }
+
+    return this.prisma.db.tournament.update({
+      where: { id: tournamentId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(starts ? { startsAt: starts } : {}),
+        ...(input.endsAt !== undefined ? { endsAt: new Date(input.endsAt) } : {}),
+        ...(input.maxTeams !== undefined ? { maxTeams: input.maxTeams } : {}),
+        ...(input.entryFee !== undefined ? { entryFee: input.entryFee } : {}),
+        ...(input.category !== undefined ? { category: input.category } : {}),
+        ...(input.skillLevel !== undefined ? { skillLevel: input.skillLevel as never } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.rules !== undefined ? { rules: input.rules } : {}),
+        ...(input.prizeDescription !== undefined ? { prizeDescription: input.prizeDescription } : {}),
+        ...(input.registrationOpensAt !== undefined
+          ? { registrationOpensAt: new Date(input.registrationOpensAt) } : {}),
+        ...(input.registrationClosesAt !== undefined
+          ? { registrationClosesAt: new Date(input.registrationClosesAt) } : {}),
+      },
+      select: { id: true, name: true, format: true, startsAt: true, status: true },
+    });
+  }
+
+  /**
+   * Cancela el torneo. No reembolsa automáticamente las inscripciones
+   * pagadas — a diferencia de una reserva, un torneo no tiene una política
+   * de cancelación definida (¿se devuelve todo? ¿queda como crédito?) y
+   * inventar una acá sería una decisión de producto, no un bug a corregir.
+   * El reembolso, si corresponde, se hace a mano desde tesorería/caja.
+   */
+  async cancel(tournamentId: string) {
+    const tournament = await this.prisma.db.tournament.findFirst({
+      where: { id: tournamentId, deletedAt: null },
+      select: { status: true },
+    });
+    if (!tournament) throw new NotFoundException('Torneo no encontrado');
+    if (tournament.status === 'FINISHED') {
+      throw new ConflictException('El torneo ya terminó, no se puede cancelar.');
+    }
+    if (tournament.status === 'CANCELLED') {
+      throw new ConflictException('El torneo ya está cancelado.');
+    }
+
+    return this.prisma.db.tournament.update({
+      where: { id: tournamentId },
+      data: { status: 'CANCELLED' },
+      select: { id: true, status: true },
+    });
+  }
+
+  /**
+   * Da de baja un equipo inscripto. Solo antes de que exista el fixture: una
+   * vez sorteado, el equipo ocupa un lugar en el cuadro (con horarios y
+   * rivales ya definidos) y borrarlo dejaría partidos huérfanos — en ese
+   * caso la baja se resuelve como walkover en `recordResult`, no acá.
+   */
+  async withdrawTeam(tournamentId: string, teamId: string) {
+    const team = await this.prisma.db.tournamentTeam.findFirst({
+      where: { id: teamId, tournamentId },
+      select: {
+        id: true,
+        _count: { select: { homeMatches: true, awayMatches: true } },
+      },
+    });
+    if (!team) throw new NotFoundException('Equipo no encontrado');
+    if (team._count.homeMatches > 0 || team._count.awayMatches > 0) {
+      throw new ConflictException(
+        'El equipo ya tiene partidos en el fixture — no se puede dar de baja. Cargá el resultado como walkover.',
+      );
+    }
+
+    await this.prisma.db.tournamentTeam.delete({ where: { id: teamId } });
+  }
+
   // -------------------------------------------------------------------------
   // Inscripción
   // -------------------------------------------------------------------------

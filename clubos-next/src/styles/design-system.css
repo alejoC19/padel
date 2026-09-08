@@ -585,7 +585,11 @@ body {
 .match-note { font-size: var(--fs-caption); color: var(--ds-muted); }
 .team-line-name { font-weight: 600; }
 .team-line-sets { font-variant-numeric: tabular-nums; font-weight: 700; }
-.team-chip, .team-name { font-weight: 600; }
+.team-chip {
+  display: flex; align-items: center; gap: var(--sp-sm);
+  padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--ds-border);
+}
+.team-name { font-weight: 600; }
 .team-seed { color: var(--ds-muted); font-size: var(--fs-caption); }
 .team-grid { display: flex; flex-direction: column; gap: 6px; }
 .score-grid { display: grid; gap: var(--sp-sm); }

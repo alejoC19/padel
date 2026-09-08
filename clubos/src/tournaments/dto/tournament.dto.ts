@@ -58,6 +58,51 @@ export class CreateTournamentDto {
   registrationClosesAt?: string;
 }
 
+/**
+ * A diferencia de `CreateTournamentDto`, no incluye `format`: cambiar el
+ * formato después de tener equipos inscriptos (y potencialmente un fixture)
+ * invalida la lógica de sorteo entera. Un torneo con el formato equivocado
+ * se borra y se crea de nuevo — todavía no hay inscripciones que perder en
+ * ese punto.
+ */
+export class UpdateTournamentDto {
+  @IsOptional() @IsString() @MaxLength(120)
+  name?: string;
+
+  @IsOptional() @IsString()
+  startsAt?: string;
+
+  @IsOptional() @IsString()
+  endsAt?: string;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(2)
+  maxTeams?: number;
+
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
+  entryFee?: number;
+
+  @IsOptional() @IsString() @MaxLength(50)
+  category?: string;
+
+  @IsOptional() @IsEnum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'PROFESSIONAL'])
+  skillLevel?: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  description?: string;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  rules?: string;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  prizeDescription?: string;
+
+  @IsOptional() @IsString()
+  registrationOpensAt?: string;
+
+  @IsOptional() @IsString()
+  registrationClosesAt?: string;
+}
+
 export class TeamPaymentDto {
   @IsUUID('4')
   paymentMethodId!: string;

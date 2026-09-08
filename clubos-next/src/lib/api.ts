@@ -614,6 +614,14 @@ export const api = {
       `/tournaments/matches/${matchId}/result`,
       { method: 'POST', body: JSON.stringify(input) },
     ),
+
+    /** No reembolsa inscripciones pagadas — eso se hace a mano desde tesorería. */
+    cancel: (id: string) =>
+      request<{ id: string; status: string }>(`/tournaments/${id}/cancel`, { method: 'POST' }),
+
+    /** Solo funciona antes de que exista fixture. */
+    withdrawTeam: (id: string, teamId: string) =>
+      request<void>(`/tournaments/${id}/teams/${teamId}`, { method: 'DELETE' }),
   },
 
   treasury: {

@@ -227,30 +227,53 @@ function TournamentDetail({
           </p>
         </div>
 
-        {!hasFixture && can('tournament.manage') && detail.teams.length >= 2 && (
+        {can('tournament.manage') && !['FINISHED', 'CANCELLED'].includes(detail.status) && (
           <div className="screen-actions">
+            {!hasFixture && detail.teams.length >= 2 && (
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  try {
+                    const res = await api.tournaments.generateFixture(tournamentId);
+                    await load();
+                    onMessage(
+                      `Cuadro sorteado: ${res.generated} partidos en ${res.rounds} rondas` +
+                      (res.byes > 0 ? `, ${res.byes} pasan sin jugar.` : '.'),
+                    );
+                  } catch (e) {
+                    onMessage(
+                      e instanceof Error ? e.message : 'No se pudo sortear.', 'error',
+                    );
+                  }
+                }}
+              >
+                Sortear cuadro
+              </button>
+            )}
             <button
-              className="btn btn-primary"
+              className="btn btn-secondary"
               onClick={async () => {
+                if (!confirm('¿Cancelar este torneo? Las inscripciones pagadas no se reembolsan solas.')) return;
                 try {
-                  const res = await api.tournaments.generateFixture(tournamentId);
+                  await api.tournaments.cancel(tournamentId);
                   await load();
-                  onMessage(
-                    `Cuadro sorteado: ${res.generated} partidos en ${res.rounds} rondas` +
-                    (res.byes > 0 ? `, ${res.byes} pasan sin jugar.` : '.'),
-                  );
+                  onMessage('Torneo cancelado.');
                 } catch (e) {
-                  onMessage(
-                    e instanceof Error ? e.message : 'No se pudo sortear.', 'error',
-                  );
+                  onMessage(e instanceof Error ? e.message : 'No se pudo cancelar.', 'error');
                 }
               }}
             >
-              Sortear cuadro
+              Cancelar torneo
             </button>
           </div>
         )}
       </header>
+
+      {detail.status === 'CANCELLED' && (
+        <div className="demo-note" role="status">
+          <b>Torneo cancelado.</b> Si hay inscripciones pagadas, el reembolso se hace a mano desde caja o tesorería.
+        </div>
+      )}
 
       {!hasFixture ? (
         <div className="panel-card">
@@ -263,7 +286,7 @@ function TournamentDetail({
                 {detail.teams.map((t) => (
                   <div className="team-chip" key={t.id}>
                     <span className="team-seed">{t.seed ?? '—'}</span>
-                    <div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="team-name">{t.name}</div>
                       <div className="cell-muted">
                         {t.members.map((m) => `${m.firstName} ${m.lastName}`).join(' · ')}
@@ -271,6 +294,23 @@ function TournamentDetail({
                     </div>
                     {t.paymentStatus !== 'PAID' && (
                       <span className="tag-danger">Falta pagar</span>
+                    )}
+                    {can('tournament.manage') && (
+                      <button
+                        className="btn-link btn-link-danger"
+                        onClick={async () => {
+                          if (!confirm(`¿Dar de baja a ${t.name}?`)) return;
+                          try {
+                            await api.tournaments.withdrawTeam(tournamentId, t.id);
+                            await load();
+                            onMessage('Equipo dado de baja.');
+                          } catch (e) {
+                            onMessage(e instanceof Error ? e.message : 'No se pudo dar de baja.', 'error');
+                          }
+                        }}
+                      >
+                        Dar de baja
+                      </button>
                     )}
                   </div>
                 ))}

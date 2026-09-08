@@ -1,10 +1,11 @@
 import {
   Body, Controller, Delete, Get, HttpCode, HttpStatus,
-  Param, ParseUUIDPipe, Post, Query,
+  Param, ParseUUIDPipe, Patch, Post, Query,
 } from '@nestjs/common';
 import { TournamentService } from './services/tournament.service';
 import {
   CreateTournamentDto, GenerateFixtureDto, RecordResultDto, RegisterTeamDto,
+  UpdateTournamentDto,
 } from './dto/tournament.dto';
 import { ClubId, Ctx, RequirePermissions, UserId } from '../common/decorators';
 import { PERMISSIONS } from '../common/permissions';
@@ -46,6 +47,21 @@ export class TournamentsController {
     return this.tournaments.getDetail(id);
   }
 
+  /** Edita datos del torneo. Solo antes de que exista fixture. */
+  @Patch(':id')
+  @RequirePermissions(PERMISSIONS.TOURNAMENT_MANAGE)
+  async update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTournamentDto) {
+    return this.tournaments.update(id, dto);
+  }
+
+  /** Cancela el torneo. No reembolsa inscripciones — ver tournament.service.ts. */
+  @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(PERMISSIONS.TOURNAMENT_MANAGE)
+  async cancel(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tournaments.cancel(id);
+  }
+
   @Get(':id/fixture')
   @RequirePermissions(PERMISSIONS.TOURNAMENT_VIEW)
   async fixture(@Param('id', ParseUUIDPipe) id: string) {
@@ -73,6 +89,17 @@ export class TournamentsController {
       createdById: userId,
       membershipId: ctx.membershipId,
     });
+  }
+
+  /** Da de baja un equipo inscripto. Solo antes de que exista fixture. */
+  @Delete(':id/teams/:teamId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermissions(PERMISSIONS.TOURNAMENT_MANAGE)
+  async withdrawTeam(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+  ) {
+    await this.tournaments.withdrawTeam(id, teamId);
   }
 
   /** Sortea el cuadro. Una sola vez. */
