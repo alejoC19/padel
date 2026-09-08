@@ -163,17 +163,42 @@ function forceLogout(): void {
   }
 }
 
+/**
+ * Repregunta al backend cuál es el club activo de VERDAD, mandando el
+ * Authorization pero sin `x-club-id` — así el backend resuelve por el
+ * propio token, no por lo que haya quedado guardado en este dispositivo.
+ *
+ * Fetch directo (no pasa por `request()`) a propósito: es la herramienta
+ * que usa `request()` para recuperarse de un x-club-id viejo, así que no
+ * puede depender de esa misma lógica de reintento sin arriesgar un loop.
+ */
+async function resyncActiveClub(): Promise<string | null> {
+  try {
+    const res = await fetch(`${BASE}/auth/me`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.clubId === 'string' ? data.clubId : null;
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
   retry = true,
+  clubRetry = true,
 ): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string> | undefined),
   };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-  if (activeClubId) headers['x-club-id'] = activeClubId;
+  const sentClubId = activeClubId;
+  if (sentClubId) headers['x-club-id'] = sentClubId;
 
   // Se captura antes del fetch: refreshToken() puede reemplazar accessToken
   // más abajo, y lo que importa acá es si ESTA request salió con un token.
@@ -187,7 +212,7 @@ async function request<T>(
 
   if (res.status === 401 && retry) {
     const ok = await refreshToken();
-    if (ok) return request<T>(path, init, false);
+    if (ok) return request<T>(path, init, false, clubRetry);
     // La renovación también falló. Sin token no había sesión que perder
     // (modo demo); con token, es una sesión vencida de verdad.
     if (hadToken) forceLogout();
@@ -196,6 +221,22 @@ async function request<T>(
     // rebotar: el token nuevo tampoco sirve, no tiene sentido seguir
     // reintentando.
     forceLogout();
+  }
+
+  // 403 con un x-club-id puesto: puede ser el club guardado en este
+  // dispositivo desincronizado del que realmente tiene el token (quedó de
+  // una sesión anterior, se lo dio de baja, etc.) — TenantGuard prioriza
+  // el header por sobre el club del token, así que un valor viejo pisa uno
+  // válido y la pantalla queda 403 para siempre sin este reintento (a
+  // diferencia del 401, para el que sí hay recuperación automática). Se
+  // repregunta el club real y se reintenta UNA vez; si el 403 persiste, es
+  // un rechazo de permisos genuino y se deja pasar tal cual.
+  if (res.status === 403 && retry && clubRetry && sentClubId) {
+    const realClubId = await resyncActiveClub();
+    if (realClubId && realClubId !== sentClubId) {
+      setSession(accessToken, realClubId);
+      return request<T>(path, init, retry, false);
+    }
   }
 
   if (!res.ok) {

@@ -9,7 +9,9 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CashService } from './services/cash.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -78,12 +80,25 @@ export class CashController {
     return this.cash.open(dto, clubId, ctx.membershipId);
   }
 
-  /** Caja abierta del usuario actual. Lo que ve recepción al entrar. */
+  /**
+   * Caja abierta del usuario actual. Lo que ve recepción al entrar.
+   *
+   * `null` (sin caja abierta) es el estado más común de todos — cualquiera
+   * que todavía no abrió turno cae acá. Nest trata un handler que resuelve
+   * a `null`/`undefined` como "sin cuerpo" (ver `isNil` en el adapter de
+   * Express) y manda el body vacío en vez del `null` literal: el cliente
+   * hace `res.json()` sobre una respuesta 200 sin bytes y explota con
+   * "Unexpected end of JSON input" — la pantalla de caja quedaba rota para
+   * cualquiera sin turno abierto. `@Res()` sin passthrough evita el
+   * response handling automático de Nest para este único endpoint.
+   */
   @Get('sessions/mine')
   @RequirePermissions(PERMISSIONS.CASH_VIEW)
-  async mine(@Ctx() ctx: TenantContext) {
-    if (!ctx.membershipId) return null;
-    return this.cash.getMyOpenSession(ctx.membershipId);
+  async mine(@Ctx() ctx: TenantContext, @Res() res: Response) {
+    const result = ctx.membershipId
+      ? await this.cash.getMyOpenSession(ctx.membershipId)
+      : null;
+    res.json(result);
   }
 
   /** Todas las cajas abiertas del club. Panel del dueño. */
