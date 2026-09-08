@@ -106,6 +106,14 @@ d('Idempotencia del webhook de Mercado Pago', () => {
         data: { clubId, firstName: 'Pagador', lastName: 'Test', phone: '+5491100002222' },
       });
 
+      // OJO: `startsAt`/`endsAt` tienen que salir del MISMO instante base.
+      // Dos llamadas separadas a Date.now() (una por campo) dejan una
+      // diferencia de milisegundos entre sí bajo carga (CI, GC, scheduling),
+      // y bookings_duration_matches exige que durationMinutes sea EXACTO
+      // (EXTRACT(EPOCH FROM (endsAt-startsAt))/60) — un desfasaje de pocos ms
+      // ya viola el check constraint. Reproducido en CI: pasaba siempre en
+      // local (menos carga) y fallaba intermitentemente ahí.
+      const start = Date.now() + 86_400_000;
       const booking = await prisma.db.booking.create({
         data: {
           clubId,
@@ -113,8 +121,8 @@ d('Idempotencia del webhook de Mercado Pago', () => {
           courtId: court.id,
           clientId: client.id,
           status: 'PENDING',
-          startsAt: new Date(Date.now() + 86_400_000),
-          endsAt: new Date(Date.now() + 86_400_000 + 3_600_000),
+          startsAt: new Date(start),
+          endsAt: new Date(start + 3_600_000),
           durationMinutes: 60,
           totalPrice: 13_000,
           paidAmount: 0,
