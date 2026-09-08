@@ -195,6 +195,27 @@ export interface PublicTeamDetail {
   players: string[];
 }
 
+/** Fila del directorio de clubes (app unificada /jugador). */
+export interface PublicClubDirectoryEntry {
+  slug: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  logoUrl: string | null;
+}
+
+/** Fila de "mis reservas" a través de TODOS los clubes (app unificada). */
+export interface PublicUnifiedBooking {
+  clubSlug: string;
+  clubName: string;
+  code: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  courtName: string;
+  courtColor: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Endpoints
 // ---------------------------------------------------------------------------
@@ -280,5 +301,19 @@ export const publicApi = {
     request<{ initPoint: string }>(
       `/public/clubs/${encodeURIComponent(slug)}/equipos/${encodeURIComponent(teamId)}/checkout`,
       { method: 'POST', body: JSON.stringify({ accessToken }) },
+    ),
+
+  // -------------------------------------------------------------------
+  // App unificada (/jugador) — no van por slug, recorren toda la plataforma.
+  // -------------------------------------------------------------------
+
+  directorio: (q?: string) =>
+    request<{ clubes: PublicClubDirectoryEntry[] }>(
+      `/public/jugador/clubes${q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`,
+    ),
+
+  misReservasJugador: (phone: string) =>
+    request<{ reservas: PublicUnifiedBooking[] }>(
+      `/public/jugador/mis-reservas?phone=${encodeURIComponent(phone)}`,
     ),
 };

@@ -46,7 +46,11 @@ export function InstallPrompt() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/c/' }).catch(() => {
+      // Alcance amplio a propósito: este mismo componente vive tanto en
+      // /c/[slug] (la app de un club) como en /jugador (la app unificada
+      // que busca entre todos los clubes) — un solo service worker cubre
+      // las dos superficies.
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
         // Sin SW no hay instalación, pero el portal sigue funcionando igual.
       });
     }

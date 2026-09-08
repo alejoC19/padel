@@ -749,6 +749,127 @@ export class PublicService {
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Jugador — directorio de clubes y reservas unificadas
+  // ---------------------------------------------------------------------
+  //
+  // Hoy la app del jugador es POR CLUB (/c/[slug]): perfecta como página de
+  // reserva directa que un club comparte en su sitio/redes, pero mala
+  // experiencia para un jugador que juega en varios clubes de la misma
+  // plataforma — terminaría con un ícono casi idéntico por cada uno.
+  //
+  // Estos dos métodos son el punto de entrada de la app UNIFICADA (/jugador):
+  // un directorio para encontrar cualquier club dado de alta, y una consulta
+  // de reservas que junta resultados de TODOS los clubes por teléfono (sin
+  // login, mismo criterio de bajo valor que `misReservas` de un solo club:
+  // el teléfono no es secreto, así que no se expone precio ni accessToken
+  // acá tampoco — para eso hay que entrar al comprobante de ESE club).
+  //
+  // No hay un modelo de "Jugador" a nivel plataforma: cada club sigue
+  // teniendo su propio Client aislado (por diseño, RLS). Así que la
+  // "unificación" es orquestación, no un dato nuevo: se recorre cada club
+  // activo (bypass de tenancy, es un dato de plataforma) y adentro de cada
+  // uno se corre la MISMA consulta ya usada por `misReservas`, con tenant
+  // seteado — cero riesgo de fuga entre clubes, es el mismo camino seguro
+  // ejecutado N veces.
+
+  /** Clubes dados de alta, para que el jugador encuentre el suyo. */
+  async directorio(query?: string) {
+    const clubs = await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.club.findMany({
+        where: {
+          status: { notIn: ['SUSPENDED', 'CANCELLED'] },
+          ...(query?.trim()
+            ? {
+                OR: [
+                  { name: { contains: query.trim(), mode: 'insensitive' } },
+                  { addressCity: { contains: query.trim(), mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+        },
+        select: {
+          id: true, slug: true, name: true,
+          addressCity: true, addressState: true, logoUrl: true,
+        },
+        orderBy: { name: 'asc' },
+        take: 50,
+      }),
+    );
+
+    return {
+      clubes: clubs.map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        city: c.addressCity,
+        state: c.addressState,
+        logoUrl: c.logoUrl,
+      })),
+    };
+  }
+
+  /**
+   * Reservas futuras de un teléfono, en TODOS los clubes de la plataforma.
+   * Cada fila dice de qué club es, para que el jugador entre a ESE club
+   * (/c/[slug]/mis-reservas) y saque el comprobante completo con el token.
+   */
+  async misReservasJugador(phone: string) {
+    if (!phone?.trim()) {
+      throw new BadRequestException('Falta el teléfono.');
+    }
+    const trimmedPhone = phone.trim();
+
+    const clubs = await runWithoutTenancy(randomUUID(), async () =>
+      this.prisma.club.findMany({
+        where: { status: { notIn: ['SUSPENDED', 'CANCELLED'] } },
+        select: { id: true, slug: true, name: true },
+      }),
+    );
+
+    const now = new Date();
+    const perClub = await Promise.all(
+      clubs.map(async (club) => {
+        const rows = await runWithTenant(this.publicCtx(club.id), async () => {
+          const client = await this.prisma.db.client.findFirst({
+            where: { phone: trimmedPhone },
+            select: { id: true },
+          });
+          if (!client) return [];
+
+          return this.prisma.db.booking.findMany({
+            where: {
+              clientId: client.id,
+              endsAt: { gte: now },
+              status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_CLUB'] },
+            },
+            orderBy: { startsAt: 'asc' },
+            select: {
+              code: true, startsAt: true, endsAt: true, status: true,
+              court: { select: { name: true, color: true } },
+            },
+          });
+        });
+
+        return rows.map((b) => ({
+          clubSlug: club.slug,
+          clubName: club.name,
+          code: b.code,
+          startsAt: b.startsAt,
+          endsAt: b.endsAt,
+          status: b.status,
+          courtName: b.court?.name ?? 'Cancha',
+          courtColor: b.court?.color ?? null,
+        }));
+      }),
+    );
+
+    const reservas = perClub.flat().sort(
+      (a, b) => a.startsAt.getTime() - b.startsAt.getTime(),
+    );
+
+    return { reservas };
+  }
+
   private num(v: unknown): number {
     if (v === null || v === undefined) return 0;
     if (typeof v === 'number') return v;

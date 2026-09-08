@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PublicController } from './public.controller';
+import { PublicPlayerController } from './public-player.controller';
 import { PublicService } from './public.service';
 import { BookingsModule } from '../bookings/bookings.module';
 import { PaymentsGatewayModule } from '../payments-gateway/payments-gateway.module';
@@ -13,7 +14,7 @@ import { PaymentsGatewayModule } from '../payments-gateway/payments-gateway.modu
  */
 @Module({
   imports: [BookingsModule, PaymentsGatewayModule],
-  controllers: [PublicController],
+  controllers: [PublicController, PublicPlayerController],
   providers: [PublicService],
 })
 export class PublicModule {}

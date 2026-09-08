@@ -107,3 +107,28 @@ export function savePublicTeam(slug: string, team: StoredTeam): void {
     /* noop: el comprobante sigue siendo válido vía el link con el token */
   }
 }
+
+/**
+ * Todas las reservas guardadas en ESTE dispositivo, de CUALQUIER club — para
+ * la app unificada (/jugador). Recorre las claves de localStorage en vez de
+ * pedirle al llamador que sepa de antemano en qué clubes reservó: ese es
+ * justo el problema que /jugador existe para resolver.
+ */
+export function getAllPublicBookings(): (StoredBooking & { slug: string })[] {
+  if (typeof window === 'undefined') return [];
+  const out: (StoredBooking & { slug: string })[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      const match = /^clubos\.public\.(.+)\.bookings$/.exec(key);
+      if (!match) continue;
+      const slug = match[1];
+      if (!slug) continue;
+      for (const b of getPublicBookings(slug)) out.push({ ...b, slug });
+    }
+  } catch {
+    return out;
+  }
+  return out.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+}

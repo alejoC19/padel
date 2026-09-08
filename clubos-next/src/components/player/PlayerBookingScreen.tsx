@@ -227,6 +227,9 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
         <a className="player-nav-link" href={`/c/${slug}/mis-reservas`}>
           Ver mis reservas →
         </a>
+        <a className="player-nav-link" href="/jugador">
+          ¿Jugás en otros clubes? Buscalos acá →
+        </a>
       </header>
 
       <section>

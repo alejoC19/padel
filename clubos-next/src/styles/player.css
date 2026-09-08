@@ -387,6 +387,24 @@
 .booking-item-hint { font-size: var(--fs-caption, 12px); color: var(--ds-faint, #93a1ac); }
 .booking-item-chevron { color: var(--ds-faint, #93a1ac); flex: none; }
 
+/* Avatar de club en el directorio (/jugador): foto si el club cargó
+   logoUrl, si no la inicial sobre el acento de marca. */
+.club-directory-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  flex: none;
+  object-fit: cover;
+}
+.club-directory-avatar-fallback {
+  background: var(--ds-primary, #0ea5a0);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+
 .info-banner {
   padding: var(--sp-md, 12px);
   border-radius: var(--r-md, 10px);
