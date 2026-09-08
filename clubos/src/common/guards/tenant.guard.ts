@@ -6,15 +6,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  setActiveContext,
-  clearActiveContext,
-  runWithoutTenancy,
-  type TenantContext,
-} from '../../tenancy/tenant-context';
+import { runWithoutTenancy, type TenantContext } from '../../tenancy/tenant-context';
 import type { Permission } from '../permissions';
 import {
   IS_PUBLIC_KEY,
@@ -24,19 +19,13 @@ import {
 import type { AccessTokenPayload } from './jwt-auth.guard';
 
 /**
- * Resuelve el club activo y monta el contexto de la request.
+ * Resuelve el club activo y deja el contexto en `req.tenantContext`.
  *
- * El contexto se monta con setActiveContext(), que:
- *   1) abre el AsyncLocalStorage con enterWith() (camino normal), y
- *   2) registra el contexto por requestId como respaldo.
- *
- * Ese respaldo cubre el hueco conocido de enterWith() entre guards: si el ALS
- * pierde el store antes de que el PermissionsGuard o el controller lo lean, el
- * contexto se recupera igual. El respaldo se limpia cuando la response termina
- * (evento 'finish'), para no acumular memoria.
- *
- * El contexto también queda en req.tenantContext, por si algún interceptor o
- * filtro lo necesita con el req a mano.
+ * NO abre el AsyncLocalStorage acá — eso lo hace `TenantContextInterceptor`,
+ * en la fase de interceptores (después de que todos los guards, incluido
+ * este y `PermissionsGuard`, ya corrieron). Guards y decoradores leen
+ * `req.tenantContext` directo; ver el comentario largo en
+ * tenancy/tenant-context.ts para el porqué.
  */
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -53,7 +42,6 @@ export class TenantGuard implements CanActivate {
     if (isPublic) return true;
 
     const req = context.switchToHttp().getRequest<Request>();
-    const res = context.switchToHttp().getResponse<Response>();
     const auth: AccessTokenPayload | undefined = req.auth;
 
     if (!auth) throw new UnauthorizedException();
@@ -81,7 +69,7 @@ export class TenantGuard implements CanActivate {
       if (!auth.isPlatformAdmin) {
         throw new ForbiddenException('Requiere permisos de plataforma');
       }
-      this.mount(req, res, {
+      this.mount(req, {
         ...base,
         clubId: null,
         membershipId: null,
@@ -93,7 +81,7 @@ export class TenantGuard implements CanActivate {
     }
 
     if (skipTenant) {
-      this.mount(req, res, {
+      this.mount(req, {
         ...base,
         clubId: null,
         membershipId: null,
@@ -162,7 +150,7 @@ export class TenantGuard implements CanActivate {
       permissions.delete(revoked as Permission);
     }
 
-    this.mount(req, res, {
+    this.mount(req, {
       ...base,
       clubId,
       membershipId: membership.id,
@@ -175,15 +163,13 @@ export class TenantGuard implements CanActivate {
   }
 
   /**
-   * Monta el contexto en el ALS + respaldo, lo deja en req, y programa la
-   * limpieza del respaldo cuando la response termina.
+   * Deja el contexto en `req.tenantContext`. `TenantContextInterceptor`
+   * (corre después, ya en la fase de interceptores) es quien abre el scope
+   * real de AsyncLocalStorage a partir de acá — ver el comentario largo en
+   * tenancy/tenant-context.ts sobre por qué no se hace desde el guard.
    */
-  private mount(req: Request, res: Response, ctx: TenantContext): void {
-    setActiveContext(ctx);
+  private mount(req: Request, ctx: TenantContext): void {
     req.tenantContext = ctx;
-    // Limpiar el respaldo al cerrar la response (una sola vez).
-    res.once('finish', () => clearActiveContext(ctx.requestId));
-    res.once('close', () => clearActiveContext(ctx.requestId));
   }
 
   private clientIp(req: Request): string | undefined {

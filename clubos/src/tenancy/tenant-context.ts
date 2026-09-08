@@ -14,17 +14,36 @@ import type { Permission } from '../common/permissions';
  * falla ruidosamente en vez de devolver datos de otro club.
  *
  * ---------------------------------------------------------------------------
- * RESPALDO EN EL REQUEST
+ * POR QUÉ EL CONTEXTO SE MONTA DESDE UN INTERCEPTOR, NO DESDE EL GUARD
  * ---------------------------------------------------------------------------
- * Montar el ALS desde un guard con enterWith() es frágil: NestJS ejecuta la
- * cadena de guards de forma tal que el store del ALS puede perderse entre el
- * TenantGuard (que lo monta) y el PermissionsGuard o el controller (que lo
- * leen), dando "Contexto no disponible" de forma intermitente.
+ * Versión anterior de este archivo montaba el ALS con `enterWith()` desde
+ * TenantGuard. `enterWith()` no abre un scope propio: pisa el store "actual"
+ * para lo que siga ejecutándose en esa misma cadena — y bajo tráfico
+ * concurrente real (varias requests en vuelo, que es el caso normal de
+ * cualquier pantalla que dispara varios fetches al cargar) dos llamadas a
+ * `enterWith()` de requests distintas pueden pisarse entre sí. El síntoma
+ * observado: "TenantContext no disponible" (500) cuando el store se perdía
+ * del todo, y — más grave — el riesgo real de que una request terminara
+ * corriendo con el contexto de OTRA request (otro club) si el timing caía
+ * mal, porque `enterWith()` no aísla nada.
  *
- * Para blindarlo, el guard TAMBIÉN guarda el contexto en el objeto `req`
- * (req.tenantContext), que sí sobrevive toda la request de forma confiable.
- * getTenantContext() lee primero del ALS y, si no está, cae al último
- * contexto montado. Ver setActiveContext / getTenantContext abajo.
+ * `TenantContextInterceptor` (`common/interceptors/tenant-context.interceptor.ts`)
+ * envuelve `next.handle()` — el resto del pipeline: interceptores
+ * posteriores, el controller y todo lo que ese controller `await`ea — en
+ * `tenantStorage.run(ctx, ...)`. A diferencia de `enterWith()`, `run()` abre
+ * un scope real: el store queda aislado para esa cadena de continuaciones
+ * async específica, sin pisar ni ser pisado por otra request concurrente.
+ * Es la forma correcta de propagar contexto por request con ALS en Nest
+ * (mismo patrón que usan librerías como nestjs-cls) y es la razón por la
+ * que ya no hace falta el resguardo por requestId que tenía esta clase
+ * antes: con `run()` bien alcanzado, el ALS no se pierde.
+ *
+ * Los guards (TenantGuard, PermissionsGuard) corren ANTES de que el
+ * interceptor abra ese scope — todavía no hay nada en el ALS cuando se
+ * ejecutan — así que leen el contexto de `req.tenantContext` directo, no de
+ * `getTenantContext()`. Los decoradores de parámetro (`@Ctx`, `@ClubId`,
+ * `@UserId`) hacen lo mismo por las dudas, aunque para cuando corre el
+ * controller el ALS ya está armado.
  * ---------------------------------------------------------------------------
  */
 export interface TenantContext {
@@ -47,57 +66,9 @@ export interface TenantContext {
 
 export const tenantStorage = new AsyncLocalStorage<TenantContext>();
 
-/**
- * Respaldo del contexto por requestId.
- *
- * Cuando el guard monta el contexto con enterWith(), también lo registra acá.
- * Si el ALS pierde el store (el bug de enterWith entre guards), el contexto se
- * recupera desde este mapa usando el requestId, que viaja en el propio store
- * y en el req. Se limpia al terminar la request para no acumular memoria.
- *
- * Nota: NO es un problema de concurrencia porque la clave es el requestId
- * único de cada request; dos requests en paralelo nunca comparten entrada.
- */
-const contextByRequestId = new Map<string, TenantContext>();
-
-export function setActiveContext(ctx: TenantContext): void {
-  tenantStorage.enterWith(ctx);
-  contextByRequestId.set(ctx.requestId, ctx);
-}
-
-export function clearActiveContext(requestId: string): void {
-  contextByRequestId.delete(requestId);
-}
-
-/**
- * Recupera el contexto de la request.
- * 1) Intenta el ALS (camino normal).
- * 2) Si el ALS lo perdió pero hay un requestId conocido en el store residual
- *    o pasado explícito, cae al respaldo por requestId.
- */
+/** Recupera el contexto de la request desde el AsyncLocalStorage. */
 export function getTenantContext(): TenantContext | undefined {
-  const fromAls = tenantStorage.getStore();
-  if (fromAls) return fromAls;
-  // Sin store en el ALS: si hay una sola request en vuelo, devolvemos esa.
-  // En la práctica del panel esto cubre el hueco de enterWith sin exponer
-  // datos de otro club, porque igual se valida la membresía en el guard.
-  if (contextByRequestId.size === 1) {
-    return contextByRequestId.values().next().value;
-  }
-  return undefined;
-}
-
-/**
- * Variante explícita: recupera por requestId. La usan los guards/interceptors
- * que tienen el req a mano y por lo tanto el requestId exacto.
- */
-export function getTenantContextByRequestId(
-  requestId: string | undefined,
-): TenantContext | undefined {
-  const fromAls = tenantStorage.getStore();
-  if (fromAls) return fromAls;
-  if (requestId) return contextByRequestId.get(requestId);
-  return undefined;
+  return tenantStorage.getStore();
 }
 
 export function requireClubId(): string {

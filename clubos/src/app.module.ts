@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -24,19 +24,27 @@ import { BillingModule } from './billing/billing.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { TenantContextInterceptor } from './common/interceptors/tenant-context.interceptor';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 /**
  * ORDEN DE GUARDS — no reordenar.
  *
- *   1. Throttler    → corta abuso antes de tocar la BD
- *   2. JwtAuthGuard → valida el token (sin BD)
- *   3. TenantGuard  → resuelve club + permisos (1 query) y monta el ALS
- *   4. PermissionsGuard → verifica el set ya resuelto (sin BD)
+ *   1. Throttler        → corta abuso antes de tocar la BD
+ *   2. JwtAuthGuard      → valida el token (sin BD)
+ *   3. TenantGuard       → resuelve club + permisos (1 query), los deja en
+ *                          req.tenantContext (todavía NO hay AsyncLocalStorage acá)
+ *   4. PermissionsGuard  → verifica el set ya resuelto, leyendo req.tenantContext
  *
  * Nest los ejecuta en el orden de registro. Invertir 3 y 4 rompe todo:
  * PermissionsGuard leería un contexto que aún no existe.
+ *
+ * Los guards terminan de correr ANTES de que arranque la fase de
+ * interceptores — TenantContextInterceptor es quien recién ahí abre el
+ * AsyncLocalStorage (tenantStorage.run) para el resto del pipeline
+ * (controller + todo lo que este `await`ea). Por eso los guards leen el
+ * contexto de `req.tenantContext` en vez de por ALS.
  */
 @Module({
   imports: [
@@ -72,6 +80,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
     // Orden de filtros: el catch-all va primero (red de seguridad global);
     // el de Prisma es más específico (@Catch(Prisma...)) y gana para sus
     // errores. Nest da precedencia al match más específico.

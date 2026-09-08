@@ -5,13 +5,18 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { getTenantContext } from '../../tenancy/tenant-context';
+import type { Request } from 'express';
+import type { TenantContext } from '../../tenancy/tenant-context';
 import type { Permission } from '../permissions';
 import { IS_PUBLIC_KEY, PERMISSIONS_KEY } from '../decorators';
 
 /**
  * Verifica permisos. Corre después de TenantGuard, que ya resolvió el set
- * efectivo (rol + extras − revocados).
+ * efectivo (rol + extras − revocados) y lo dejó en `req.tenantContext`.
+ *
+ * Lee el contexto de `req`, no del AsyncLocalStorage: los guards corren
+ * antes de que `TenantContextInterceptor` abra ese scope, así que el ALS
+ * todavía no tiene nada acá.
  *
  * Semántica: se exigen TODOS los permisos declarados, no cualquiera. Un
  * "OR" implícito genera agujeros silenciosos difíciles de auditar.
@@ -34,7 +39,8 @@ export class PermissionsGuard implements CanActivate {
 
     if (!required?.length) return true;
 
-    const ctx = getTenantContext();
+    const req = context.switchToHttp().getRequest<Request & { tenantContext?: TenantContext }>();
+    const ctx = req.tenantContext;
     if (!ctx) throw new ForbiddenException('Contexto no disponible');
 
     if (ctx.isPlatformAdmin && ctx.bypassTenancy) return true;
