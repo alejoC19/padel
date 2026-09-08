@@ -433,6 +433,23 @@ export const api = {
     }>('/auth/me'),
 
     logout: () => request<void>('/auth/logout', { method: 'POST' }),
+
+    forgotPassword: (email: string) =>
+      request<void>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
+    resetPassword: (token: string, newPassword: string) =>
+      request<void>('/auth/reset-password', {
+        method: 'POST', body: JSON.stringify({ token, newPassword }),
+      }),
+
+    acceptInvite: (token: string, password: string) =>
+      request<{
+        accessToken: string;
+        activeClub: { id: string; name: string } | null;
+        clubs: Array<{ id: string; name: string; slug: string }>;
+        permissions: string[];
+        user: { id: string; firstName: string; lastName: string };
+      }>('/auth/accept-invite', { method: 'POST', body: JSON.stringify({ token, password }) }),
   },
 
   agenda: {
@@ -753,6 +770,34 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(input),
       }),
+  },
+
+  team: {
+    list: () => request<Array<{
+      id: string;
+      status: 'INVITED' | 'ACTIVE' | 'SUSPENDED' | 'REVOKED';
+      invitedAt: string | null;
+      acceptedAt: string | null;
+      createdAt: string;
+      role: { id: string; code: string; name: string };
+      user: {
+        id: string; email: string; firstName: string; lastName: string;
+        avatarUrl: string | null; isActive: boolean; lastLoginAt: string | null;
+      };
+    }>>('/team'),
+
+    roles: () => request<Array<{ id: string; code: string; name: string }>>('/team/roles'),
+
+    invite: (input: { email: string; firstName: string; lastName: string; roleId: string }) =>
+      request<{ status: 'ADDED' | 'INVITED' }>('/team/invite', {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+
+    update: (membershipId: string, input: { roleId?: string; status?: 'ACTIVE' | 'SUSPENDED' }) =>
+      request<void>(`/team/${membershipId}`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+    remove: (membershipId: string) =>
+      request<void>(`/team/${membershipId}`, { method: 'DELETE' }),
   },
 };
 

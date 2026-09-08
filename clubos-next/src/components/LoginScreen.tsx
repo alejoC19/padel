@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Ball, PadelDefs } from '@/components/marketing/Art';
 import { setSession } from '@/lib/api';
 
@@ -313,9 +314,9 @@ export function LoginScreen() {
       </button>
 
       <div className="auth-foot">
-        <span className="auth-link-muted">
-          ¿Olvidaste la contraseña? Pedísela al dueño del club.
-        </span>
+        <Link href="/olvide-password" className="auth-link-muted">
+          ¿Olvidaste la contraseña?
+        </Link>
       </div>
 
       {backendUp === false && (
