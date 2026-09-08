@@ -825,6 +825,28 @@ export const api = {
       }),
   },
 
+  courts: {
+    list: () => request<Array<{
+      id: string; sportId: string; name: string; number: number;
+      environment: string; surface: string; hasLighting: boolean;
+      capacity: number | null; color: string; status: string;
+      slotMinutes: number; features: string[]; sortOrder: number;
+    }>>('/courts'),
+
+    create: (input: {
+      sportId: string; name: string; number: number;
+      environment?: string; surface?: string; hasLighting?: boolean;
+      capacity?: number; color?: string; slotMinutes?: number;
+    }) => request<{ id: string }>('/courts', { method: 'POST', body: JSON.stringify(input) }),
+
+    update: (id: string, input: {
+      name?: string; status?: string; environment?: string; surface?: string;
+      hasLighting?: boolean; capacity?: number; color?: string; slotMinutes?: number;
+    }) => request<{ id: string }>(`/courts/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+    remove: (id: string) => request<void>(`/courts/${id}`, { method: 'DELETE' }),
+  },
+
   team: {
     list: () => request<Array<{
       id: string;
