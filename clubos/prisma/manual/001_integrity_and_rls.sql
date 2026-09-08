@@ -3,6 +3,13 @@
 --
 -- Ejecutar DESPUÉS de `prisma migrate deploy`.
 -- Esto es lo que Prisma NO puede expresar y sin lo cual el sistema es inseguro.
+--
+-- IDEMPOTENTE A PROPÓSITO: start.sh promete poder correrse las veces que
+-- haga falta, y este archivo es parte de ese contrato. Todo objeto se crea
+-- con una guarda (IF NOT EXISTS, OR REPLACE, o un bloque que ignora
+-- "ya existe") para que reaplicarlo sobre una base que ya lo tiene no
+-- rompa nada — es exactamente lo que pasa en un dev re-corriendo start.sh
+-- contra un volumen de Postgres que persiste entre corridas.
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;
@@ -24,61 +31,79 @@ ALTER TABLE bookings
   GENERATED ALWAYS AS (tstzrange("startsAt", "endsAt", '[)')) STORED;
 
 -- Estados que NO ocupan la cancha (liberan el turno).
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_no_overlap
-  EXCLUDE USING gist (
-    "courtId" WITH =,
-    period   WITH &&
-  )
-  WHERE (
-    "deletedAt" IS NULL
-    AND status NOT IN (
-      'CANCELLED_BY_CLIENT',
-      'CANCELLED_BY_CLUB',
-      'NO_SHOW',
-      'RESCHEDULED'
+-- Un EXCLUDE constraint construye un índice GIST implícito: si ya existe,
+-- Postgres lo reporta como duplicate_table (42P07), no duplicate_object
+-- (42710) como una CHECK normal — hay que atrapar los dos.
+DO $$ BEGIN
+  ALTER TABLE bookings
+    ADD CONSTRAINT bookings_no_overlap
+    EXCLUDE USING gist (
+      "courtId" WITH =,
+      period   WITH &&
     )
-  );
+    WHERE (
+      "deletedAt" IS NULL
+      AND status NOT IN (
+        'CANCELLED_BY_CLIENT',
+        'CANCELLED_BY_CLUB',
+        'NO_SHOW',
+        'RESCHEDULED'
+      )
+    );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
 
 -- Coherencia temporal básica.
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_time_order CHECK ("endsAt" > "startsAt");
+DO $$ BEGIN
+  ALTER TABLE bookings
+    ADD CONSTRAINT bookings_time_order CHECK ("endsAt" > "startsAt");
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_duration_matches
-  CHECK ("durationMinutes" = EXTRACT(EPOCH FROM ("endsAt" - "startsAt")) / 60);
+DO $$ BEGIN
+  ALTER TABLE bookings
+    ADD CONSTRAINT bookings_duration_matches
+    CHECK ("durationMinutes" = EXTRACT(EPOCH FROM ("endsAt" - "startsAt")) / 60);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Un bloqueo de cancha tampoco puede solaparse consigo mismo.
 ALTER TABLE court_blocks
   ADD COLUMN IF NOT EXISTS period tstzrange
   GENERATED ALWAYS AS (tstzrange("startsAt", "endsAt", '[)')) STORED;
 
-ALTER TABLE court_blocks
-  ADD CONSTRAINT court_blocks_no_overlap
-  EXCLUDE USING gist (
-    "courtId" WITH =,
-    period   WITH &&
-  )
-  WHERE ("deletedAt" IS NULL AND "courtId" IS NOT NULL);
+DO $$ BEGIN
+  ALTER TABLE court_blocks
+    ADD CONSTRAINT court_blocks_no_overlap
+    EXCLUDE USING gist (
+      "courtId" WITH =,
+      period   WITH &&
+    )
+    WHERE ("deletedAt" IS NULL AND "courtId" IS NOT NULL);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+END $$;
 
 -- ----------------------------------------------------------------------------
 -- 2. UNA SOLA CAJA ABIERTA POR PUESTO
 -- Sin esto, dos recepcionistas abren turno simultáneo y el arqueo es basura.
 -- ----------------------------------------------------------------------------
 
-CREATE UNIQUE INDEX cash_sessions_one_open_per_register
+CREATE UNIQUE INDEX IF NOT EXISTS cash_sessions_one_open_per_register
   ON cash_sessions ("registerId")
   WHERE status = 'OPEN';
 
 -- No se puede cerrar con diferencia sin justificar.
-ALTER TABLE cash_sessions
-  ADD CONSTRAINT cash_sessions_difference_justified
-  CHECK (
-    status <> 'CLOSED'
-    OR difference IS NULL
-    OR difference = 0
-    OR ("differenceReason" IS NOT NULL AND length(trim("differenceReason")) > 0)
-  );
+DO $$ BEGIN
+  ALTER TABLE cash_sessions
+    ADD CONSTRAINT cash_sessions_difference_justified
+    CHECK (
+      status <> 'CLOSED'
+      OR difference IS NULL
+      OR difference = 0
+      OR ("differenceReason" IS NOT NULL AND length(trim("differenceReason")) > 0)
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ----------------------------------------------------------------------------
 -- 3. LIBROS APPEND-ONLY
@@ -94,25 +119,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER cash_movements_append_only
+-- CREATE OR REPLACE TRIGGER (PG14+) es la forma nativa de que esto sea
+-- idempotente sin DROP TRIGGER previo.
+CREATE OR REPLACE TRIGGER cash_movements_append_only
   BEFORE UPDATE OR DELETE ON cash_movements
   FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
 
-CREATE TRIGGER account_entries_append_only
+CREATE OR REPLACE TRIGGER account_entries_append_only
   BEFORE UPDATE OR DELETE ON account_entries
   FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
 
-CREATE TRIGGER audit_logs_append_only
+CREATE OR REPLACE TRIGGER audit_logs_append_only
   BEFORE UPDATE OR DELETE ON audit_logs
   FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
 
-CREATE TRIGGER stock_movements_append_only
+CREATE OR REPLACE TRIGGER stock_movements_append_only
   BEFORE UPDATE OR DELETE ON stock_movements
   FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
 
 -- Montos de caja siempre positivos: el signo lo da `direction`.
-ALTER TABLE cash_movements
-  ADD CONSTRAINT cash_movements_positive CHECK (amount > 0);
+DO $$ BEGIN
+  ALTER TABLE cash_movements
+    ADD CONSTRAINT cash_movements_positive CHECK (amount > 0);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ----------------------------------------------------------------------------
 -- 4. AISLAMIENTO MULTI-TENANT (Row Level Security)
@@ -140,6 +170,9 @@ BEGIN
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+    -- Postgres no tiene "CREATE POLICY IF NOT EXISTS" ni OR REPLACE para
+    -- policies: se recrea explícito, es la forma idiomática de idempotencia acá.
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I', t);
     EXECUTE format($f$
       CREATE POLICY tenant_isolation ON %I
         USING ("clubId" = current_club_id())
@@ -158,22 +191,24 @@ END $$;
 -- ----------------------------------------------------------------------------
 
 -- Búsqueda de clientes por nombre con tolerancia a tipeo (recepción, en vivo).
-CREATE INDEX clients_name_trgm
+-- (Reemplazado más abajo por clients_search_trgm — se crea acá igual, con
+-- guarda, para no romper si alguien corre solo esta sección.)
+CREATE INDEX IF NOT EXISTS clients_name_trgm
   ON clients USING gin (("firstName" || ' ' || "lastName") gin_trgm_ops);
 
 -- Agenda del día: la query más caliente del sistema.
-CREATE INDEX bookings_agenda_active
+CREATE INDEX IF NOT EXISTS bookings_agenda_active
   ON bookings ("clubId", "startsAt")
   INCLUDE ("courtId", status, "clientId")
   WHERE "deletedAt" IS NULL;
 
 -- Deudores: clientes con saldo negativo.
-CREATE INDEX clients_debtors
+CREATE INDEX IF NOT EXISTS clients_debtors
   ON clients ("clubId", "accountBalance")
   WHERE "accountBalance" < 0 AND "deletedAt" IS NULL;
 
 -- Cobros pendientes de acreditación (flujo de fondos proyectado).
-CREATE INDEX payments_pending_settlement
+CREATE INDEX IF NOT EXISTS payments_pending_settlement
   ON payments ("clubId", "settlementDate")
   WHERE "settledAt" IS NULL AND status = 'COMPLETED';
 
@@ -187,34 +222,34 @@ CREATE INDEX payments_pending_settlement
 -- ----------------------------------------------------------------------------
 
 -- Un solo horario por club/día cuando aplica a TODAS las canchas.
-CREATE UNIQUE INDEX operating_hours_club_default_uq
+CREATE UNIQUE INDEX IF NOT EXISTS operating_hours_club_default_uq
   ON operating_hours ("clubId", "dayOfWeek", "openMinute")
   WHERE "courtId" IS NULL;
 
 -- Email de cliente único solo si está cargado.
-CREATE UNIQUE INDEX clients_email_uq
+CREATE UNIQUE INDEX IF NOT EXISTS clients_email_uq
   ON clients ("clubId", email)
   WHERE email IS NOT NULL AND "deletedAt" IS NULL;
 
 -- Documento único solo si está cargado.
-CREATE UNIQUE INDEX clients_document_uq
+CREATE UNIQUE INDEX IF NOT EXISTS clients_document_uq
   ON clients ("clubId", "documentType", "documentNumber")
   WHERE "documentNumber" IS NOT NULL AND "deletedAt" IS NULL;
 
-CREATE UNIQUE INDEX products_sku_uq
+CREATE UNIQUE INDEX IF NOT EXISTS products_sku_uq
   ON products ("clubId", sku)
   WHERE sku IS NOT NULL AND "deletedAt" IS NULL;
 
-CREATE UNIQUE INDEX products_barcode_uq
+CREATE UNIQUE INDEX IF NOT EXISTS products_barcode_uq
   ON products ("clubId", barcode)
   WHERE barcode IS NOT NULL AND "deletedAt" IS NULL;
 
-CREATE UNIQUE INDEX suppliers_tax_id_uq
+CREATE UNIQUE INDEX IF NOT EXISTS suppliers_tax_id_uq
   ON suppliers ("clubId", "taxId")
   WHERE "taxId" IS NOT NULL AND "deletedAt" IS NULL;
 
 -- Un cliente no puede tener dos membresías activas del mismo plan.
-CREATE UNIQUE INDEX client_memberships_active_uq
+CREATE UNIQUE INDEX IF NOT EXISTS client_memberships_active_uq
   ON client_memberships ("clubId", "clientId", "planId")
   WHERE status = 'ACTIVE';
 
@@ -233,7 +268,7 @@ CREATE UNIQUE INDEX client_memberships_active_uq
 -- una recibe un número distinto.
 -- ----------------------------------------------------------------------------
 
-CREATE TABLE document_counters (
+CREATE TABLE IF NOT EXISTS document_counters (
   "clubId"   uuid    NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
   doc_type  text    NOT NULL,   -- 'BOOKING' | 'PAYMENT' | 'SALE' | 'EXPENSE'
   period    text    NOT NULL,   -- '2026' o '2026-07' según el tipo
@@ -243,6 +278,7 @@ CREATE TABLE document_counters (
 
 ALTER TABLE document_counters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE document_counters FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON document_counters;
 CREATE POLICY tenant_isolation ON document_counters
   USING ("clubId" = current_club_id())
   WITH CHECK ("clubId" = current_club_id());
@@ -272,21 +308,30 @@ $$ LANGUAGE plpgsql;
 -- 8. COHERENCIA DE MONTOS
 -- ----------------------------------------------------------------------------
 
-ALTER TABLE bookings
-  ADD CONSTRAINT bookings_amounts_valid CHECK (
-    "basePrice" >= 0
-    AND "discountAmount" >= 0
-    AND "totalPrice" >= 0
-    AND "paidAmount" >= 0
-    AND "discountAmount" <= "basePrice"
-  );
+DO $$ BEGIN
+  ALTER TABLE bookings
+    ADD CONSTRAINT bookings_amounts_valid CHECK (
+      "basePrice" >= 0
+      AND "discountAmount" >= 0
+      AND "totalPrice" >= 0
+      AND "paidAmount" >= 0
+      AND "discountAmount" <= "basePrice"
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE payments
-  ADD CONSTRAINT payments_amount_positive CHECK (amount > 0);
+DO $$ BEGIN
+  ALTER TABLE payments
+    ADD CONSTRAINT payments_amount_positive CHECK (amount > 0);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE payments
-  ADD CONSTRAINT payments_refund_within_amount
-  CHECK ("refundedAmount" >= 0 AND "refundedAmount" <= amount);
+DO $$ BEGIN
+  ALTER TABLE payments
+    ADD CONSTRAINT payments_refund_within_amount
+    CHECK ("refundedAmount" >= 0 AND "refundedAmount" <= amount);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ----------------------------------------------------------------------------
 -- 9. BÚSQUEDA DE CLIENTES
@@ -323,20 +368,20 @@ ALTER TABLE clients
 
 DROP INDEX IF EXISTS clients_name_trgm;
 
-CREATE INDEX clients_search_trgm
+CREATE INDEX IF NOT EXISTS clients_search_trgm
   ON clients USING gin (search_text gin_trgm_ops);
 
 -- Orden alfabético del listado (default de la pantalla de clientes).
-CREATE INDEX clients_alpha
+CREATE INDEX IF NOT EXISTS clients_alpha
   ON clients ("clubId", "lastName", "firstName")
   WHERE "deletedAt" IS NULL;
 
 -- Cumpleaños del mes: se consulta a diario para campañas de saludo.
-CREATE INDEX clients_birthday
+CREATE INDEX IF NOT EXISTS clients_birthday
   ON clients ("clubId", (EXTRACT(MONTH FROM "birthDate")), (EXTRACT(DAY FROM "birthDate")))
   WHERE "birthDate" IS NOT NULL AND "deletedAt" IS NULL;
 
 -- Clientes inactivos: base del reporte de recuperación.
-CREATE INDEX clients_inactive
+CREATE INDEX IF NOT EXISTS clients_inactive
   ON clients ("clubId", "lastVisitAt")
   WHERE "deletedAt" IS NULL AND status = 'ACTIVE';
