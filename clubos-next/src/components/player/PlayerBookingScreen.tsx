@@ -47,7 +47,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   const [clubLoad, setClubLoad] = useState<ClubLoad>({ status: 'loading' });
   const [date, setDate] = useState(todayISO());
   const [availLoad, setAvailLoad] = useState<AvailLoad>({ status: 'loading' });
-  const [duration, setDuration] = useState<number>(90);
+  const [duration, setDuration] = useState<number>(60);
   const [courtId, setCourtId] = useState<string | null>(null);
   const [slotStartsAt, setSlotStartsAt] = useState<string | null>(null);
 
@@ -165,7 +165,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
       });
 
       router.push(
-        `/c/${slug}/reservas/${res.booking.id}?token=${encodeURIComponent(res.booking.accessToken)}`,
+        `/c/${slug}/reservas/${res.booking.id}?token=${encodeURIComponent(res.booking.accessToken)}&new=1`,
       );
     } catch (e) {
       if (e instanceof ApiError && e.isConflict) {

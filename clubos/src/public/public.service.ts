@@ -173,10 +173,10 @@ export class PublicService {
       throw new BadRequestException('Nombre y teléfono son obligatorios.');
     }
 
-    // Duración permitida para reservas online: 60, 90 o 120 minutos.
+    // Duración permitida para reservas online: siempre en horas, 1 o 2.
     const dur = Number(input.durationMinutes);
-    if (![60, 90, 120].includes(dur)) {
-      throw new BadRequestException('Duración inválida. Elegí 60, 90 o 120 minutos.');
+    if (![60, 120].includes(dur)) {
+      throw new BadRequestException('Duración inválida. Elegí 1 hora o 2 horas.');
     }
 
     // No permitir reservar un horario que ya pasó.

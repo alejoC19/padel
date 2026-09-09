@@ -616,6 +616,33 @@
   padding: 0;
 }
 
+.receipt-success-banner {
+  text-align: center;
+  padding: 24px 16px;
+  margin-bottom: 8px;
+  border-radius: var(--r-lg, 14px);
+  background: var(--ds-success-soft, #e5f5ec);
+}
+.receipt-success-banner h1 {
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+.receipt-success-banner p {
+  color: var(--ds-muted, #6b7c8a);
+  margin: 0 0 16px;
+}
+.receipt-success-banner .success-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--ds-success, #2e9d6e);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  margin: 0 auto 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .player-shell * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }

@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ApiError } from '@/lib/api';
 import { publicApi, type PublicBookingDetail } from '@/lib/publicApi';
 import { getPublicBooking } from '@/lib/publicStorage';
 import { formatLocalDate, formatMinute, formatMoney } from '@/lib/grid';
+
+const AUTO_RETURN_SECONDS = 5;
 
 type Load =
   | { status: 'loading' }
@@ -35,8 +37,14 @@ const PAYMENT_LABEL: Record<string, string> = {
  * viaja en el query string).
  */
 export function BookingReceiptScreen({ slug, id }: { slug: string; id: string }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const urlToken = searchParams.get('token');
+  // Solo llegamos con esto recién creada la reserva (ver PlayerBookingScreen)
+  // — no en cada visita futura al mismo link guardado, donde el jugador
+  // puede querer quedarse leyendo o pagar online sin que la pantalla se le
+  // vaya sola.
+  const justBooked = searchParams.get('new') === '1';
 
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -85,6 +93,38 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
 
   useEffect(() => { void load1(); }, [load1]);
 
+  // Cuenta regresiva de vuelta al inicio, solo en la visita recién creada la
+  // reserva (justBooked) — no en cada vez que alguien abre el link guardado,
+  // donde lo último que quiere es que la pantalla se le vaya sola mientras
+  // lee el comprobante o intenta pagar.
+  const [secondsLeft, setSecondsLeft] = useState(AUTO_RETURN_SECONDS);
+  const autoReturnRef = useRef(true);
+  const isReady = load.status === 'ready';
+  const readyIsCancelled = isReady && load.status === 'ready' && load.detail.status.startsWith('CANCELLED');
+
+  useEffect(() => {
+    if (!justBooked || !isReady || readyIsCancelled) return;
+    autoReturnRef.current = true;
+    setSecondsLeft(AUTO_RETURN_SECONDS);
+    const interval = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(interval);
+          if (autoReturnRef.current) router.push(`/c/${slug}`);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [justBooked, isReady, readyIsCancelled, router, slug]);
+
+  const stayHere = useCallback(() => { autoReturnRef.current = false; }, []);
+  const returnNow = useCallback(() => {
+    autoReturnRef.current = false;
+    router.push(`/c/${slug}`);
+  }, [router, slug]);
+
   const receiptUrl = effectiveToken && origin
     ? `${origin}/c/${slug}/reservas/${id}?token=${encodeURIComponent(effectiveToken)}`
     : '';
@@ -102,6 +142,7 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
 
   const payOnline = useCallback(async () => {
     if (!effectiveToken) return;
+    autoReturnRef.current = false;
     setActionBusy(true);
     setActionError(null);
     setCheckoutInfo(null);
@@ -187,6 +228,27 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
 
   return (
     <>
+      {justBooked && !isCancelled && (
+        <section className="receipt-success-banner" role="status">
+          <div className="success-mark">✓</div>
+          <h1>¡Turno confirmado!</h1>
+          <p>
+            Guardá este comprobante.{' '}
+            {secondsLeft > 0
+              ? `Volvemos al inicio en ${secondsLeft}s.`
+              : 'Volviendo…'}
+          </p>
+          <div className="row" style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button type="button" className="btn btn-secondary" onClick={stayHere}>
+              Quedarme acá
+            </button>
+            <button type="button" className="btn btn-primary" onClick={returnNow}>
+              Volver ahora
+            </button>
+          </div>
+        </section>
+      )}
+
       <header className="player-header">
         <div className="player-eyebrow">Comprobante</div>
         <div className="receipt-code">{detail.code}</div>
@@ -270,7 +332,7 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
             <button
               className="btn btn-secondary"
               disabled={actionBusy}
-              onClick={() => { setConfirmingCancel(true); setActionError(null); }}
+              onClick={() => { autoReturnRef.current = false; setConfirmingCancel(true); setActionError(null); }}
             >
               Cancelar reserva
             </button>
@@ -292,7 +354,11 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
         </section>
       )}
 
-      <a className="player-nav-link" href={`/c/${slug}`}>← Volver al club</a>
+      <section style={{ padding: '8px 0 24px' }}>
+        <button type="button" className="btn btn-secondary" style={{ width: '100%' }} onClick={returnNow}>
+          ← Volver al club
+        </button>
+      </section>
     </>
   );
 }

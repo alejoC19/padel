@@ -35,11 +35,11 @@ export interface BusyInterval {
 }
 
 /** Duraciones que acepta `reservar` (ver public.service.ts). */
-export const ALLOWED_DURATIONS = [60, 90, 120] as const;
+export const ALLOWED_DURATIONS = [60, 120] as const;
 export type AllowedDuration = (typeof ALLOWED_DURATIONS)[number];
 
-/** Paso de la grilla. 30' para que las duraciones de 60/90/120 calcen. */
-const STEP_MINUTES = 30;
+/** Paso de la grilla: en punto, nada de 19:00/19:30 — un turno dura 1h o 2h. */
+const STEP_MINUTES = 60;
 
 export interface SlotCandidate {
   /** Minuto del día (para ordenar/formatear), no para comparar solapamiento. */
