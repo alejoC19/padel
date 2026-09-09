@@ -97,9 +97,14 @@ DIRECT_URL=postgresql://<tu-usuario-de-railway>:...
    `clubos-web`) — sin este paso Vercel no encuentra ningún framework en la
    raíz y "despliega" un build vacío en segundos (`framework: null` en la
    API, sin error visible). Si ya importaste el proyecto sin este paso,
-   arreglalo en **Settings → General → Root Directory** y después andá a
-   **Deployments** → deploy más reciente → menú `⋮` → **Redeploy** (cambiar
-   el Root Directory no dispara un build nuevo por sí solo).
+   arreglalo en **Settings → General → Root Directory** y después generá un
+   deploy **nuevo con un commit** (push cualquier cambio, o desde
+   **Deployments** el botón **Deploy** de la rama, NO "Redeploy" sobre el
+   deployment viejo): "Redeploy" reusa la configuración congelada de ESE
+   deployment puntual (la rota, de cuando faltaba el Root Directory), no la
+   config actual del proyecto — el build sale bien pero después no sirve
+   nada (404 en todas las rutas, incluida `/`). Cambiar el Root Directory
+   por sí solo tampoco dispara ningún build nuevo.
 3. En **Environment Variables** agregá:
    - `NEXT_PUBLIC_API_URL` = `https://<tu-backend-de-railway>/api/v1`
 4. Deploy. Vercel te da una URL (`clubos-xxx.vercel.app`).
