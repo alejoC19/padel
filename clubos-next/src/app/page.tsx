@@ -53,8 +53,8 @@ export default function LandingPage() {
           <a href="#para-clubes">Para clubes</a>
         </nav>
         <div className="lp-nav-cta">
-          <Link href="/jugador" className="lp-link">Soy jugador</Link>
-          <Link href="/entrar" className="lp-link">Iniciar sesión</Link>
+          <Link href="/jugador" className="lp-link lp-link-player">Soy jugador</Link>
+          <Link href="/entrar" className="lp-link lp-link-signin">Iniciar sesión</Link>
           <Link href="/crear-club" className="lp-btn lp-btn-primary">Crear mi club</Link>
         </div>
       </header>

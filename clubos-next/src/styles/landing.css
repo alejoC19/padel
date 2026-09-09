@@ -293,7 +293,7 @@
   .lp-section { padding: 44px 20px; }
   .lp-h1 { font-size: 32px; }
   .lp-h2 { font-size: 28px; }
-  .lp-nav-cta .lp-link { display: none; }
+  .lp-nav-cta .lp-link-signin { display: none; }
   .lp-footer { flex-direction: column; align-items: flex-start; }
 }
 
