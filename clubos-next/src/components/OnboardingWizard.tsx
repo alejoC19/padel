@@ -112,6 +112,8 @@ export function OnboardingWizard() {
       sessionStorage.setItem('clubos.token', session.accessToken);
       sessionStorage.setItem('clubos.club', club.id);
       sessionStorage.setItem('clubos.clubName', club.name);
+      sessionStorage.setItem('clubos.user', `${session.user.firstName} ${session.user.lastName}`);
+      sessionStorage.setItem('clubos.permissions', JSON.stringify(session.permissions));
 
       setDone(true);
       // Pequeña pausa para que se vea el estado de éxito.
