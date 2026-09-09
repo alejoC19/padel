@@ -15,9 +15,16 @@
  */
 import { ApiError } from './api';
 
-// Mismo criterio que api.ts: NEXT_PUBLIC_API_URL en producción (ver
-// .env.production), localhost:3000 en desarrollo (el front corre en :3001).
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+// Fijo en vez de leído de NEXT_PUBLIC_API_URL a propósito: una variable de
+// entorno puesta en el dashboard de Vercel le gana siempre a .env.production
+// del repo (process.env ya la trae seteada antes de que Next cargue el
+// archivo) y terminamos sirviendo un valor de ejemplo baked-in en
+// producción. Un literal en el código no tiene ninguna variable que lo
+// pueda pisar.
+const BASE =
+  process.env.NODE_ENV === 'development'
+    ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1')
+    : 'https://padel-production-f5ff.up.railway.app/api/v1';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response;

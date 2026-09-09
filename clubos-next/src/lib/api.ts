@@ -27,12 +27,18 @@
 /**
  * URL base de la API.
  *
- * Next.js expone al browser solo las env que empiezan con NEXT_PUBLIC_.
  * En dev, el front corre en :3001 y la API en :3000, así que el fallback
- * apunta ahí. En producción se setea NEXT_PUBLIC_API_URL en .env.production.
+ * apunta ahí (con override opcional por NEXT_PUBLIC_API_URL si hace falta).
+ * En producción es un literal fijo, no una env var: una variable puesta en
+ * el dashboard de Vercel le gana siempre a .env.production del repo
+ * (process.env ya la trae seteada antes de que Next cargue el archivo), y
+ * terminamos sirviendo lo que sea que haya quedado cargada ahí — un literal
+ * en el código no tiene ninguna variable que lo pueda pisar.
  */
 const BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+  process.env.NODE_ENV === 'development'
+    ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1')
+    : 'https://padel-production-f5ff.up.railway.app/api/v1';
 
 let accessToken: string | null = null;
 let activeClubId: string | null = null;

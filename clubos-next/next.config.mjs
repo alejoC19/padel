@@ -3,14 +3,19 @@ const nextConfig = {
   reactStrictMode: true,
 
   /**
-   * Proxy al backend en desarrollo.
+   * Proxy al backend.
    *
    * Evita configurar CORS y, más importante, hace que la cookie httpOnly del
    * refresh token viaje sin dominios cruzados — que es donde suele romperse
-   * la sesión al pasar de desarrollo a producción.
+   * la sesión al pasar de desarrollo a producción. En producción es un
+   * literal fijo, no una env var (API_URL): una variable puesta en el
+   * dashboard de Vercel le gana siempre a lo que traiga el repo.
    */
   async rewrites() {
-    const target = process.env.API_URL ?? 'http://localhost:3000';
+    const target =
+      process.env.NODE_ENV === 'development'
+        ? (process.env.API_URL ?? 'http://localhost:3000')
+        : 'https://padel-production-f5ff.up.railway.app';
     return [{ source: '/api/:path*', destination: `${target}/api/:path*` }];
   },
 
