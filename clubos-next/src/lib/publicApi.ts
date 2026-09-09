@@ -15,8 +15,8 @@
  */
 import { ApiError } from './api';
 
-// Mismo criterio que api.ts: NEXT_PUBLIC_API_URL en producción, localhost:3000
-// en desarrollo (el front corre en :3001).
+// Mismo criterio que api.ts: NEXT_PUBLIC_API_URL en producción (ver
+// .env.production), localhost:3000 en desarrollo (el front corre en :3001).
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

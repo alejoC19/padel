@@ -29,7 +29,7 @@
  *
  * Next.js expone al browser solo las env que empiezan con NEXT_PUBLIC_.
  * En dev, el front corre en :3001 y la API en :3000, así que el fallback
- * apunta ahí. En producción se setea NEXT_PUBLIC_API_URL al dominio real.
+ * apunta ahí. En producción se setea NEXT_PUBLIC_API_URL en .env.production.
  */
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
