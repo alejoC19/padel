@@ -18,6 +18,7 @@ type Load =
  */
 export function PlayerBuffetScreen({ slug }: { slug: string }) {
   const [load, setLoad] = useState<Load>({ status: 'loading' });
+  const [category, setCategory] = useState<string | null>(null);
 
   const fetchMenu = useCallback(async () => {
     setLoad({ status: 'loading' });
@@ -44,6 +45,17 @@ export function PlayerBuffetScreen({ slug }: { slug: string }) {
     }
     return Array.from(byCategory.entries());
   }, [load]);
+
+  // Solo se muestra el filtro cuando hay más de una categoría o el menú es
+  // grande: con 3 medialunas y 2 gaseosas, elegir categoría es un paso de
+  // más; con una carta de 10+ platos, no filtrar es scrollear sin fin.
+  const totalProducts = load.status === 'ready' ? load.productos.length : 0;
+  const showCategoryFilter = grouped.length > 1 && totalProducts > 8;
+
+  const visible = useMemo(
+    () => (category ? grouped.filter(([name]) => name === category) : grouped),
+    [grouped, category],
+  );
 
   if (load.status === 'loading') {
     return (
@@ -80,15 +92,39 @@ export function PlayerBuffetScreen({ slug }: { slug: string }) {
         </div>
       )}
 
-      {grouped.map(([category, products]) => (
-        <section className="card" key={category}>
-          <div className="menu-category">{category}</div>
+      {showCategoryFilter && (
+        <section>
+          <div className="court-scroller">
+            <button
+              type="button"
+              className={`court-chip ${category === null ? 'is-active' : ''}`}
+              onClick={() => setCategory(null)}
+            >
+              Todo
+            </button>
+            {grouped.map(([name]) => (
+              <button
+                key={name}
+                type="button"
+                className={`court-chip ${category === name ? 'is-active' : ''}`}
+                onClick={() => setCategory(name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {visible.map(([categoryName, products]) => (
+        <section className="card" key={categoryName}>
+          <div className="menu-category">{categoryName}</div>
           {products.map((p) => (
             <div className="menu-item" key={p.id}>
               {p.imageUrl ? (
                 <img className="menu-item-photo" src={p.imageUrl} alt="" />
               ) : (
-                <CategoryIcon category={category} />
+                <CategoryIcon category={categoryName} />
               )}
               <div className="menu-item-main">
                 <span className="menu-item-name">{p.name}</span>
