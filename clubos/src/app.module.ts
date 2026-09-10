@@ -23,6 +23,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { HealthModule } from './health/health.module';
 import { PublicModule } from './public/public.module';
 import { BillingModule } from './billing/billing.module';
+import { ClubsModule } from './clubs/clubs.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -75,6 +76,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     HealthModule,
     PublicModule,
     BillingModule,
+    ClubsModule,
 
     // Módulos de dominio se agregan acá:
     // BookingsModule, ClientsModule, CashModule, AgendaModule, ...

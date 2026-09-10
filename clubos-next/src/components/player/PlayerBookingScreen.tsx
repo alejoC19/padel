@@ -221,6 +221,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   return (
     <>
       <header className="player-header">
+        {club.logoUrl && <img className="player-club-logo" src={club.logoUrl} alt="" />}
         <div className="player-eyebrow">ClubOS</div>
         <h1 className="player-club-name">{club.name}</h1>
         <p className="player-tagline">Reservá tu cancha online, sin registrarte.</p>

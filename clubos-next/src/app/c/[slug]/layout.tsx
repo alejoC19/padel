@@ -4,24 +4,32 @@ import '@/styles/design-system.css';
 import '@/styles/player.css';
 import { PlayerTabBar } from '@/components/player/PlayerTabBar';
 import { InstallPrompt } from '@/components/player/InstallPrompt';
+import { publicApi } from '@/lib/publicApi';
 
 /**
  * `manifest` es dinámico (uno por club, ver manifest.webmanifest/route.ts)
  * así que no puede ser el objeto `metadata` estático de siempre —
  * `generateMetadata` es la variante que sí recibe `params`.
+ *
+ * El título y el ícono de iOS ("apple-touch-icon", que no lee el manifest
+ * — Safari usa esta meta aparte) también salen del logo del club, mismo
+ * criterio que el manifest de Android/desktop.
  */
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Metadata> {
   const { slug } = await params;
+  const club = await publicApi.getClub(slug).catch(() => null);
+  const name = club?.name ?? 'ClubOS';
+
   return {
-    title: 'ClubOS',
+    title: name,
     description: 'Reservá tu cancha, anotate a torneos y mirá el buffet — sin registrarte.',
     // Portal público: a diferencia del panel de staff, sí queremos que un
     // buscador lo indexe — es el punto de entrada para un jugador nuevo.
     robots: { index: true, follow: true },
-    appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ClubOS' },
-    icons: { apple: '/icons/apple-touch-icon.png' },
+    appleWebApp: { capable: true, statusBarStyle: 'default', title: name },
+    icons: { apple: club?.logoUrl ?? '/icons/apple-touch-icon.png' },
     manifest: `/c/${slug}/manifest.webmanifest`,
   };
 }

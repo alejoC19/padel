@@ -899,6 +899,19 @@ export const api = {
     remove: (id: string) => request<void>(`/courts/${id}`, { method: 'DELETE' }),
   },
 
+  clubs: {
+    me: () => request<{
+      id: string; name: string; slug: string;
+      logoUrl: string | null; coverUrl: string | null;
+    }>('/clubs/me'),
+
+    update: (input: Partial<{ name: string; logoUrl: string; coverUrl: string }>) =>
+      request<{
+        id: string; name: string; slug: string;
+        logoUrl: string | null; coverUrl: string | null;
+      }>('/clubs/me', { method: 'PATCH', body: JSON.stringify(input) }),
+  },
+
   team: {
     list: () => request<Array<{
       id: string;

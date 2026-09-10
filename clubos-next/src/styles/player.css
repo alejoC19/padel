@@ -36,6 +36,14 @@
 .player-header {
   padding-top: var(--sp-md, 12px);
 }
+.player-club-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  margin-bottom: var(--sp-sm, 8px);
+  border: 1px solid var(--ds-border, #e2e7ec);
+}
 .player-eyebrow {
   font-size: var(--fs-caption, 12px);
   font-weight: 700;
