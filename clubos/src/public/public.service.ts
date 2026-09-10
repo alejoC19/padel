@@ -69,7 +69,7 @@ export class PublicService {
     const club = await runWithoutTenancy(randomUUID(), async () =>
       this.prisma.club.findUnique({
         where: { slug },
-        select: { id: true, name: true, slug: true, status: true },
+        select: { id: true, name: true, slug: true, status: true, logoUrl: true },
       }),
     );
     // Un club recién creado por onboarding arranca en TRIAL, no ACTIVE —
@@ -101,7 +101,7 @@ export class PublicService {
   /** Datos mínimos del club para la cabecera de la app. */
   async getClub(slug: string) {
     const club = await this.resolveClub(slug);
-    return { id: club.id, name: club.name, slug: club.slug };
+    return { id: club.id, name: club.name, slug: club.slug, logoUrl: club.logoUrl };
   }
 
   /**

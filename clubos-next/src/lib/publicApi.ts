@@ -81,6 +81,7 @@ export interface PublicClub {
   id: string;
   name: string;
   slug: string;
+  logoUrl: string | null;
 }
 
 export interface PublicCourt {
