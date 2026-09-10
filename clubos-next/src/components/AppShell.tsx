@@ -73,6 +73,17 @@ const NAV: NavItem[] = [
     ),
   },
   {
+    href: '/productos',
+    label: 'Productos',
+    permission: 'product.manage',
+    icon: (
+      <>
+        <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+        <path d="M3 8v8l9 5 9-5V8M12 13v8" />
+      </>
+    ),
+  },
+  {
     href: '/clientes',
     label: 'Clientes',
     permission: 'client.view',

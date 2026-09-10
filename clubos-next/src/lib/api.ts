@@ -751,6 +751,49 @@ export const api = {
       productId: string; name: string; stockQty: number;
       minStockQty: number; unit: string; shortfall: number; severity: string;
     }>>('/pos/stock/alerts'),
+
+    /** Categorías del buffet. */
+    categories: () => request<Array<{ id: string; name: string; sortOrder: number }>>(
+      '/pos/categories',
+    ),
+
+    createCategory: (input: { name: string; sortOrder?: number }) =>
+      request<{ id: string; name: string; sortOrder: number }>('/pos/categories', {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+
+    /** Listado para la pantalla de gestión: incluye inactivos, costo y stock mínimo. */
+    products: () => request<Array<{
+      id: string; name: string; sku: string | null; barcode: string | null;
+      kind: string; salePrice: number; costPrice: number; taxRate: number;
+      unit: string; trackStock: boolean; stockQty: number; minStockQty: number;
+      isActive: boolean; category: { id: string; name: string } | null;
+    }>>('/pos/products'),
+
+    createProduct: (input: {
+      name: string; salePrice: number; costPrice?: number; categoryId?: string;
+      sku?: string; barcode?: string; kind?: 'GOOD' | 'SERVICE' | 'RENTAL';
+      trackStock?: boolean; initialStock?: number; minStockQty?: number;
+      unit?: string; taxRate?: number;
+    }) => request<{ id: string; name: string }>('/pos/products', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+
+    updateProduct: (id: string, input: Partial<{
+      name: string; salePrice: number; costPrice: number; categoryId: string;
+      sku: string; barcode: string; kind: 'GOOD' | 'SERVICE' | 'RENTAL';
+      trackStock: boolean; minStockQty: number; unit: string; taxRate: number;
+      isActive: boolean;
+    }>) => request<{ id: string; name: string }>(`/pos/products/${id}`, {
+      method: 'PATCH', body: JSON.stringify(input),
+    }),
+
+    /** Ajuste por conteo físico: se manda lo CONTADO, no la diferencia. */
+    adjustStockCount: (productId: string, input: { countedQty: number; reason: string }) =>
+      request<{ previous: number; counted: number; difference: number }>(
+        `/pos/stock/${productId}/count`,
+        { method: 'POST', body: JSON.stringify(input) },
+      ),
   },
 
   cash: {

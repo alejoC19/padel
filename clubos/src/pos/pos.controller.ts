@@ -1,13 +1,13 @@
 import {
   Body, Controller, Get, HttpCode, HttpStatus,
-  Param, ParseUUIDPipe, Post, Query,
+  Param, ParseUUIDPipe, Patch, Post, Query,
 } from '@nestjs/common';
 import { PosService } from './services/pos.service';
 import { StockService } from './services/stock.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  AdjustStockDto, CreateProductDto, CreateSaleDto,
-  ReceivePurchaseDto, RegisterLossDto, VoidSaleDto,
+  AdjustStockDto, CreateCategoryDto, CreateProductDto, CreateSaleDto,
+  ReceivePurchaseDto, RegisterLossDto, UpdateProductDto, VoidSaleDto,
 } from './dto/pos.dto';
 import { ClubId, Ctx, RequirePermissions, UserId } from '../common/decorators';
 import { PERMISSIONS } from '../common/permissions';
@@ -39,6 +39,15 @@ export class PosController {
       where: { deletedAt: null },
       select: { id: true, name: true, sortOrder: true },
       orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  @Post('categories')
+  @RequirePermissions(PERMISSIONS.PRODUCT_MANAGE)
+  async createCategory(@Body() dto: CreateCategoryDto, @ClubId() clubId: string) {
+    return this.prisma.db.productCategory.create({
+      data: { clubId, name: dto.name, sortOrder: dto.sortOrder ?? 0 },
+      select: { id: true, name: true, sortOrder: true },
     });
   }
 
@@ -175,6 +184,60 @@ export class PosController {
   // -------------------------------------------------------------------------
   // Productos
   // -------------------------------------------------------------------------
+
+  /**
+   * Listado para la pantalla de gestión (no la de venta): incluye
+   * inactivos, costo y stock mínimo — datos que el catálogo de venta
+   * (`GET /pos/catalog`) omite a propósito por ser de solo consulta rápida.
+   */
+  @Get('products')
+  @RequirePermissions(PERMISSIONS.PRODUCT_MANAGE)
+  async listProducts() {
+    const products = await this.prisma.db.product.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true, name: true, sku: true, barcode: true, kind: true,
+        salePrice: true, costPrice: true, taxRate: true, unit: true,
+        trackStock: true, stockQty: true, minStockQty: true, isActive: true,
+        category: { select: { id: true, name: true } },
+      },
+      orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
+    });
+    return products.map((p) => ({
+      ...p,
+      salePrice: Number(p.salePrice),
+      costPrice: Number(p.costPrice),
+      taxRate: Number(p.taxRate),
+      stockQty: Number(p.stockQty),
+      minStockQty: Number(p.minStockQty),
+    }));
+  }
+
+  @Patch('products/:id')
+  @RequirePermissions(PERMISSIONS.PRODUCT_MANAGE)
+  async updateProduct(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.prisma.db.product.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.salePrice !== undefined ? { salePrice: dto.salePrice } : {}),
+        ...(dto.costPrice !== undefined ? { costPrice: dto.costPrice } : {}),
+        ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+        ...(dto.sku !== undefined ? { sku: dto.sku } : {}),
+        ...(dto.barcode !== undefined ? { barcode: dto.barcode } : {}),
+        ...(dto.kind !== undefined ? { kind: dto.kind as never } : {}),
+        ...(dto.trackStock !== undefined ? { trackStock: dto.trackStock } : {}),
+        ...(dto.minStockQty !== undefined ? { minStockQty: dto.minStockQty } : {}),
+        ...(dto.unit !== undefined ? { unit: dto.unit } : {}),
+        ...(dto.taxRate !== undefined ? { taxRate: dto.taxRate } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      },
+      select: { id: true, name: true },
+    });
+  }
 
   @Post('products')
   @RequirePermissions(PERMISSIONS.PRODUCT_MANAGE)
