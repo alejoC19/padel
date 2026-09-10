@@ -764,7 +764,8 @@ export const api = {
 
     /** Listado para la pantalla de gestión: incluye inactivos, costo y stock mínimo. */
     products: () => request<Array<{
-      id: string; name: string; sku: string | null; barcode: string | null;
+      id: string; name: string; description: string | null; imageUrl: string | null;
+      sku: string | null; barcode: string | null;
       kind: string; salePrice: number; costPrice: number; taxRate: number;
       unit: string; trackStock: boolean; stockQty: number; minStockQty: number;
       isActive: boolean; category: { id: string; name: string } | null;
@@ -772,6 +773,7 @@ export const api = {
 
     createProduct: (input: {
       name: string; salePrice: number; costPrice?: number; categoryId?: string;
+      description?: string; imageUrl?: string;
       sku?: string; barcode?: string; kind?: 'GOOD' | 'SERVICE' | 'RENTAL';
       trackStock?: boolean; initialStock?: number; minStockQty?: number;
       unit?: string; taxRate?: number;
@@ -781,6 +783,7 @@ export const api = {
 
     updateProduct: (id: string, input: Partial<{
       name: string; salePrice: number; costPrice: number; categoryId: string;
+      description: string; imageUrl: string;
       sku: string; barcode: string; kind: 'GOOD' | 'SERVICE' | 'RENTAL';
       trackStock: boolean; minStockQty: number; unit: string; taxRate: number;
       isActive: boolean;

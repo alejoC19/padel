@@ -196,7 +196,8 @@ export class PosController {
     const products = await this.prisma.db.product.findMany({
       where: { deletedAt: null },
       select: {
-        id: true, name: true, sku: true, barcode: true, kind: true,
+        id: true, name: true, description: true, imageUrl: true,
+        sku: true, barcode: true, kind: true,
         salePrice: true, costPrice: true, taxRate: true, unit: true,
         trackStock: true, stockQty: true, minStockQty: true, isActive: true,
         category: { select: { id: true, name: true } },
@@ -226,6 +227,8 @@ export class PosController {
         ...(dto.salePrice !== undefined ? { salePrice: dto.salePrice } : {}),
         ...(dto.costPrice !== undefined ? { costPrice: dto.costPrice } : {}),
         ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
         ...(dto.sku !== undefined ? { sku: dto.sku } : {}),
         ...(dto.barcode !== undefined ? { barcode: dto.barcode } : {}),
         ...(dto.kind !== undefined ? { kind: dto.kind as never } : {}),
@@ -252,6 +255,8 @@ export class PosController {
           clubId,
           name: dto.name,
           categoryId: dto.categoryId ?? null,
+          description: dto.description ?? null,
+          imageUrl: dto.imageUrl ?? null,
           sku: dto.sku ?? null,
           barcode: dto.barcode ?? null,
           salePrice: dto.salePrice,
