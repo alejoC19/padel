@@ -16,12 +16,17 @@ import { Toasts } from '@/components/Toasts';
  *
  * Ajustar el STOCK puntual (sumar/restar cantidad) se hace acá con el
  * mismo endpoint de conteo físico que usa el módulo de stock — cargar una
- * pantalla de "compra a proveedor" completa es un paso más that este primer
+ * pantalla de "compra a proveedor" completa es un paso más que este primer
  * corte no necesita.
+ *
+ * Descripción e imagen: `PlayerBuffetScreen` (la carta que ve el jugador)
+ * ya sabía mostrarlas — agrupa por categoría y pone la foto si hay, o un
+ * ícono si no. Lo único que faltaba era poder cargarlas desde acá.
  */
 
 interface Product {
-  id: string; name: string; sku: string | null; barcode: string | null;
+  id: string; name: string; description: string | null; imageUrl: string | null;
+  sku: string | null; barcode: string | null;
   kind: string; salePrice: number; costPrice: number; taxRate: number;
   unit: string; trackStock: boolean; stockQty: number; minStockQty: number;
   isActive: boolean; category: { id: string; name: string } | null;
@@ -142,7 +147,21 @@ export function ProductsScreen() {
               {visible.map((p) => (
                 <tr key={p.id}>
                   <td>
-                    <div className="cell-main">
+                    <div className="cell-main" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl} alt=""
+                          style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <span
+                          className="product-thumb-placeholder"
+                          style={{
+                            width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                            background: 'var(--ds-surface-2)', border: '1px solid var(--ds-border)',
+                          }}
+                        />
+                      )}
                       {p.name}
                       {!p.isActive && <span className="tag-muted">inactivo</span>}
                     </div>
@@ -216,6 +235,8 @@ function ProductFormDialog({
   onCategoryCreated: (c: Category) => void;
 }) {
   const [name, setName] = useState(product?.name ?? '');
+  const [description, setDescription] = useState(product?.description ?? '');
+  const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? '');
   const [salePrice, setSalePrice] = useState(String(product?.salePrice ?? ''));
   const [costPrice, setCostPrice] = useState(String(product?.costPrice ?? ''));
   const [categoryId, setCategoryId] = useState(product?.category?.id ?? '');
@@ -257,6 +278,8 @@ function ProductFormDialog({
       if (product) {
         await api.pos.updateProduct(product.id, {
           name: name.trim(),
+          description: description.trim() || undefined,
+          imageUrl: imageUrl.trim() || undefined,
           salePrice: price,
           costPrice: costPrice ? Number(costPrice) : 0,
           categoryId: categoryId || undefined,
@@ -268,6 +291,8 @@ function ProductFormDialog({
       } else {
         await api.pos.createProduct({
           name: name.trim(),
+          description: description.trim() || undefined,
+          imageUrl: imageUrl.trim() || undefined,
           salePrice: price,
           costPrice: costPrice ? Number(costPrice) : 0,
           categoryId: categoryId || undefined,
@@ -284,7 +309,7 @@ function ProductFormDialog({
       setBusy(false);
     }
   }, [
-    product, name, salePrice, costPrice, categoryId, unit, trackStock,
+    product, name, description, imageUrl, salePrice, costPrice, categoryId, unit, trackStock,
     initialStock, minStockQty, onSaved, onError,
   ]);
 
@@ -296,6 +321,35 @@ function ProductFormDialog({
         <label className="field-block">
           <span className="label">Nombre</span>
           <input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+
+        <label className="field-block">
+          <span className="label">Descripción (opcional)</span>
+          <input
+            className="input" placeholder="Como la ve el jugador en la carta del buffet"
+            value={description} onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+
+        <label className="field-block">
+          <span className="label">URL de imagen (opcional)</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {imageUrl && (
+              <img
+                src={imageUrl} alt=""
+                style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
+                onLoad={(e) => { (e.target as HTMLImageElement).style.visibility = 'visible'; }}
+              />
+            )}
+            <input
+              className="input" placeholder="https://…" style={{ flex: 1 }}
+              value={imageUrl} onChange={(e) => setImageUrl(e.target.value)}
+            />
+          </div>
+          <span className="field-hint">
+            Pegá el link de una foto ya subida (Google Fotos, Imgur, etc.) — todavía no se puede subir el archivo directo.
+          </span>
         </label>
 
         <div className="field-pair">

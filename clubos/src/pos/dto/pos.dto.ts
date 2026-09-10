@@ -169,6 +169,17 @@ export class CreateProductDto {
   @IsUUID('4')
   categoryId?: string;
 
+  /** La carta pública del jugador ya sabe mostrar esto (PlayerBuffetScreen) — faltaba cargarlo. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(50)
@@ -237,6 +248,16 @@ export class UpdateProductDto {
   @IsOptional()
   @IsUUID('4')
   categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string;
 
   @IsOptional()
   @IsString()
