@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -23,8 +23,16 @@ async function bootstrap(): Promise<void> {
   app.use(helmet());
   app.use(cookieParser());
 
+  // Un string suelto en `exclude` solo saca la ruta EXACTA del prefijo — no
+  // sus subrutas. Sin el patrón '(.*)', /health/ready terminaba viviendo en
+  // /api/v1/health/ready, al revés de lo que dice cada comentario del
+  // healthcheck (y de lo que Railway/cualquier monitor espera encontrar).
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health', 'metrics'],
+    exclude: [
+      { path: 'health', method: RequestMethod.ALL },
+      { path: 'health/(.*)', method: RequestMethod.ALL },
+      { path: 'metrics', method: RequestMethod.ALL },
+    ],
   });
 
   app.useGlobalPipes(
