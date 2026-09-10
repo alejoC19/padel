@@ -210,3 +210,82 @@ export class CreateProductDto {
   @Min(0)
   taxRate?: number;
 }
+
+/**
+ * Todo opcional: se edita un producto existente campo por campo, no se
+ * reemplaza entero (evita pisar `stockQty`, que se mueve solo por
+ * StockMovement — ver StockService).
+ */
+export class UpdateProductDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  salePrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  costPrice?: number;
+
+  @IsOptional()
+  @IsUUID('4')
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  barcode?: string;
+
+  @IsOptional()
+  @IsEnum(['GOOD', 'SERVICE', 'RENTAL'])
+  kind?: 'GOOD' | 'SERVICE' | 'RENTAL';
+
+  @IsOptional()
+  @IsBoolean()
+  trackStock?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0)
+  minStockQty?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  unit?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  taxRate?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class CreateCategoryDto {
+  @IsString()
+  @MaxLength(80)
+  name!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  sortOrder?: number;
+}
