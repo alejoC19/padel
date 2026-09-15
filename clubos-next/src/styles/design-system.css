@@ -610,13 +610,14 @@ h1, h2, h3,
 .money-label { color: var(--ds-muted); font-size: var(--fs-body); }
 
 /* =========================================================================
-   CLIENTES
+   BARRA DE BÚSQUEDA GRANDE (Clientes, POS…)
    -------------------------------------------------------------------------
-   La búsqueda es el punto de entrada real ("buscar → abrir ficha →
-   reservar/cobrar"), no un input más al lado de los filtros — por eso vive
-   en su propia barra, grande, antes de los chips.
+   Genérica a propósito: la búsqueda es infraestructura compartida entre
+   módulos ("buscar → abrir ficha" en Clientes, "buscar → agregar" en POS),
+   no algo que deba tener personalidad propia — el carácter de cada módulo
+   va en lo que rodea a la búsqueda, no en la búsqueda misma.
    ========================================================================= */
-.client-search-bar {
+.search-bar-lg {
   display: flex;
   align-items: center;
   gap: var(--sp-md);
@@ -627,9 +628,9 @@ h1, h2, h3,
   margin-bottom: var(--sp-md);
   transition: border-color var(--t-fast);
 }
-.client-search-bar:focus-within { border-color: var(--ds-primary); }
-.client-search-icon { color: var(--ds-muted); flex: none; }
-.client-search-input {
+.search-bar-lg:focus-within { border-color: var(--ds-primary); }
+.search-bar-lg-icon { color: var(--ds-muted); flex: none; }
+.search-bar-lg-input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -638,8 +639,8 @@ h1, h2, h3,
   font-size: 16px;
   color: var(--ds-text);
 }
-.client-search-input::placeholder { color: var(--ds-faint, var(--ds-muted)); }
-.client-search-clear {
+.search-bar-lg-input::placeholder { color: var(--ds-faint, var(--ds-muted)); }
+.search-bar-lg-clear {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -651,8 +652,11 @@ h1, h2, h3,
   color: var(--ds-muted);
   cursor: pointer;
 }
-.client-search-clear:hover { color: var(--ds-text); }
+.search-bar-lg-clear:hover { color: var(--ds-text); }
 
+/* =========================================================================
+   CLIENTES
+   ========================================================================= */
 /* Lista de jugadores: filas dentro de un único contenedor, no una card por
    persona ni una tabla de columnas fijas — cada fila se lee como una unidad. */
 .client-list {
@@ -744,18 +748,62 @@ h1, h2, h3,
 .search-empty { padding: var(--sp-xl); text-align: center; color: var(--ds-muted); }
 
 /* =========================================================================
-   BUFFET / POS
+   BUFFET / POS — velocidad, productos, cobro.
+   -------------------------------------------------------------------------
+   `.product-tile`, `.product-stock`, `.method-option` no tenían NINGÚN
+   estilo: el catálogo (el área principal de la pantalla) se veía como una
+   grilla de botones nativos del navegador — ni borde, ni feedback al
+   pasar el mouse, ni jerarquía entre nombre/precio/stock. `.qty-control`
+   tenía el contenedor flex pero los botones −/+ tampoco tenían clase ni
+   estilo propio.
    ========================================================================= */
-.pos-screen { display: grid; grid-template-columns: 1fr 360px; gap: var(--sp-lg); }
+.pos-screen { display: grid; grid-template-columns: 1fr 360px; gap: var(--sp-lg); align-items: start; }
 .pos-catalog { min-width: 0; }
 .pos-filters { display: flex; gap: var(--sp-sm); flex-wrap: wrap; margin-bottom: var(--sp-lg); }
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: var(--sp-md);
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--sp-sm);
 }
-.product-name { font-weight: 700; font-size: var(--fs-body); }
-.product-price { color: var(--ds-primary); font-weight: 800; font-size: var(--fs-h3); margin-top: 4px; }
+
+/* Tile chata a propósito: sin sombra, radio chico — es un catálogo para
+   tocar rápido, no una vidriera de e-commerce. El precio es lo único con
+   color; todo lo demás queda neutro para no competir con él. */
+.product-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-md);
+  background: var(--ds-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.product-tile:hover { border-color: var(--ds-primary); }
+.product-tile:active { background: var(--ds-primary-soft); }
+.product-tile.is-out { opacity: 0.55; }
+.product-name {
+  font-weight: 700;
+  font-size: var(--fs-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.product-price {
+  font-family: var(--font-display);
+  color: var(--ds-primary);
+  font-weight: 800;
+  font-size: 18px;
+  margin-top: 3px;
+}
+.product-stock { font-size: var(--fs-caption); color: var(--ds-muted); margin-top: 2px; }
+.product-stock.is-out { color: var(--ds-danger); font-weight: 700; }
 
 .pos-cart {
   background: var(--ds-surface);
@@ -779,7 +827,10 @@ h1, h2, h3,
 .cart-empty { padding: var(--sp-2xl) var(--sp-lg); text-align: center; color: var(--ds-muted); }
 .cart-foot { padding: var(--sp-lg); border-top: 1px solid var(--ds-border); }
 .cart-total { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--sp-md); }
-.cart-total-value { font-size: var(--fs-h2); font-weight: 800; }
+/* El total tiene que dominar la vista: es lo último que se mira antes de
+   cobrar. Mismo peso que el hero de Caja, sin el degradé (POS no es un
+   turno de caja, es la venta puntual de un producto). */
+.cart-total-value { font-family: var(--font-display); font-size: 30px; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Vuelto — visualmente MUY grande, como pediste */
 .change-box {
@@ -792,7 +843,43 @@ h1, h2, h3,
 .change-label { font-size: var(--fs-caption); font-weight: 700; color: var(--ds-success); text-transform: uppercase; }
 .change-value { font-size: 44px; font-weight: 800; color: var(--ds-success); letter-spacing: -0.02em; }
 
-.qty-control { display: inline-flex; align-items: center; gap: var(--sp-sm); }
+.qty-control { display: inline-flex; align-items: center; gap: 6px; }
+.qty-btn {
+  width: 28px; height: 28px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-sm);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.qty-btn:hover { border-color: var(--ds-primary); color: var(--ds-primary); }
+.qty-value { min-width: 18px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Barra de cobro fija en mobile — ver RESPONSIVE más abajo para cuándo
+   se activa y por qué. */
+.pos-mobile-bar { display: none; }
+
+/* Selector de medio de pago: mismo patrón que `.type-option` de Caja. */
+.method-option {
+  padding: 9px 16px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.method-option:hover { border-color: var(--ds-border-strong); }
+.method-option.is-active { border-color: var(--ds-primary); background: var(--ds-primary-soft); color: var(--ds-primary); }
 .quick-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-sm); }
 .method-picker, .type-picker { display: flex; gap: var(--sp-sm); flex-wrap: wrap; }
 
@@ -1099,8 +1186,30 @@ h1, h2, h3,
    ========================================================================= */
 @media (max-width: 1024px) {
   .cash-grid { grid-template-columns: 1fr; }
-  .pos-screen { grid-template-columns: 1fr; }
+  .pos-screen { grid-template-columns: 1fr; padding-bottom: 66px; }
   .pos-cart { position: static; max-height: none; }
+  /* Al colapsar a una columna, el carrito pasa a vivir DEBAJO de toda la
+     grilla de productos — cobrar exigiría scrollear más allá de todo el
+     catálogo. `.pos-mobile-bar` (total + Cobrar, fija) reemplaza a
+     `.cart-foot` acá; las líneas del carrito siguen visibles más abajo
+     para quien quiera revisarlas antes de cobrar. */
+  .cart-foot { display: none; }
+  .pos-mobile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-md);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 24;
+    padding: 10px var(--sp-lg);
+    background: var(--ds-surface);
+    border-top: 1px solid var(--ds-border);
+    box-shadow: var(--sh-elevated);
+  }
+  .pos-mobile-bar-info { display: flex; flex-direction: column; line-height: 1.25; }
+  .pos-mobile-bar-count { font-size: var(--fs-caption); color: var(--ds-muted); }
+  .pos-mobile-bar-total { font-family: var(--font-display); font-size: 20px; }
 }
 @media (max-width: 860px) {
   .shell-sidebar { display: none; }
@@ -1108,6 +1217,8 @@ h1, h2, h3,
   /* Deja aire para que la barra inferior fija no tape el último elemento
      del contenido — el clásico "botón fantasma" de las apps con tabbar. */
   .shell-body { padding-bottom: calc(var(--sp-xl) + 58px + env(safe-area-inset-bottom, 0px)); }
+  .pos-screen { padding-bottom: calc(66px + 58px + env(safe-area-inset-bottom, 0px)); }
+  .pos-mobile-bar { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 768px) {
   .shell-body { padding: var(--sp-lg); padding-bottom: calc(var(--sp-lg) + 58px + env(safe-area-inset-bottom, 0px)); }
