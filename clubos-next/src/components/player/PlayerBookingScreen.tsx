@@ -6,10 +6,11 @@ import { ApiError } from '@/lib/api';
 import {
   publicApi,
   type PublicAvailability,
+  type PublicBookingDetail,
   type PublicClub,
   type PublicCourt,
 } from '@/lib/publicApi';
-import { savePublicBooking } from '@/lib/publicStorage';
+import { getPublicBookings, savePublicBooking } from '@/lib/publicStorage';
 import {
   ALLOWED_DURATIONS,
   buildSlotCandidates,
@@ -18,6 +19,7 @@ import {
   type SlotCandidate,
 } from '@/lib/publicSlots';
 import { addDays, formatDuration, formatLocalDate, formatMinute, todayISO } from '@/lib/grid';
+import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
 
 /** Abreviaturas a mano, mismo criterio que grid.ts: evitar que Intl varíe entre navegadores. */
 const DOW_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
@@ -35,6 +37,9 @@ const DATE_RANGE_DAYS = 14;
 
 type ClubLoad = { status: 'loading' } | { status: 'not-found' } | { status: 'error'; message: string } | { status: 'ready'; club: PublicClub };
 type AvailLoad = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: PublicAvailability };
+type NextBookingLoad =
+  | { status: 'none' }
+  | { status: 'ready'; id: string; accessToken: string; detail: PublicBookingDetail };
 
 /**
  * Landing pública del club: disponibilidad del día + formulario de reserva.
@@ -75,6 +80,37 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   }, [slug]);
 
   useEffect(() => { void loadClub(); }, [loadClub]);
+
+  // Próxima reserva de este dispositivo para este club: es lo primero que
+  // el jugador debería ver acá (ver jerarquía del home en el brief de la
+  // fase), antes de ofrecerle reservar otra vez. El localStorage guarda
+  // fecha/cancha pero no el estado actual (pudo cancelarse desde el link del
+  // comprobante) — por eso se confirma contra `consultar`, que ya expone
+  // `status`, en vez de confiar ciegamente en lo guardado localmente.
+  const [nextBooking, setNextBooking] = useState<NextBookingLoad>({ status: 'none' });
+  useEffect(() => {
+    const upcoming = getPublicBookings(slug)
+      .filter((b) => new Date(b.endsAt).getTime() > Date.now())
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0];
+    if (!upcoming) {
+      setNextBooking({ status: 'none' });
+      return;
+    }
+    let stale = false;
+    publicApi.consultar(slug, upcoming.id, upcoming.accessToken)
+      .then((detail) => {
+        if (stale) return;
+        const stillUpcoming = !detail.status.startsWith('CANCELLED')
+          && new Date(detail.endsAt).getTime() > Date.now();
+        setNextBooking(
+          stillUpcoming
+            ? { status: 'ready', id: upcoming.id, accessToken: upcoming.accessToken, detail }
+            : { status: 'none' },
+        );
+      })
+      .catch(() => { if (!stale) setNextBooking({ status: 'none' }); });
+    return () => { stale = true; };
+  }, [slug]);
 
   const loadAvailability = useCallback(async () => {
     setAvailLoad({ status: 'loading' });
@@ -199,7 +235,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   if (clubLoad.status === 'not-found') {
     return (
       <div className="player-state">
-        <div className="state-icon">🎾</div>
+        <PlayerStateIcon kind="search" />
         <h2>No encontramos este club</h2>
         <p>Revisá el link — puede que el club haya cambiado de dirección o ya no esté disponible.</p>
       </div>
@@ -208,7 +244,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   if (clubLoad.status === 'error') {
     return (
       <div className="player-state">
-        <div className="state-icon">⚠️</div>
+        <PlayerStateIcon kind="warning" />
         <h2>Algo salió mal</h2>
         <p>{clubLoad.message}</p>
         <button className="btn btn-primary" onClick={() => void loadClub()}>Reintentar</button>
@@ -232,6 +268,36 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
           ¿Jugás en otros clubes? Buscalos acá →
         </a>
       </header>
+
+      {nextBooking.status === 'ready' && (
+        <a
+          className="next-booking"
+          href={`/c/${slug}/reservas/${nextBooking.id}?token=${encodeURIComponent(nextBooking.accessToken)}`}
+        >
+          <div className="next-booking-label">Tu próximo turno</div>
+          <div className="next-booking-body">
+            <span
+              className="court-dot"
+              style={{ background: nextBooking.detail.courtColor || '#c8443e' }}
+            />
+            <span className="next-booking-main">
+              <span className="next-booking-court">{nextBooking.detail.courtName}</span>
+              <span className="next-booking-time">
+                {formatLocalDate(nextBooking.detail.startsAt.slice(0, 10))} ·{' '}
+                {formatMinute(
+                  new Date(nextBooking.detail.startsAt).getHours() * 60 +
+                  new Date(nextBooking.detail.startsAt).getMinutes(),
+                )} hs
+              </span>
+            </span>
+            <span className="booking-item-chevron">›</span>
+          </div>
+        </a>
+      )}
+
+      {nextBooking.status === 'ready' && (
+        <div className="player-section-title" style={{ marginTop: 4 }}>Reservar otro turno</div>
+      )}
 
       <section>
         <div className="player-section-title">Elegí el día</div>
@@ -278,7 +344,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
 
       {availLoad.status === 'error' && (
         <div className="player-state" style={{ minHeight: 'auto', padding: '32px 16px' }}>
-          <div className="state-icon">⚠️</div>
+          <PlayerStateIcon kind="warning" />
           <p>{availLoad.message}</p>
           <button className="btn btn-secondary" onClick={() => void loadAvailability()}>Reintentar</button>
         </div>
@@ -286,7 +352,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
 
       {availLoad.status === 'ready' && availLoad.data.courts.length === 0 && (
         <div className="player-state" style={{ minHeight: 'auto', padding: '32px 16px' }}>
-          <div className="state-icon">🏟️</div>
+          <PlayerStateIcon kind="court" />
           <p>Este club todavía no tiene canchas configuradas para reservar online.</p>
         </div>
       )}

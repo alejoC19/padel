@@ -30,9 +30,11 @@ export const viewport = {
 export default function JugadorLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="player-shell">
-      <main className="player-main">{children}</main>
-      <InstallPrompt />
-      <JugadorTabBar />
+      <div className="player-frame">
+        <main className="player-main">{children}</main>
+        <InstallPrompt />
+        <JugadorTabBar />
+      </div>
     </div>
   );
 }

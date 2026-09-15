@@ -14,6 +14,13 @@
   flex-direction: column;
 }
 
+/* Sin caja propia en mobile: `.player-main`, InstallPrompt y el tabbar siguen
+   siendo hijos directos (en flex) de `.player-shell`, pixel-igual a antes de
+   que existiera este wrapper. Ver la sección "Desktop" más abajo. */
+.player-frame {
+  display: contents;
+}
+
 .player-main {
   flex: 1;
   width: 100%;
@@ -289,7 +296,19 @@
   padding: var(--sp-2xl, 40px) var(--sp-lg, 16px);
   color: var(--ds-muted, #6b7c8a);
 }
-.player-state .state-icon { font-size: 40px; line-height: 1; }
+.state-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ds-surface-2, #262320);
+  color: var(--ds-muted, #6b7c8a);
+}
+.state-icon.is-danger {
+  background: var(--ds-danger-soft, #fbe9e7);
+  color: var(--ds-danger, #c0392b);
+}
 .player-state h2 { font-size: var(--fs-h3, 18px); color: var(--ds-text, #2b3a47); margin: 0; }
 .player-state p { margin: 0; max-width: 34ch; }
 
@@ -413,6 +432,33 @@
   font-size: 16px;
 }
 
+/* --- Próxima reserva: lo primero que ve el jugador en el home, antes de
+   ofrecerle reservar otra vez (ver jerarquía del portal en PlayerBookingScreen). --- */
+.next-booking {
+  display: block;
+  padding: var(--sp-md, 12px) var(--sp-lg, 16px);
+  border-radius: var(--r-lg, 14px);
+  background: var(--ds-primary-soft, #fbeceb);
+  text-decoration: none;
+  color: inherit;
+}
+.next-booking-label {
+  font-size: var(--fs-caption, 12px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-primary, #de6435);
+  margin-bottom: 6px;
+}
+.next-booking-body {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md, 12px);
+}
+.next-booking-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.next-booking-court { font-weight: 800; font-size: var(--fs-h3, 17px); color: var(--ds-text, #2b3a47); }
+.next-booking-time { font-size: var(--fs-small, 13px); color: var(--ds-text-2, #4a5c6a); }
+
 .info-banner {
   padding: var(--sp-md, 12px);
   border-radius: var(--r-md, 10px);
@@ -437,7 +483,16 @@
   border: 1px solid var(--ds-border, #e2e7ec);
   box-shadow: 0 4px 16px rgba(21, 24, 30, 0.06);
 }
-.install-banner-icon { font-size: 24px; flex: none; }
+.install-banner-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--ds-primary-soft, #fbeceb);
+  color: var(--ds-primary, #de6435);
+}
 .install-banner-text {
   display: flex;
   flex-direction: column;
@@ -653,4 +708,45 @@
 
 @media (prefers-reduced-motion: reduce) {
   .player-shell * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* =========================================================================
+   Desktop: el portal sigue siendo la MISMA app mobile — no gana un layout
+   de dashboard con columnas ni sidebar — pero en una pantalla grande esa
+   franja angosta estirada de punta a punta se ve rota, no "adaptada". En vez
+   de eso, en pantallas anchas se la presenta como lo que es: una app de
+   teléfono, dentro de una tarjeta centrada con su propio marco. `.player-frame`
+   es `display: contents` en mobile (no agrega ninguna caja: `.player-main`,
+   `InstallPrompt` y el tabbar siguen siendo hijos directos de `.player-shell`
+   como antes) y se activa recién acá.
+   ========================================================================= */
+@media (min-width: 860px) {
+  .player-shell {
+    align-items: center;
+    justify-content: center;
+    background: #0a0908;
+    padding: 40px 16px;
+  }
+  .player-frame {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: 420px;
+    height: min(840px, calc(100dvh - 80px));
+    background: var(--ds-bg, #131110);
+    border: 1px solid var(--ds-border, #33302c);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: var(--sh-modal, 0 20px 50px -12px rgba(0, 0, 0, 0.6));
+  }
+  .player-main {
+    flex: 1;
+    overflow-y: auto;
+    max-width: none;
+    margin: 0;
+  }
+  .player-tabbar,
+  .sticky-cta {
+    position: absolute;
+  }
 }

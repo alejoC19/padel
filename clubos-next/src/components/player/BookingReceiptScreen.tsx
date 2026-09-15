@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api';
 import { publicApi, type PublicBookingDetail } from '@/lib/publicApi';
 import { getPublicBooking } from '@/lib/publicStorage';
 import { formatLocalDate, formatMinute, formatMoney } from '@/lib/grid';
+import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
 
 const AUTO_RETURN_SECONDS = 5;
 
@@ -16,19 +17,32 @@ type Load =
   | { status: 'error'; message: string }
   | { status: 'ready'; detail: PublicBookingDetail };
 
+/* BookingStatus completo (ver schema.prisma): además de los estados que
+ * salen de reservar online, el club puede marcar una reserva PAID (cobrada
+ * en el mostrador) o RESCHEDULED desde la agenda del staff — sin esas dos
+ * entradas, esta pantalla mostraba el nombre crudo del enum en inglés. */
 const STATUS_LABEL: Record<string, string> = {
-  CONFIRMED: 'Confirmada',
   PENDING: 'Pendiente',
+  CONFIRMED: 'Confirmada',
+  PAID: 'Pagada',
+  IN_PROGRESS: 'En curso',
+  COMPLETED: 'Jugada',
   CANCELLED_BY_CLIENT: 'Cancelada por vos',
   CANCELLED_BY_CLUB: 'Cancelada por el club',
   NO_SHOW: 'No se presentó',
-  COMPLETED: 'Jugada',
+  RESCHEDULED: 'Reprogramada',
 };
 
+/* El enum real (PaymentStatus, ver schema.prisma) es UNPAID/PARTIAL/PAID/
+ * OVERPAID/REFUNDED — nunca PENDING. Con solo PENDING mapeado, una reserva
+ * recién creada (paymentStatus: UNPAID) mostraba el texto crudo "UNPAID"
+ * en vez de una etiqueta en español. */
 const PAYMENT_LABEL: Record<string, string> = {
-  PAID: 'Pagado',
+  UNPAID: 'Pendiente de pago',
   PARTIAL: 'Pago parcial',
-  PENDING: 'Pendiente de pago',
+  PAID: 'Pagado',
+  OVERPAID: 'Pagado de más',
+  REFUNDED: 'Reembolsado',
 };
 
 /**
@@ -193,7 +207,7 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
   if (load.status === 'no-token') {
     return (
       <div className="player-state">
-        <div className="state-icon">🔒</div>
+        <PlayerStateIcon kind="locked" />
         <h2>No encontramos esta reserva en este dispositivo</h2>
         <p>Usá el link que te enviamos al reservar — es tu comprobante único, con un código que no se puede adivinar.</p>
         <a className="btn btn-secondary" href={`/c/${slug}/mis-reservas`}>Buscar por teléfono</a>
@@ -204,7 +218,7 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
   if (load.status === 'not-found') {
     return (
       <div className="player-state">
-        <div className="state-icon">🔎</div>
+        <PlayerStateIcon kind="search" />
         <h2>Reserva no encontrada</h2>
         <p>El link puede estar incompleto o la reserva no existe. Revisá que copiaste la dirección completa.</p>
       </div>
@@ -214,7 +228,7 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
   if (load.status === 'error') {
     return (
       <div className="player-state">
-        <div className="state-icon">⚠️</div>
+        <PlayerStateIcon kind="warning" />
         <h2>Algo salió mal</h2>
         <p>{load.message}</p>
         <button className="btn btn-primary" onClick={() => void load1()}>Reintentar</button>
@@ -230,7 +244,12 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
     <>
       {justBooked && !isCancelled && (
         <section className="receipt-success-banner" role="status">
-          <div className="success-mark">✓</div>
+          <div className="success-mark">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
           <h1>¡Turno confirmado!</h1>
           <p>
             Guardá este comprobante.{' '}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '@/lib/api';
 import { publicApi, type PublicTournamentSummary } from '@/lib/publicApi';
 import { formatLocalDate, formatMinute, formatMoney } from '@/lib/grid';
+import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
 
 type Load =
   | { status: 'loading' }
@@ -55,7 +56,7 @@ export function PlayerTournamentsScreen({ slug }: { slug: string }) {
   if (load.status === 'error') {
     return (
       <div className="player-state">
-        <div className="state-icon">⚠️</div>
+        <PlayerStateIcon kind="warning" />
         <h2>Algo salió mal</h2>
         <p>{load.message}</p>
         <button className="btn btn-primary" onClick={() => void fetchTournaments()}>Reintentar</button>
@@ -72,7 +73,7 @@ export function PlayerTournamentsScreen({ slug }: { slug: string }) {
 
       {load.torneos.length === 0 && (
         <div className="player-state" style={{ minHeight: 'auto', padding: '32px 16px' }}>
-          <div className="state-icon">🏆</div>
+          <PlayerStateIcon kind="trophy" />
           <p>No hay torneos abiertos por ahora. Volvé a mirar pronto.</p>
         </div>
       )}

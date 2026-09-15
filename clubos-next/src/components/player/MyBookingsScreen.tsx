@@ -13,8 +13,10 @@ type SearchLoad =
   | { status: 'ready'; reservas: PublicBookingSummary[] };
 
 const STATUS_LABEL: Record<string, string> = {
-  CONFIRMED: 'Confirmada',
   PENDING: 'Pendiente',
+  CONFIRMED: 'Confirmada',
+  PAID: 'Pagada',
+  IN_PROGRESS: 'En curso',
   COMPLETED: 'Jugada',
   NO_SHOW: 'No se presentó',
 };
