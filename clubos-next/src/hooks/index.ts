@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AgendaStore, type AgendaState } from '@/lib/agenda-store';
+import { api, setSession as setApiSession } from '@/lib/api';
 
 /**
  * Conecta el AgendaStore a React.
@@ -222,6 +223,10 @@ export function readSession(): Session | null {
 export function clearSession(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.clear();
+  // Sin esto, api.ts sigue mandando el Authorization/x-club-id viejos en
+  // memoria hasta el próximo F5 — un logout que "cierra sesión" pero deja
+  // las siguientes requests autenticadas como si nada.
+  setApiSession(null, null);
 }
 
 export interface UseSessionResult {
@@ -238,7 +243,7 @@ export interface UseSessionResult {
    */
   isDemo: boolean;
   can: (permission: string) => boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export function useSession(): UseSessionResult {
@@ -267,7 +272,19 @@ export function useSession(): UseSessionResult {
     [session],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Revoca la sesión en el backend (borra la fila de Session y limpia la
+    // cookie httpOnly del refresh). Sin esto, "cerrar sesión" solo borraba
+    // el estado local: el refresh token seguía siendo válido en el
+    // servidor, así que quien tuviera esa cookie httpOnly (o el propio
+    // botón "atrás" en una compu compartida) podía seguir renovando el
+    // access token como si la sesión nunca se hubiera cerrado.
+    try {
+      await api.auth.logout();
+    } catch {
+      // Sin conexión o el backend ya la había invalidado: no bloquea el
+      // logout del lado del cliente, que es lo que el usuario ve.
+    }
     clearSession();
     setSession(null);
   }, []);

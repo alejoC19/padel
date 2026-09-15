@@ -298,6 +298,17 @@ export class BookingService {
 
   /**
    * Cancela una reserva y procesa la devolución según la política del club.
+   *
+   * `autoRefund` (default true) controla si la devolución se EJECUTA acá
+   * mismo (Payment.refundedAmount, movimiento de caja si corresponde, asiento
+   * en cuenta corriente) o solo se CALCULA. El portal público la llama con
+   * `autoRefund: false`: un jugador cancelando desde el celular no puede
+   * disparar una salida de caja real sin que nadie del club esté presente
+   * para entregar la plata, y para un pago online tampoco existe ninguna
+   * llamada al reembolso real de Mercado Pago en el sistema — marcarlo como
+   * "reembolsado" acá sería mentirle a la contabilidad. El monto calculado
+   * queda igual en `refundAmount` de la reserva y en un asiento de auditoría,
+   * para que el club lo vea y lo procese a mano.
    */
   async cancel(
     bookingId: string,
@@ -305,7 +316,9 @@ export class BookingService {
     clubId: string,
     userId: string,
     membershipId?: string | null,
+    options?: { autoRefund?: boolean },
   ): Promise<{ refundAmount: number; cancellationFee: number; tierApplied: string }> {
+    const autoRefund = options?.autoRefund ?? true;
     const club = await this.config.get(clubId);
     const policy = parsePolicy(club.settings);
 
@@ -347,21 +360,23 @@ export class BookingService {
       // Repartir así mantiene la trazabilidad: cada devolución queda ligada
       // al cobro que la originó, que es lo que pide una auditoría.
       let pending = calc.refundAmount;
-      for (const p of booking.payments) {
-        if (pending <= 0) break;
-        const available = this.num(p.amount) - this.num(p.refundedAmount);
-        if (available <= 0) continue;
-        const take = Math.min(available, pending);
-        await this.payments.refund(tx, {
-          clubId,
-          paymentId: p.id,
-          amount: take,
-          reason: dto.reason ?? 'Cancelación de reserva',
-          cashSessionId: dto.cashSessionId ?? null,
-          membershipId,
-          createdById: userId,
-        });
-        pending = this.round(pending - take);
+      if (autoRefund) {
+        for (const p of booking.payments) {
+          if (pending <= 0) break;
+          const available = this.num(p.amount) - this.num(p.refundedAmount);
+          if (available <= 0) continue;
+          const take = Math.min(available, pending);
+          await this.payments.refund(tx, {
+            clubId,
+            paymentId: p.id,
+            amount: take,
+            reason: dto.reason ?? 'Cancelación de reserva',
+            cashSessionId: dto.cashSessionId ?? null,
+            membershipId,
+            createdById: userId,
+          });
+          pending = this.round(pending - take);
+        }
       }
 
       // `refundAmount` se calcula sobre `paidAmount`, así que normalmente
@@ -369,8 +384,14 @@ export class BookingService {
       // Payment reales divergieron (dato corrupto o migración incompleta).
       // Se registra lo efectivamente devuelto, no lo teórico: la reserva
       // no debe afirmar que devolvió plata que nunca salió de la caja.
-      const actuallyRefunded = this.round(calc.refundAmount - pending);
-      if (pending > 0) {
+      const actuallyRefunded = autoRefund ? this.round(calc.refundAmount - pending) : 0;
+      if (!autoRefund && calc.refundAmount > 0) {
+        await this.audit(tx, clubId, userId, 'UPDATE', booking.id, {
+          action: 'REFUND_PENDING_MANUAL',
+          amount: calc.refundAmount,
+          note: 'Cancelación del jugador vía portal público: el reembolso no se ejecutó, queda a cargo del club procesarlo.',
+        });
+      } else if (pending > 0) {
         await this.audit(tx, clubId, userId, 'UPDATE', booking.id, {
           action: 'REFUND_SHORTFALL',
           expected: calc.refundAmount,
@@ -392,7 +413,7 @@ export class BookingService {
           cancelledById: userId,
           cancellationReason: dto.reason,
           cancellationFee: calc.cancellationFee,
-          refundAmount: actuallyRefunded,
+          refundAmount: autoRefund ? actuallyRefunded : calc.refundAmount,
         },
       });
 

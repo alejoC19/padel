@@ -250,7 +250,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <button
                 className="user-action"
-                onClick={() => { logout(); router.push('/entrar'); }}
+                onClick={() => { void logout().then(() => router.push('/entrar')); }}
                 role="menuitem"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
