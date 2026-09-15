@@ -4,6 +4,7 @@ import {
   IsString,
   Length,
   Matches,
+  MaxLength,
   MinLength,
 } from 'class-validator';
 
@@ -56,8 +57,19 @@ export class CreateClubDto {
   @IsEmail()
   email!: string;
 
+  /**
+   * Misma política que el resto de la app (ver RegisterDto en auth.dto.ts):
+   * 10+ caracteres con letra y número. El dueño creado acá es un usuario
+   * más — si esta contraseña fuera más débil, quedaría una cuenta que pasa
+   * el alta pero que después ChangePasswordDto/ResetPasswordDto rechazarían
+   * al intentar reponerla.
+   */
   @IsString()
-  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres.' })
+  @MinLength(10, { message: 'La contraseña debe tener al menos 10 caracteres' })
+  @MaxLength(128)
+  @Matches(/^(?=.*[a-zA-Z])(?=.*\d).+$/, {
+    message: 'La contraseña debe incluir al menos una letra y un número',
+  })
   password!: string;
 
   /** Plan al que se suscribe. Si se omite, arranca en el plan starter. */

@@ -433,6 +433,25 @@ export class TreasuryService {
           select: { id: true, status: true },
         });
         if (!expense) throw new NotFoundException('El gasto no existe.');
+
+        // Mismo resguardo que ya existe para Payment (`settledAt`), pero acá
+        // faltaba: sin esto, el mismo gasto podía conciliarse contra DOS
+        // movimientos bancarios distintos — doble imputación de una sola
+        // obligación real contra dos salidas de plata.
+        const alreadyLinked = await tx.bankTransaction.findFirst({
+          where: {
+            reconciledWith: match.id,
+            isReconciled: true,
+            id: { not: transactionId },
+          },
+          select: { id: true },
+        });
+        if (alreadyLinked) {
+          throw new ConflictException(
+            'Ese gasto ya fue conciliado con otro movimiento bancario.',
+          );
+        }
+
         previousExpenseStatus = expense.status;
         if (expense.status !== 'PAID') {
           await tx.expense.update({

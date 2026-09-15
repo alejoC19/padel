@@ -181,11 +181,24 @@ export class CashFlowService {
     return this.num(rows[0]?.total);
   }
 
-  /** Cobros con tarjeta que el banco todavía no liberó. */
+  /**
+   * Cobros con tarjeta que el banco todavía no liberó.
+   *
+   * Un pago PARTIALLY_REFUNDED antes de liquidarse (settledAt todavía nulo)
+   * ya no va a acreditar el neto completo: una parte volvió al cliente. Sin
+   * prorratear `refundedAmount`, la proyección infla el ingreso esperado con
+   * plata que ya se devolvió y nunca va a entrar al banco.
+   */
   private async getPendingSettlements(from: string, to: string) {
     const rows = await this.prisma.tenantQueryRaw<Array<Record<string, unknown>>>(
       `
-      SELECT p.code, p."netAmount", p."settlementDate", pm.name AS method
+      SELECT
+        p.code,
+        CASE WHEN p.amount > 0
+          THEN p."netAmount" * (p.amount - p."refundedAmount") / p.amount
+          ELSE p."netAmount"
+        END AS "netAmount",
+        p."settlementDate", pm.name AS method
       FROM payments p
       JOIN payment_methods pm ON pm.id = p."methodId"
       WHERE p."clubId" = current_club_id()
@@ -203,7 +216,8 @@ export class CashFlowService {
     return rows.map((r) => ({
       code: String(r.code),
       // El neto, no el bruto: la comisión ya la descontó el procesador.
-      amount: this.num(r.netAmount),
+      // Redondeado: el prorrateo por reembolso parcial en SQL no cae justo.
+      amount: this.round(this.num(r.netAmount)),
       date: this.toISODate(r.settlementDate as Date),
       method: String(r.method),
     }));

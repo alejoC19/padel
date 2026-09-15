@@ -37,6 +37,28 @@ const TERMINAL_STATUSES = [
   'COMPLETED',
 ];
 
+/**
+ * Estados en los que `collect()` NO debe aceptar un cobro nuevo.
+ *
+ * A propósito es un subconjunto de `TERMINAL_STATUSES`, sin `COMPLETED`: es
+ * normal que el cliente pague recién al terminar de jugar, así que cobrar
+ * después del check-out sigue siendo válido.
+ *
+ * Los otros cuatro sí tienen que bloquearse: `totalPrice`/`paidAmount` de la
+ * reserva no cambian al cancelarla o marcarla ausente (lo que cambia es
+ * `cancellationFee`/el cargo a cuenta corriente, calculados aparte), así que
+ * sin este freno `collect()` deja cobrar hasta el precio ORIGINAL completo
+ * de una reserva cancelada — muy por encima de lo que la política de
+ * cancelación dice que corresponde. Para `RESCHEDULED`, la reserva vigente
+ * es la nueva; cobrar sobre la vieja cobra contra un turno que ya no existe.
+ */
+const UNCOLLECTIBLE_STATUSES = [
+  'CANCELLED_BY_CLIENT',
+  'CANCELLED_BY_CLUB',
+  'NO_SHOW',
+  'RESCHEDULED',
+];
+
 @Injectable()
 export class BookingService {
   private readonly log = new Logger(BookingService.name);
@@ -738,6 +760,11 @@ export class BookingService {
       });
 
       if (!booking) throw new NotFoundException('Reserva no encontrada');
+      if (UNCOLLECTIBLE_STATUSES.includes(booking.status)) {
+        throw new ConflictException(
+          `La reserva está en estado ${booking.status} y no admite más cobros.`,
+        );
+      }
 
       const total = this.num(booking.totalPrice);
       const already = this.num(booking.paidAmount);

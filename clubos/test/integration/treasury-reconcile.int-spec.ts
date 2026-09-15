@@ -208,4 +208,29 @@ d('Conciliación bancaria: reconcile/unreconcile (Payment vs Expense)', () => {
     // desvincula el movimiento bancario, no revierte un pago que ya existía.
     expect(fresh.status).toBe('PAID');
   }, 20_000);
+
+  it('un gasto no puede conciliarse contra dos movimientos bancarios distintos', async () => {
+    const expense = await runWithTenant(ctx(clubId), async () =>
+      prisma.db.expense.create({
+        data: {
+          clubId, code: `EXP-${randomUUID().slice(0, 8)}`, concept: 'Mantenimiento',
+          amount: 4_000, total: 4_000, date: new Date(), status: 'PENDING',
+        },
+      }),
+    );
+    const bankTxA = await makeBankTx(-4_000, 'Débito mantenimiento A');
+    const bankTxB = await makeBankTx(-4_000, 'Débito mantenimiento B');
+
+    await runWithTenant(ctx(clubId), async () =>
+      treasury.reconcile(bankTxA.id, { kind: 'EXPENSE', id: expense.id }, clubId, userId),
+    );
+
+    // Mismo gasto, OTRO movimiento bancario: antes se aceptaba sin avisar
+    // (doble imputación de una sola obligación real).
+    await expect(
+      runWithTenant(ctx(clubId), async () =>
+        treasury.reconcile(bankTxB.id, { kind: 'EXPENSE', id: expense.id }, clubId, userId),
+      ),
+    ).rejects.toThrow('ya fue conciliado');
+  }, 20_000);
 });

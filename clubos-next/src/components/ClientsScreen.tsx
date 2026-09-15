@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type ClientSearchResult } from '@/lib/api';
+import { api, ApiError, type ClientSearchResult } from '@/lib/api';
 import { DEMO_CLIENTS } from '@/lib/demo-data';
 import { formatMoney } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
@@ -58,6 +58,13 @@ export function ClientsScreen() {
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo`: acá hubo sesión y hubo respuesta del backend, pero
+  // fue un error real (permisos, un 500). Antes cualquier excepción,
+  // incluida esta, disparaba el modo demo — un dueño con sesión activa que
+  // pega contra un error real de servidor terminaba viendo la lista de
+  // clientes de EJEMPLO en lugar de la suya, con el mismo cartel de
+  // "estás viendo datos de ejemplo" tapando el problema real.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -67,6 +74,7 @@ export function ClientsScreen() {
 
   const load = useCallback(async (f: Filter) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await api.clients.list({
         debtorsOnly: f === 'debtors' || undefined,
@@ -77,12 +85,18 @@ export function ClientsScreen() {
       setRows(res.items as ClientRow[]);
       setTotal(res.total);
       setDemo(false);
-    } catch {
-      // Sin backend: modo demo. Cargamos clientes de ejemplo en vez de
-      // mostrar un cartel de error, para poder recorrer el producto.
-      setRows(DEMO_CLIENTS.map(toRow));
-      setTotal(DEMO_CLIENTS.length);
-      setDemo(true);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setLoadError(e.message);
+        setRows([]);
+        setTotal(0);
+      } else {
+        // Sin backend: modo demo. Cargamos clientes de ejemplo en vez de
+        // mostrar un cartel de error, para poder recorrer el producto.
+        setRows(DEMO_CLIENTS.map(toRow));
+        setTotal(DEMO_CLIENTS.length);
+        setDemo(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -131,6 +145,18 @@ export function ClientsScreen() {
   // En demo NO cortamos con un cartel: la pantalla se renderiza normal con los
   // datos de ejemplo ya cargados. El badge "Datos de ejemplo" del AppShell y
   // el aviso de abajo dejan claro que es una demostración.
+
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Clientes</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load(filter)}>
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="clients-screen">

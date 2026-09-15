@@ -88,7 +88,12 @@ export function OnboardingWizard() {
     clubName.trim().length >= 2 && slug.length >= 3 && slugState.status === 'ok';
   const step2Valid =
     firstName.trim() && lastName.trim() && /\S+@\S+\.\S+/.test(email) &&
-    password.length >= 8;
+    // Misma política que el resto de la app (ResetPasswordScreen,
+    // AcceptInviteScreen): 10+ caracteres con letra y número. Antes acá
+    // alcanzaba con 8 sin más requisitos, así que el dueño de un club podía
+    // arrancar con una contraseña que después el backend (y las otras
+    // pantallas) le rechazarían al intentar resetearla.
+    password.length >= 10 && /(?=.*[a-zA-Z])(?=.*\d)/.test(password);
 
   const submit = useCallback(async () => {
     setLoading(true);
@@ -323,7 +328,7 @@ export function OnboardingWizard() {
                   className="input"
                   type={showPw ? 'text' : 'password'}
                   autoComplete="new-password"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres, con letra y número"
                   value={password}
                   disabled={loading}
                   onChange={(e) => setPassword(e.target.value)}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
@@ -59,9 +59,14 @@ export function TournamentsScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo` (sin backend/red): acá hubo sesión y respuesta real
+  // del backend, pero con error (permisos, un 500) — antes se confundía con
+  // el mismo "necesita el backend".
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await api.tournaments.list();
       setList(res);
@@ -69,8 +74,9 @@ export function TournamentsScreen() {
       // Con un solo torneo activo, abrirlo directo ahorra un clic.
       const active = res.find((t) => t.status === 'IN_PROGRESS');
       if (active && !selectedId) setSelectedId(active.id);
-    } catch {
-      setDemo(true);
+    } catch (e) {
+      if (e instanceof ApiError) setLoadError(e.message);
+      else setDemo(true);
     } finally {
       setLoading(false);
     }
@@ -87,6 +93,18 @@ export function TournamentsScreen() {
         <p className="muted">
           Inscribí parejas, sorteá el cuadro y cargá resultados.
         </p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Torneos</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load()}>
+          Reintentar
+        </button>
       </div>
     );
   }

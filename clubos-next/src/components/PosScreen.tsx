@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
@@ -67,25 +67,32 @@ export function PosScreen() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo` (sin backend/red): acá hubo sesión y respuesta real
+  // del backend, pero con error (permisos, un 500) — antes se confundía con
+  // el mismo "necesita el backend".
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [cat, pm] = await Promise.all([
-          api.pos.catalog(),
-          api.cash.paymentMethods(),
-        ]);
-        setProducts(cat as Product[]);
-        setMethods(pm.filter((m) => m.kind !== 'ACCOUNT_CREDIT'));
-        setDemo(false);
-      } catch {
-        setDemo(true);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [cat, pm] = await Promise.all([
+        api.pos.catalog(),
+        api.cash.paymentMethods(),
+      ]);
+      setProducts(cat as Product[]);
+      setMethods(pm.filter((m) => m.kind !== 'ACCOUNT_CREDIT'));
+      setDemo(false);
+    } catch (e) {
+      if (e instanceof ApiError) setLoadError(e.message);
+      else setDemo(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void load(); }, [load]);
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -151,6 +158,18 @@ export function PosScreen() {
         <p className="muted">
           Vendé bebidas y accesorios; el stock y la caja se actualizan solos.
         </p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Buffet</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load()}>
+          Reintentar
+        </button>
       </div>
     );
   }

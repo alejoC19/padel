@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
@@ -83,15 +83,20 @@ export function CashScreen() {
   const [movementOpen, setMovementOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo` (sin backend/red): acá SÍ hubo respuesta, pero un
+  // error real (permisos, un 500). Antes cualquier excepción caía en el
+  // mismo "esta pantalla necesita el backend", aunque hubiera sesión y red.
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(null);
     try {
       const mine = await api.cash.mine();
       setBalance(mine as CashBalance | null);
       setDemo(false);
-    } catch {
-      // Sin backend: la pantalla se muestra igual pero avisa.
-      setDemo(true);
+    } catch (e) {
+      if (e instanceof ApiError) setLoadError(e.message);
+      else setDemo(true);
       setBalance(null);
     } finally {
       setLoading(false);
@@ -123,6 +128,18 @@ export function CashScreen() {
         <p className="muted">
           Abrí turno, registrá movimientos, arqueá y cerrá el día.
         </p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Caja</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load()}>
+          Reintentar
+        </button>
       </div>
     );
   }

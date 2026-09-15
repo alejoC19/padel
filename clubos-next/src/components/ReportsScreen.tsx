@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, type DailyClose } from '@/lib/api';
+import { api, ApiError, type DailyClose } from '@/lib/api';
 import { addDays, formatLocalDate, formatMoney, isToday, todayISO } from '@/lib/grid';
 import { useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
@@ -23,27 +23,31 @@ import { Toasts } from '@/components/Toasts';
 
 
 export function ReportsScreen() {
-  const { toasts, show, dismiss } = useToasts();
+  const { toasts, dismiss } = useToasts();
   const [date, setDate] = useState(todayISO());
   const [data, setData] = useState<DailyClose | null>(null);
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo` (sin backend/red): acá hubo sesión y respuesta real
+  // del backend, pero con error (permisos, un 500). Antes eso también caía
+  // en "esta pantalla necesita el backend" — solo se le sumaba un toast con
+  // el mensaje real, pero el cartel seguía siendo el equivocado.
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (d: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await api.reports.dailyClose(d);
       setData(res);
       setDemo(false);
     } catch (e) {
-      setDemo(true);
-      if (e instanceof Error && !e.message.includes('fetch')) {
-        show(e.message, 'error');
-      }
+      if (e instanceof ApiError) setLoadError(e.message);
+      else setDemo(true);
     } finally {
       setLoading(false);
     }
-  }, [show]);
+  }, []);
 
   useEffect(() => { void load(date); }, [date, load]);
 
@@ -55,6 +59,18 @@ export function ReportsScreen() {
         <p className="muted">
           Cómo fue el día: turnos, buffet, cajas y lo que quedó por cobrar.
         </p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Reportes</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load(date)}>
+          Reintentar
+        </button>
       </div>
     );
   }
