@@ -531,10 +531,10 @@ h1, h2, h3,
 .tag-color { border: none; color: #fff; }
 .tag-muted { background: var(--ds-surface-2); color: var(--ds-muted); }
 .tag-danger { background: var(--ds-danger-soft); color: var(--ds-danger); border-color: transparent; }
-.badge.success, .status-pill.success { background: var(--ds-success-soft); color: var(--ds-success); border-color: transparent; }
-.badge.warning, .status-pill.warning { background: var(--ds-warning-soft); color: var(--ds-warning); border-color: transparent; }
-.badge.danger, .status-pill.danger { background: var(--ds-danger-soft); color: var(--ds-danger); border-color: transparent; }
-.badge.info, .status-pill.info { background: var(--ds-info-soft); color: var(--ds-info); border-color: transparent; }
+.badge.success, .status-pill.success, .tag.success { background: var(--ds-success-soft); color: var(--ds-success); border-color: transparent; }
+.badge.warning, .status-pill.warning, .tag.warning { background: var(--ds-warning-soft); color: var(--ds-warning); border-color: transparent; }
+.badge.danger, .status-pill.danger, .tag.danger { background: var(--ds-danger-soft); color: var(--ds-danger); border-color: transparent; }
+.badge.info, .status-pill.info, .tag.info { background: var(--ds-info-soft); color: var(--ds-info); border-color: transparent; }
 
 /* Balance de cuenta */
 .balance-owed { color: var(--ds-danger); font-weight: 700; }
@@ -611,16 +611,112 @@ h1, h2, h3,
 
 /* =========================================================================
    CLIENTES
+   -------------------------------------------------------------------------
+   La búsqueda es el punto de entrada real ("buscar → abrir ficha →
+   reservar/cobrar"), no un input más al lado de los filtros — por eso vive
+   en su propia barra, grande, antes de los chips.
    ========================================================================= */
-.clients-toolbar {
+.client-search-bar {
   display: flex;
-  gap: var(--sp-md);
   align-items: center;
-  margin-bottom: var(--sp-lg);
-  flex-wrap: wrap;
+  gap: var(--sp-md);
+  padding: 14px var(--sp-lg);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--sp-md);
+  transition: border-color var(--t-fast);
 }
+.client-search-bar:focus-within { border-color: var(--ds-primary); }
+.client-search-icon { color: var(--ds-muted); flex: none; }
+.client-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 16px;
+  color: var(--ds-text);
+}
+.client-search-input::placeholder { color: var(--ds-faint, var(--ds-muted)); }
+.client-search-clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--ds-surface-2);
+  color: var(--ds-muted);
+  cursor: pointer;
+}
+.client-search-clear:hover { color: var(--ds-text); }
 
-/* Búsqueda */
+/* Lista de jugadores: filas dentro de un único contenedor, no una card por
+   persona ni una tabla de columnas fijas — cada fila se lee como una unidad. */
+.client-list {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.client-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  margin: 0;
+  padding: var(--sp-md) var(--sp-lg);
+  border: none;
+  border-bottom: 1px solid var(--ds-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.client-list .client-row:last-child { border-bottom: none; }
+.client-row:hover, .client-row:focus-visible { background: var(--ds-surface-2); }
+.client-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.client-row-name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-row-meta {
+  font-size: var(--fs-small);
+  color: var(--ds-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-row-side {
+  flex: none;
+  text-align: right;
+}
+.client-row-debt {
+  display: inline-block;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-small);
+}
+.client-row-debt.is-owed { color: var(--ds-danger); }
+.client-row-debt.is-credit { color: var(--ds-success); }
+.client-row-count { font-size: var(--fs-caption); color: var(--ds-muted); }
+
+/* Búsqueda (modal de selección rápida — Agenda) */
 .search-box, .search-field, .search-inline, .search-input-wrap {
   position: relative;
   flex: 1;
@@ -869,6 +965,7 @@ h1, h2, h3,
 }
 .booking-court { font-weight: 700; }
 .booking-when { color: var(--ds-muted); font-size: var(--fs-small); }
+.status-off { color: var(--ds-danger); font-size: var(--fs-small); font-weight: 600; }
 
 /* Leyenda */
 .legend { display: flex; gap: var(--sp-lg); flex-wrap: wrap; align-items: center; }
@@ -972,6 +1069,11 @@ h1, h2, h3,
 .confirm-message { color: var(--ds-text-2); font-size: var(--fs-body); line-height: 1.5; margin: 0 0 var(--sp-lg); }
 
 .section-title { font-size: var(--fs-h3); font-weight: 800; margin-bottom: var(--sp-md); }
+/* Dentro de un diálogo simple (sin .drawer-section propio) hace falta aire
+   arriba de cada bloque — si no, el título de la sección siguiente queda
+   pegado al campo de arriba. */
+.dialog .section-title { margin-top: var(--sp-lg); }
+.dialog .section-title:first-of-type { margin-top: 0; }
 .card-title { font-weight: 800; font-size: var(--fs-h3); margin-bottom: var(--sp-md); }
 .required { color: var(--ds-danger); }
 .kbd, .k {
@@ -989,7 +1091,6 @@ h1, h2, h3,
 .today-btn { font-weight: 700; }
 .progress-bar { height: 6px; border-radius: var(--r-pill); background: var(--ds-border); overflow: hidden; }
 .progress-bar > i { display: block; height: 100%; background: var(--ds-primary); }
-.stat-box .v, .stat-box .k { display: block; }
 .compact { font-size: var(--fs-small); }
 .is-wide { grid-column: 1 / -1; }
 

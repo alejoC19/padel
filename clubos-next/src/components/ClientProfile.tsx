@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatMoney } from '@/lib/grid';
+import { useSession } from '@/hooks';
 
 /**
  * Ficha del cliente.
@@ -78,6 +79,9 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED_BY_CLIENT: 'Canceló', CANCELLED_BY_CLUB: 'Cancelado por el club',
   NO_SHOW: 'No vino',
 };
+const CLIENT_STATUS_LABEL: Record<string, string> = {
+  INACTIVE: 'Inactivo', SUSPENDED: 'Suspendido', BLACKLISTED: 'Bloqueado',
+};
 
 export function ClientProfile({
   clientId, onClose, onError,
@@ -86,10 +90,19 @@ export function ClientProfile({
   onClose: () => void;
   onError: (m: string) => void;
 }) {
+  const { can, isDemo } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
+    // En modo demo no hay backend al que pedirle la ficha completa (turnos,
+    // pagos, estadísticas) — antes esto igual intentaba el fetch, fallaba,
+    // y cerraba el drawer con un toast de error genérico, como si la ficha
+    // de un cliente de ejemplo fuera un error real. Se avisa en vez de
+    // fallar, mismo criterio que ya usan Caja y Tesorería sin sesión.
+    if (isDemo) { setLoading(false); return; }
+
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -106,7 +119,17 @@ export function ClientProfile({
       }
     })();
     return () => { cancelled = true; };
-  }, [clientId, onClose, onError]);
+  }, [clientId, isDemo, onClose, onError]);
+
+  const reload = async () => {
+    try {
+      const p = await api.clients.profile(clientId);
+      setProfile(p as unknown as Profile);
+    } catch {
+      // Si la recarga falla la ficha se queda con los datos previos —
+      // el guardado ya se confirmó, esto es solo refrescar la vista.
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -118,7 +141,22 @@ export function ClientProfile({
     <>
       <div className="drawer-backdrop" onClick={onClose} />
       <aside className="drawer" aria-label="Ficha del cliente">
-        {loading || !profile ? (
+        {isDemo ? (
+          <>
+            <header className="drawer-head">
+              <span className="drawer-title">Ficha del cliente</span>
+              <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </header>
+            <div className="drawer-loading">
+              La ficha completa (turnos, pagos, historial) necesita el backend para funcionar.
+            </div>
+          </>
+        ) : loading || !profile ? (
           <div className="drawer-loading">Cargando…</div>
         ) : (
           <>
@@ -130,6 +168,11 @@ export function ClientProfile({
                 <div>
                   <h2 className="drawer-name">
                     {profile.firstName} {profile.lastName}
+                    {CLIENT_STATUS_LABEL[profile.status] && (
+                      <span className={`tag ${profile.status === 'INACTIVE' ? 'warning' : 'danger'}`}>
+                        {CLIENT_STATUS_LABEL[profile.status]}
+                      </span>
+                    )}
                   </h2>
                   <p className="drawer-meta">
                     Cliente desde{' '}
@@ -149,12 +192,24 @@ export function ClientProfile({
                   )}
                 </div>
               </div>
-              <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="drawer-head-actions">
+                {can('client.update') && (
+                  <button className="icon-btn" onClick={() => setEditOpen(true)}
+                          aria-label="Editar ficha" title="Editar ficha">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="2">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                )}
+                <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </header>
 
             <div className="drawer-body">
@@ -294,6 +349,18 @@ export function ClientProfile({
           </>
         )}
       </aside>
+
+      {editOpen && profile && (
+        <EditClientDialog
+          profile={profile}
+          onClose={() => setEditOpen(false)}
+          onSaved={async () => {
+            setEditOpen(false);
+            await reload();
+          }}
+          onError={onError}
+        />
+      )}
     </>
   );
 }
@@ -314,6 +381,143 @@ function StatBox({ label, value, warn }: {
     <div className="stat-box">
       <span className="stat-box-label">{label}</span>
       <span className={`stat-box-value${warn ? ' is-warn' : ''}`}>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Editar ficha.
+ *
+ * Mismos campos que ya muestra la ficha (Contacto + Juego), ni uno más:
+ * el backend acepta bastante más (dirección, descuento, límite de
+ * crédito, lista de precios…) pero nada de eso se ve hoy en el perfil, y
+ * editar un dato que la propia ficha no muestra es más confuso que útil.
+ */
+function EditClientDialog({
+  profile, onClose, onSaved, onError,
+}: {
+  profile: Profile;
+  onClose: () => void;
+  onSaved: () => void;
+  onError: (m: string) => void;
+}) {
+  const [firstName, setFirstName] = useState(profile.firstName);
+  const [lastName, setLastName] = useState(profile.lastName);
+  const [phone, setPhone] = useState(profile.phone ?? '');
+  const [email, setEmail] = useState(profile.email ?? '');
+  const [documentNumber, setDocumentNumber] = useState(profile.documentNumber ?? '');
+  const [skillLevel, setSkillLevel] = useState(profile.skillLevel ?? '');
+  const [dominantHand, setDominantHand] = useState(profile.dominantHand ?? '');
+  const [preferredSide, setPreferredSide] = useState(profile.preferredSide ?? '');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+      onError('Completá nombre y apellido.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.clients.update(profile.id, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        documentNumber: documentNumber.trim() || undefined,
+        skillLevel: skillLevel || undefined,
+        dominantHand: dominantHand || undefined,
+        preferredSide: preferredSide || undefined,
+      });
+      onSaved();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'No se pudo guardar la ficha.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-label="Editar cliente">
+        <h2 className="dialog-title">Editar ficha</h2>
+
+        <h3 className="section-title">Identidad</h3>
+        <div className="field-pair">
+          <label className="field-block">
+            <span className="label">Nombre</span>
+            <input className="input" value={firstName} autoFocus
+                   onChange={(e) => setFirstName(e.target.value)} />
+          </label>
+          <label className="field-block">
+            <span className="label">Apellido</span>
+            <input className="input" value={lastName}
+                   onChange={(e) => setLastName(e.target.value)} />
+          </label>
+        </div>
+
+        <h3 className="section-title">Contacto</h3>
+        <div className="field-pair">
+          <label className="field-block">
+            <span className="label">Teléfono</span>
+            <input className="input" value={phone} inputMode="tel"
+                   placeholder="11 4567-8900"
+                   onChange={(e) => setPhone(e.target.value)} />
+          </label>
+          <label className="field-block">
+            <span className="label">Email</span>
+            <input className="input" type="email" value={email}
+                   onChange={(e) => setEmail(e.target.value)} />
+          </label>
+        </div>
+        <label className="field-block">
+          <span className="label">Documento</span>
+          <input className="input" value={documentNumber} inputMode="numeric"
+                 onChange={(e) => setDocumentNumber(e.target.value)} />
+        </label>
+
+        <h3 className="section-title">Juego</h3>
+        <div className="field-pair">
+          <label className="field-block">
+            <span className="label">Nivel</span>
+            <select className="input" value={skillLevel}
+                    onChange={(e) => setSkillLevel(e.target.value)}>
+              <option value="">Sin definir</option>
+              {Object.entries(SKILL_LABEL).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field-block">
+            <span className="label">Mano</span>
+            <select className="input" value={dominantHand}
+                    onChange={(e) => setDominantHand(e.target.value)}>
+              <option value="">Sin definir</option>
+              {Object.entries(HAND_LABEL).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label className="field-block">
+          <span className="label">Posición</span>
+          <select className="input" value={preferredSide}
+                  onChange={(e) => setPreferredSide(e.target.value)}>
+            <option value="">Sin definir</option>
+            {Object.entries(SIDE_LABEL).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </label>
+
+        <div className="dialog-actions">
+          <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" disabled={busy} onClick={() => void submit()}>
+            {busy ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -47,6 +47,12 @@ const SKILL_LABEL: Record<string, string> = {
   PROFESSIONAL: 'Profesional',
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  INACTIVE: 'Inactivo',
+  SUSPENDED: 'Suspendido',
+  BLACKLISTED: 'Bloqueado',
+};
+
 export function ClientsScreen() {
   const { can, isDemo } = useSession();
   const { toasts, show, dismiss } = useToasts();
@@ -200,37 +206,49 @@ export function ClientsScreen() {
         </div>
       </header>
 
-      <div className="clients-toolbar">
-        <div className="search-field">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-               stroke="var(--text-tertiary)" strokeWidth="2" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
-          </svg>
-          <input
-            ref={searchRef}
-            className="search-inline"
-            placeholder="Buscar por apellido, teléfono o documento…"
-            value={term}
-            onChange={(e) => onSearch(e.target.value)}
-          />
-          {searching && <span className="mini-spinner" aria-label="Buscando" />}
-        </div>
+      {/* La búsqueda es el punto de entrada real de la pantalla: recepción
+          busca → abre la ficha → reserva/cobra. Por eso es grande y va
+          primero, no un input más entre los filtros. */}
+      <div className="client-search-bar">
+        <svg className="client-search-icon" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+        </svg>
+        <input
+          ref={searchRef}
+          className="client-search-input"
+          placeholder="Buscar por apellido, teléfono o documento…"
+          value={term}
+          onChange={(e) => onSearch(e.target.value)}
+        />
+        {searching ? (
+          <span className="mini-spinner" aria-label="Buscando" />
+        ) : term && (
+          <button
+            className="client-search-clear"
+            aria-label="Limpiar búsqueda"
+            onClick={() => onSearch('')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.3"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        )}
+      </div>
 
-        <div className="chip-row">
-          {([
-            ['all', 'Todos'],
-            ['debtors', 'Con deuda'],
-            ['inactive', 'Sin venir hace 60 días'],
-          ] as Array<[Filter, string]>).map(([value, label]) => (
-            <button
-              key={value}
-              className={`chip${filter === value ? ' is-active' : ''}`}
-              onClick={() => { setTerm(''); setFilter(value); }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="chip-row">
+        {([
+          ['all', 'Todos'],
+          ['debtors', 'Con deuda'],
+          ['inactive', 'Sin venir hace 60 días'],
+        ] as Array<[Filter, string]>).map(([value, label]) => (
+          <button
+            key={value}
+            className={`chip${filter === value ? ' is-active' : ''}`}
+            onClick={() => { setTerm(''); setFilter(value); }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -253,71 +271,70 @@ export function ClientsScreen() {
           )}
         </div>
       ) : (
-        <div className="panel-card">
-          <table className="data-table is-clickable">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Contacto</th>
-                <th className="num">Turnos</th>
-                <th>Última visita</th>
-                <th className="num">Cuenta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c) => (
-                <tr key={c.id} onClick={() => setSelectedId(c.id)} tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter') setSelectedId(c.id); }}>
-                  <td>
-                    <div className="cell-main">
-                      <span className="avatar">
-                        {(c.firstName[0] ?? '') + (c.lastName[0] ?? '')}
+        /* Lista de personas, no tabla administrativa: cada fila se lee como
+           una unidad (quién es, cómo lo contacto, cómo viene, cómo está su
+           cuenta), no como columnas comparables entre sí — por eso no es un
+           <table>. La misma marca funciona igual en mobile sin necesitar un
+           layout aparte. */
+        <div className="client-list">
+          {rows.map((c) => (
+            <button
+              key={c.id}
+              className="client-row"
+              onClick={() => setSelectedId(c.id)}
+            >
+              <span className="avatar">
+                {(c.firstName[0] ?? '') + (c.lastName[0] ?? '')}
+              </span>
+
+              <span className="client-row-main">
+                <span className="client-row-name">
+                  {c.firstName} {c.lastName}
+                  {STATUS_LABEL[c.status] && (
+                    <span className={`tag ${c.status === 'INACTIVE' ? 'warning' : 'danger'}`}>
+                      {STATUS_LABEL[c.status]}
+                    </span>
+                  )}
+                </span>
+                <span className="client-row-meta">
+                  {[c.phone, c.email].filter(Boolean).join(' · ') || 'Sin contacto'}
+                  {' · '}{formatLastVisit(c.lastVisitAt)}
+                </span>
+                {(c.skillLevel || c.tags.length > 0) && (
+                  <span className="cell-tags">
+                    {c.skillLevel && (
+                      <span className="tag-muted">
+                        {SKILL_LABEL[c.skillLevel] ?? c.skillLevel}
                       </span>
-                      <div>
-                        <div className="cell-name">{c.firstName} {c.lastName}</div>
-                        {(c.skillLevel || c.tags.length > 0) && (
-                          <div className="cell-tags">
-                            {c.skillLevel && (
-                              <span className="tag-muted">
-                                {SKILL_LABEL[c.skillLevel] ?? c.skillLevel}
-                              </span>
-                            )}
-                            {c.tags.slice(0, 2).map((t) => (
-                              <span
-                                key={t.tag.code}
-                                className="tag-color"
-                                style={{
-                                  ['--tag' as string]: t.tag.color,
-                                }}
-                              >
-                                {t.tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="cell-muted">{c.phone ?? c.email ?? '—'}</td>
-                  <td className="num">{c.bookingsCount}</td>
-                  <td className="cell-muted">{formatLastVisit(c.lastVisitAt)}</td>
-                  <td className="num">
-                    {c.accountBalance < 0 ? (
-                      <span className="balance-owed">
-                        Debe {formatMoney(-c.accountBalance)}
-                      </span>
-                    ) : c.accountBalance > 0 ? (
-                      <span className="balance-credit">
-                        A favor {formatMoney(c.accountBalance)}
-                      </span>
-                    ) : (
-                      <span className="cell-muted">—</span>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {c.tags.slice(0, 3).map((t) => (
+                      <span
+                        key={t.tag.code}
+                        className="tag-color"
+                        style={{ ['--tag' as string]: t.tag.color }}
+                      >
+                        {t.tag.name}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </span>
+
+              <span className="client-row-side">
+                {c.accountBalance < 0 ? (
+                  <span className="client-row-debt is-owed">
+                    Debe {formatMoney(-c.accountBalance)}
+                  </span>
+                ) : c.accountBalance > 0 ? (
+                  <span className="client-row-debt is-credit">
+                    A favor {formatMoney(c.accountBalance)}
+                  </span>
+                ) : c.bookingsCount > 0 ? (
+                  <span className="client-row-count">{c.bookingsCount} turnos</span>
+                ) : null}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -468,6 +485,7 @@ function CreateClientDialog({
       <div className="dialog" role="dialog" aria-modal="true" aria-label="Nuevo cliente">
         <h2 className="dialog-title">Nuevo cliente</h2>
 
+        <h3 className="section-title">Identidad</h3>
         <div className="field-pair">
           <label className="field-block">
             <span className="label">Nombre</span>
@@ -481,6 +499,7 @@ function CreateClientDialog({
           </label>
         </div>
 
+        <h3 className="section-title">Contacto</h3>
         <div className="field-pair">
           <label className="field-block">
             <span className="label">Teléfono</span>

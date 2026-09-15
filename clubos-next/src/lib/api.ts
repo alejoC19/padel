@@ -622,6 +622,16 @@ export const api = {
     statement: (id: string) =>
       request<Record<string, unknown>>(`/clients/${id}/statement`),
 
+    /** Ficha editable: los mismos campos que ya muestra el perfil. */
+    update: (id: string, input: {
+      firstName?: string; lastName?: string;
+      phone?: string; email?: string; documentNumber?: string;
+      birthDate?: string;
+      skillLevel?: string; dominantHand?: string; preferredSide?: string;
+    }) => request<Record<string, unknown>>(`/clients/${id}`, {
+      method: 'PATCH', body: JSON.stringify(input),
+    }),
+
     /** Mismos filtros que `list()`. Dispara la descarga del CSV. */
     exportCsv: (params: {
       status?: string; tagCode?: string; debtorsOnly?: boolean;

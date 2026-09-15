@@ -61,7 +61,13 @@ export class ClientSearchService {
 
     // Búsqueda por subcadena. `position()` da el ranking: cuanto más cerca
     // del inicio aparece el término, más relevante es el resultado.
-    const rows = await this.prisma.db.$queryRawUnsafe<
+    //
+    // tenantQueryRaw, no prisma.db: las raw queries no pasan por el
+    // interceptor que hace SET LOCAL app.current_club_id — sin eso, RLS
+    // (FORCE, rol clubos_app) bloquea todas las filas aunque el WHERE
+    // "clubId" = $1 sea correcto. Confirmado con la búsqueda devolviendo
+    // siempre 0 resultados incluso para coincidencias exactas.
+    const rows = await this.prisma.tenantQueryRaw<
       Array<Record<string, unknown>>
     >(
       `
@@ -90,7 +96,7 @@ export class ClientSearchService {
     if (rows.length > 0) return rows.map((r: Record<string, unknown>) => this.toResult(r));
 
     // Nada por subcadena: probar con similitud (tolerancia a tipeo).
-    const fuzzy = await this.prisma.db.$queryRawUnsafe<
+    const fuzzy = await this.prisma.tenantQueryRaw<
       Array<Record<string, unknown>>
     >(
       `
@@ -171,7 +177,7 @@ export class ClientSearchService {
     if (data.phone) {
       const digits = data.phone.replace(/\D/g, '').slice(-8);
       if (digits.length >= 8) {
-        const byPhone = await this.prisma.db.$queryRawUnsafe<
+        const byPhone = await this.prisma.tenantQueryRaw<
           Array<Record<string, unknown>>
         >(
           `
@@ -199,7 +205,7 @@ export class ClientSearchService {
     // Nombre completo muy parecido: señal débil, se informa pero no bloquea.
     const nameTerm = this.normalize(`${data.firstName} ${data.lastName}`);
     if (nameTerm.length >= 4) {
-      const byName = await this.prisma.db.$queryRawUnsafe<
+      const byName = await this.prisma.tenantQueryRaw<
         Array<Record<string, unknown>>
       >(
         `
@@ -235,7 +241,7 @@ export class ClientSearchService {
     column: '"documentNumber"' | 'email',
     value: string,
   ): Promise<SearchResult[]> {
-    const rows = await this.prisma.db.$queryRawUnsafe<
+    const rows = await this.prisma.tenantQueryRaw<
       Array<Record<string, unknown>>
     >(
       `

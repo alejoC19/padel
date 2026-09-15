@@ -241,6 +241,7 @@
   gap: var(--sp-md, 12px);
 }
 .drawer-title { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 700; text-transform: uppercase; }
+.drawer-head-actions { display: flex; align-items: center; gap: var(--sp-sm, 8px); flex: none; }
 .drawer-name { font-size: var(--fs-h2, 22px); font-weight: 800; letter-spacing: -0.01em; }
 .drawer-meta { display: flex; gap: var(--sp-md, 12px); flex-wrap: wrap; color: var(--ds-muted, #6b7c8a); font-size: var(--fs-small, 13px); margin-top: 4px; }
 .drawer-body { flex: 1; overflow-y: auto; padding: var(--sp-lg, 16px); display: flex; flex-direction: column; gap: var(--sp-lg, 16px); }
@@ -268,13 +269,48 @@
   border-radius: var(--r-md, 10px);
 }
 
-/* Cuenta corriente / saldos en el drawer */
-.account-label { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 600; }
-.account-value { font-size: var(--fs-h3, 18px); font-weight: 800; font-variant-numeric: tabular-nums; }
+/* Cuenta corriente / saldos en el drawer.
+   `.account-box`/`.is-owed` no tenían NINGÚN estilo de contenedor: "¿debe
+   plata?" —lo primero que este drawer dice que hay que mirar, por su
+   propio comentario en ClientProfile.tsx— se renderizaba como tres spans
+   sueltos sin caja ni jerarquía, la antítesis de "Deuda: $25.000 en una
+   fila de tabla" que se pidió evitar. Ahora es un bloque con el color
+   como señal (rojo si debe, verde si tiene saldo a favor) y el monto
+   como cifra grande — mismo peso que el hero de Caja, pero acá vive dentro
+   del drawer en vez de ser el fondo de toda la pantalla. */
+.account-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-lg, 16px);
+  border-radius: var(--r-lg, 10px);
+  background: var(--ds-success-soft);
+  margin-bottom: var(--sp-lg, 16px);
+}
+.account-box.is-owed { background: var(--ds-danger-soft); }
+.account-label { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.account-box .account-label { color: inherit; opacity: 0.75; }
+.account-value { font-family: var(--font-display); font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.account-box .account-value { color: var(--ds-success); }
+.account-box.is-owed .account-value { color: var(--ds-danger); }
 .account-hint { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); }
+.account-box .account-hint { color: inherit; opacity: 0.75; }
 
-/* Mini estadísticas del cliente */
-.stat-box-label { font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 600; }
+/* Mini estadísticas del cliente (Turnos/Gastado/Canceló en la ficha).
+   `.stat-box-value` no tenía NINGÚN estilo — la cifra se renderizaba como
+   texto plano en línea con su label ("TURNOS0" en una sola línea, sin
+   separación ni jerarquía) en vez de la etiqueta chica arriba y el número
+   grande abajo que usa el resto de la app (mismo patrón que .total-value). */
+.stat-box-label { display: block; font-size: var(--fs-caption, 12px); color: var(--ds-muted, #6b7c8a); font-weight: 600; }
+.stat-box-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.stat-box-value.is-warn { color: var(--ds-warning, #c77d20); }
 
 /* =========================================================================
    TESORERÍA — gastos
