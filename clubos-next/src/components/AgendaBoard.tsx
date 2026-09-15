@@ -1,19 +1,26 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { AgendaDay, AgendaBooking } from '@/lib/api';
-import { formatMinute, formatMoney } from '@/lib/grid';
+import { currentMinuteOfDay, formatMinute, formatMoney } from '@/lib/grid';
 
 interface Props {
   day: AgendaDay;
+  courtId: string;
   onSlotClick: (courtId: string, startMinute: number) => void;
   onBookingClick: (bookingId: string) => void;
 }
 
 /**
- * Agenda estilo "app de reserva" (Playtomic-like): se elige UNA cancha y se ven
- * sus turnos del día como tarjetas apiladas, con color por estado. Es la vista
- * pensada para vender: clara, se entiende en 2 segundos, y funciona en mobile.
+ * Agenda estilo "app de reserva" (Playtomic-like): UNA cancha por vez, sus
+ * turnos del día como tarjetas apiladas con color por estado. Clara, se
+ * entiende en 2 segundos, y funciona en mobile.
+ *
+ * Qué cancha se ve es responsabilidad de `CourtOverviewStrip`, que vive
+ * arriba en AgendaScreen (antes este componente tenía su propio selector
+ * con menú desplegable; se sacó porque la tira ya cumple esa función y
+ * ADEMÁS muestra el estado de cada cancha, algo que un simple dropdown de
+ * nombres no podía).
  *
  * Usa los mismos datos del backend (day.courts, day.bookings). No cambia la
  * lógica de reservas: al tocar un slot libre llama onSlotClick (crear), y al
@@ -39,11 +46,8 @@ function stateOf(b: AgendaBooking): { label: string; tone: 'ok' | 'warn' | 'dang
   return { label: 'Reservada', tone: 'ok' };
 }
 
-export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
+export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props) {
   const courts = day.courts;
-  const [courtId, setCourtId] = useState(courts[0]?.id ?? '');
-  const [pickerOpen, setPickerOpen] = useState(false);
-
   const court = courts.find((c) => c.id === courtId) ?? courts[0];
 
   // Construye la línea de tiempo de la cancha: reservas + huecos libres.
@@ -85,9 +89,11 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
 
   if (!court) return null;
 
+  const now = currentMinuteOfDay();
+
   return (
     <div className="board">
-      {/* Selector de cancha con foto */}
+      {/* Foto de la cancha elegida (el selector real es CourtOverviewStrip, arriba) */}
       <div className="board-hero">
         <div
           className="board-hero-img"
@@ -96,37 +102,11 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
             backgroundImage: `url(/illustrations/court-${court.environment === 'OUTDOOR' ? 'outdoor' : 'indoor'}.jpg)`,
           }}
         />
-        <button
-          className="board-court-picker"
-          onClick={() => setPickerOpen((v) => !v)}
-          aria-expanded={pickerOpen}
-          aria-haspopup="listbox"
-        >
+        <div className="board-court-label">
           <span className="board-court-dot" style={{ background: court.color }} />
           <span className="board-court-name">{court.name}</span>
           <span className="board-court-env">{ENV_LABEL[court.environment] ?? ''}</span>
-          <svg className={`board-chevron${pickerOpen ? ' open' : ''}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-
-        {pickerOpen && (
-          <div className="board-court-list" role="listbox">
-            {courts.map((c) => (
-              <button
-                key={c.id}
-                role="option"
-                aria-selected={c.id === court.id}
-                className={`board-court-opt${c.id === court.id ? ' is-active' : ''}`}
-                onClick={() => { setCourtId(c.id); setPickerOpen(false); }}
-              >
-                <span className="board-court-dot" style={{ background: c.color }} />
-                <span className="board-court-name">{c.name}</span>
-                <span className="board-court-env">{ENV_LABEL[c.environment] ?? ''}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Lista de turnos del día */}
@@ -136,11 +116,13 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
         )}
 
         {slots.map((slot) => {
+          const isNow = now >= slot.start && now < slot.end;
+
           if (slot.kind === 'free') {
             return (
               <button
                 key={`free-${slot.start}`}
-                className="slot-card is-free"
+                className={`slot-card is-free${isNow ? ' is-now' : ''}`}
                 onClick={() => onSlotClick(court.id, slot.start)}
               >
                 <div className="slot-time">
@@ -150,6 +132,7 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
                 <div className="slot-body">
                   <span className="slot-state ok">
                     <span className="slot-dot ok" /> Disponible
+                    {isNow && <span className="slot-now-tag">Ahora</span>}
                   </span>
                   <span className="slot-sub">
                     {Math.round((slot.end - slot.start))} min · hasta {court.capacity} jugadores
@@ -165,7 +148,7 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
           return (
             <button
               key={b.id}
-              className={`slot-card is-${st.tone}`}
+              className={`slot-card is-${st.tone}${isNow ? ' is-now' : ''}`}
               onClick={() => onBookingClick(b.id)}
             >
               <div className="slot-time">
@@ -175,6 +158,7 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
               <div className="slot-body">
                 <span className={`slot-state ${st.tone}`}>
                   <span className={`slot-dot ${st.tone}`} /> {st.label}
+                  {isNow && <span className="slot-now-tag">Ahora</span>}
                 </span>
                 <span className="slot-name">{b.title || 'Sin titular'}</span>
                 <span className="slot-sub">
@@ -183,7 +167,12 @@ export function AgendaBoard({ day, onSlotClick, onBookingClick }: Props) {
                   {b.paymentStatus === 'PAID' && ` · ${formatMoney(b.totalPrice)}`}
                 </span>
               </div>
-              {b.hasNotes && <span className="slot-note" title="Tiene notas">✎</span>}
+              {b.hasNotes && (
+                <svg className="slot-note" width="15" height="15" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" strokeWidth="2" aria-label="Tiene notas">
+                  <path d="M4 4h16v12H8l-4 4V4z" />
+                </svg>
+              )}
             </button>
           );
         })}

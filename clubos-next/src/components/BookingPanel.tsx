@@ -36,20 +36,23 @@ interface Props {
   onCheckOut: (id: string) => void;
   onCancel: (id: string) => void;
   onNoShow: (id: string) => void;
+  onMove: (id: string) => void;
 }
 
 export function BookingPanel({
   booking, court, pending, can,
-  onClose, onCollect, onCheckIn, onCheckOut, onCancel, onNoShow,
+  onClose, onCollect, onCheckIn, onCheckOut, onCancel, onNoShow, onMove,
 }: Props) {
   const open = booking !== null;
 
   return (
-    <aside
-      className={`panel${open ? ' is-open' : ''}`}
-      aria-label="Detalle de la reserva"
-      aria-hidden={!open}
-    >
+    <>
+      {open && <div className="drawer-backdrop" onClick={onClose} />}
+      <aside
+        className={`panel${open ? ' is-open' : ''}`}
+        aria-label="Detalle de la reserva"
+        aria-hidden={!open}
+      >
       {booking && (
         <>
           <header className="panel-head">
@@ -131,11 +134,13 @@ export function BookingPanel({
               onCheckOut={onCheckOut}
               onCancel={onCancel}
               onNoShow={onNoShow}
+              onMove={onMove}
             />
           </footer>
         </>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -156,7 +161,7 @@ function Field({ label, value, strong }: { label: string; value: string; strong?
  * operador a ignorar los mensajes de error.
  */
 function PanelActions({
-  booking, pending, can, onCollect, onCheckIn, onCheckOut, onCancel, onNoShow,
+  booking, pending, can, onCollect, onCheckIn, onCheckOut, onCancel, onNoShow, onMove,
 }: {
   booking: AgendaBooking;
   pending: boolean;
@@ -166,6 +171,7 @@ function PanelActions({
   onCheckOut: (id: string) => void;
   onCancel: (id: string) => void;
   onNoShow: (id: string) => void;
+  onMove: (id: string) => void;
 }) {
   const isBlock = BLOCKING_TYPES.includes(booking.type);
   const isTerminal = TERMINAL.includes(booking.status);
@@ -225,6 +231,14 @@ function PanelActions({
       <button key="noshow" className="btn btn-secondary" disabled={pending}
               onClick={() => onNoShow(booking.id)}>
         No vino
+      </button>,
+    );
+  }
+  if (can('booking.reschedule')) {
+    row.push(
+      <button key="move" className="btn btn-secondary" disabled={pending}
+              onClick={() => onMove(booking.id)}>
+        Mover turno
       </button>,
     );
   }
