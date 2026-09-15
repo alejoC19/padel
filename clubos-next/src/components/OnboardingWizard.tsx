@@ -142,7 +142,12 @@ export function OnboardingWizard() {
       <div className="auth-wrap">
         <div className="auth-card">
           <div className="success">
-            <div className="success-mark">✓</div>
+            <div className="success-mark">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
             <h1 className="auth-h1">¡Tu club está listo!</h1>
             <p className="auth-sub">
               Entrando a ClubOS…
@@ -215,7 +220,14 @@ export function OnboardingWizard() {
                 <p className="hint">Verificando disponibilidad…</p>
               )}
               {slugState.status === 'ok' && (
-                <p className="hint ok">✓ Disponible</p>
+                <p className="hint ok">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                       style={{ marginRight: 4, verticalAlign: -1 }}>
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Disponible
+                </p>
               )}
               {slugState.status === 'taken' && (
                 <p className="hint bad">{slugState.reason}</p>

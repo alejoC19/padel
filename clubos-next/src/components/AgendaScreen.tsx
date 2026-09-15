@@ -247,8 +247,8 @@ export function AgendaScreen() {
         <LegendItem color="var(--state-progress)" label="En curso" />
         <LegendItem color="var(--state-maintenance)" label="Bloqueada" />
         <div className="legend-spacer" />
-        <span className="legend-item"><kbd className="kbd">B</kbd> Buscar cliente</span>
-        <span className="legend-item">
+        <span className="legend-item legend-kbd-hint"><kbd className="kbd">B</kbd> Buscar cliente</span>
+        <span className="legend-item legend-kbd-hint">
           <kbd className="kbd">←</kbd><kbd className="kbd">→</kbd> Cambiar día
         </span>
       </footer>

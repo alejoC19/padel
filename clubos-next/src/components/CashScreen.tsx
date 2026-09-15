@@ -227,7 +227,7 @@ export function CashScreen() {
                       {/* Se marca lo que NO se cuenta en el arqueo, porque es
                           la causa número uno de un faltante inexistente. */}
                       {!m.affectsCashCount && (
-                        <span className="tag-muted">no cuenta en el arqueo</span>
+                        <>{' '}<span className="tag-muted">no cuenta en el arqueo</span></>
                       )}
                     </td>
                     <td className="num">{m.inflow > 0 ? formatMoney(m.inflow) : '—'}</td>

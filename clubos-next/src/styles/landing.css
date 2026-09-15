@@ -120,7 +120,11 @@
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .lp-feature:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
-.lp-feature-icon { font-size: 30px; margin-bottom: 12px; }
+.lp-feature-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: grid; place-items: center; margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.06); color: var(--turf, #de6435);
+}
 .lp-feature-name { font-size: 19px; font-weight: 800; margin: 0 0 8px; }
 .lp-feature-desc { color: var(--lp-muted); font-size: 15px; line-height: 1.5; margin: 0; }
 

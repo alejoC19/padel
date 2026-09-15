@@ -42,11 +42,13 @@
   font-weight: 800;
   letter-spacing: -0.01em;
   text-transform: capitalize;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
 }
+/* `margin-left` en vez de depender de un padre `flex; gap` — así funciona
+   igual dentro de un <h1> (AgendaScreen) que dentro de un <p> (ReportsScreen),
+   donde antes el badge quedaba pegado sin espacio al texto de la fecha
+   ("...septiembreHOY"). */
 .date-relative {
+  margin-left: 8px;
   font-family: var(--font-body);
   font-size: var(--fs-caption, 12px);
   color: var(--ds-primary);

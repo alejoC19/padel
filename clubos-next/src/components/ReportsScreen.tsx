@@ -265,7 +265,7 @@ export function ReportsScreen() {
                         <td>
                           {s.register}
                           {s.status === 'OPEN' && (
-                            <span className="tag-muted">sin cerrar</span>
+                            <>{' '}<span className="tag-muted">sin cerrar</span></>
                           )}
                         </td>
                         <td className="cell-muted">{s.operator ?? '—'}</td>

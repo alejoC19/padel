@@ -977,7 +977,9 @@ h1, h2, h3,
    HIGH/MEDIUM (ver api.ts) — el componente los pasa en minúscula. */
 .alert-row.is-high { background: var(--ds-danger-soft); color: var(--ds-danger); }
 .alert-row.is-medium { background: var(--ds-warning-soft); color: var(--ds-warning); }
-.alert-action { font-weight: 700; color: var(--ds-primary); }
+/* margin-left: `.alert-msg`/`.alert-action` son spans hermanos dentro de un
+   div sin flex — sin este margen quedan pegados ("Recepción.Cerrá las..."). */
+.alert-action { margin-left: 6px; font-weight: 700; color: var(--ds-primary); }
 .alert-dot {
   width: 8px; height: 8px; border-radius: 50%; flex: none;
   margin-top: 6px;
@@ -1034,7 +1036,11 @@ h1, h2, h3,
   box-shadow: var(--sh-modal);
 }
 .panel.is-open { display: flex; }
-.panel-card { background: var(--ds-surface); }
+/* min-width: 0 — sin esto, como hijo de un grid (`.cash-grid`, etc.) no
+   encoge por debajo del ancho intrínseco de su tabla, y en vez de que la
+   tabla scrollee internamente (`.data-table` ya tiene `overflow-x: auto`
+   en mobile) es la PÁGINA la que se desborda horizontalmente. */
+.panel-card { background: var(--ds-surface); min-width: 0; }
 .panel-head { padding: var(--sp-lg); border-bottom: 1px solid var(--ds-border); }
 .panel-title { font-weight: 800; font-size: var(--fs-h3); }
 .panel-code { font-size: var(--fs-caption); color: var(--ds-muted); font-variant-numeric: tabular-nums; }
@@ -1059,6 +1065,12 @@ h1, h2, h3,
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: var(--fs-caption); color: var(--ds-muted); }
 .legend-swatch { width: 11px; height: 11px; border-radius: 3px; }
 .legend-spacer { flex: 1; }
+/* Los atajos de teclado ("B", "←→") no significan nada en touch — sin
+   teclado físico no hay forma de usarlos, así que en mobile solo ocupan
+   lugar y confunden. */
+@media (max-width: 860px) {
+  .legend-kbd-hint { display: none; }
+}
 
 /* =========================================================================
    DRAWER / MODAL / OVERLAY
