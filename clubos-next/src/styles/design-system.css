@@ -61,14 +61,13 @@
   --ds-info-soft: rgba(110, 182, 224, 0.16);
 
   /* --- Tipografía ---
-     Display: Inter Tight (peso condensado, para títulos y números grandes
-     — es lo que le da carácter a un saldo de caja). Body: Inter, para que
-     una tabla densa siga siendo legible en un turno de 8 horas. Las
-     variables las define next/font en layout.tsx; el fallback es el mismo
-     stack de sistema de antes, para que nada se rompa si el font no cargó. */
-  --font-display: var(--font-display, "Inter Tight"), system-ui, sans-serif;
-  --font-body: var(--font-body, "Inter"), system-ui, sans-serif;
-  --ds-font: var(--font-body, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+     Se probó Inter/Inter Tight vía next/font en la Fase 1 y se volvió atrás
+     a pedido explícito: la tipografía de sistema queda como estaba antes.
+     Las variables se mantienen (title/body ya las usan en todo el CSS) para
+     no tener que tocar cada selector — solo cambia a qué stack apuntan. */
+  --font-display: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ds-font: var(--font-body);
   --fs-display: 38px;
   --fs-h1: 25px;
   --fs-h2: 19px;
@@ -573,10 +572,35 @@ h1, h2, h3,
   gap: var(--sp-lg);
 }
 .cash-hero-label { font-size: var(--fs-caption); font-weight: 700; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.04em; }
-.cash-hero-value { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; }
+.cash-hero-value { font-family: var(--font-display); font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; }
 .cash-hero-main { display: flex; flex-direction: column; justify-content: center; }
-.cash-hero-side { display: flex; flex-direction: column; gap: var(--sp-sm); justify-content: center; }
+.cash-hero-side { display: flex; flex-direction: column; justify-content: center; }
 .cash-hero-hint { font-size: var(--fs-small); opacity: 0.8; }
+
+/* Cobrado/Salidas/Movimientos: NO son 3 KPIs con su propia caja adentro del
+   hero (una card oscura flotando sobre el degradé, la card-dentro-de-card
+   que hace que un dashboard se vea genérico) — son datos secundarios del
+   mismo bloque, separados por una línea fina como en el resumen del día de
+   la Agenda. El color del hero ya hace de fondo; no hace falta otro. */
+.cash-hero-stat {
+  padding: var(--sp-sm) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.cash-hero-stat:first-child { border-top: none; padding-top: 0; }
+.cash-hero-stat-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+.cash-hero-stat-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 2px;
+}
 
 /* Arqueo */
 .arqueo-summary { display: flex; flex-direction: column; gap: var(--sp-sm); }
@@ -676,6 +700,31 @@ h1, h2, h3,
 .quick-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-sm); }
 .method-picker, .type-picker { display: flex; gap: var(--sp-sm); flex-wrap: wrap; }
 
+/* `.type-option` (elegir Ingreso/Gasto/Retiro/Depósito al registrar un
+   movimiento de caja) no tenía ningún estilo propio — se veía con el botón
+   por defecto del navegador, sin poder distinguir a simple vista cuál es
+   plata que entra y cuál que sale. La flecha lleva el color de dirección
+   siempre (entra/sale), independiente de cuál esté seleccionada. */
+.type-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.type-option:hover { border-color: var(--ds-border-strong); }
+.type-option.is-active { border-color: var(--ds-primary); background: var(--ds-primary-soft); }
+.type-arrow { font-weight: 800; }
+.type-arrow.is-in { color: var(--ds-success); }
+.type-arrow.is-out { color: var(--ds-danger); }
+
 /* =========================================================================
    TORNEOS (lista + bracket)
    ========================================================================= */
@@ -727,11 +776,31 @@ h1, h2, h3,
   margin-bottom: var(--sp-xl);
 }
 
-/* Alertas de tesorería */
-.alert-stack { display: flex; flex-direction: column; gap: var(--sp-sm); }
+/* Alertas de tesorería.
+   `.alert-row`/`.is-{severity}` no tenían caja ni color: el aviso de
+   "el saldo proyectado queda en negativo" —el motivo por el que la
+   proyección de fondos existe— se veía como texto suelto, sin más peso
+   visual que un párrafo cualquiera de la pantalla. */
+.alert-stack { display: flex; flex-direction: column; gap: var(--sp-sm); margin-bottom: var(--sp-xl); }
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-md);
+  font-size: var(--fs-small);
+}
+/* Los valores reales de `CashFlowProjection.alerts[].severity` son
+   HIGH/MEDIUM (ver api.ts) — el componente los pasa en minúscula. */
+.alert-row.is-high { background: var(--ds-danger-soft); color: var(--ds-danger); }
+.alert-row.is-medium { background: var(--ds-warning-soft); color: var(--ds-warning); }
 .alert-action { font-weight: 700; color: var(--ds-primary); }
-.alert-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.alert-msg { flex: 1; }
+.alert-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex: none;
+  margin-top: 6px;
+  background: currentColor;
+}
+.alert-msg { flex: 1; color: var(--ds-text); }
 
 /* =========================================================================
    AGENDA — grilla, bloques, panel

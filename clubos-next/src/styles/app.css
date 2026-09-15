@@ -179,7 +179,18 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--pad-red);
-  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.22);
+  box-shadow: 0 0 0 3px rgba(222, 100, 53, 0.22);
+}
+
+/* Sin flechitas nativas: son el detalle "sin diseñar" más visible en un
+   input de monto — cada navegador las dibuja distinto y no siguen la
+   paleta. El teclado numérico (inputMode="numeric") ya cubre el caso de
+   uso real en mobile. */
+input[type='number'] { -moz-appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Utilidades */
