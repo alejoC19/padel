@@ -763,7 +763,25 @@ h1, h2, h3,
 .bk-note-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ds-info); }
 .bk-here { box-shadow: inset 0 0 0 2px var(--ds-success); }
 
-/* Panel lateral de reserva */
+/* Panel lateral de reserva: drawer fijo a la derecha, como el de Clientes.
+   Sin position:fixed quedaba en el flujo normal del documento, después de
+   toda la lista de turnos del día — abrir un turno lo mandaba a ~2000px de
+   scroll y no se veía sin bajar toda la agenda. */
+.panel {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 92vw);
+  z-index: 41;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--ds-surface);
+  border-left: 1px solid var(--ds-border);
+  box-shadow: var(--sh-modal);
+}
+.panel.is-open { display: flex; }
 .panel-card { background: var(--ds-surface); }
 .panel-head { padding: var(--sp-lg); border-bottom: 1px solid var(--ds-border); }
 .panel-title { font-weight: 800; font-size: var(--fs-h3); }
@@ -881,6 +899,9 @@ h1, h2, h3,
 /* =========================================================================
    VARIOS / UTILIDADES QUE FALTABAN
    ========================================================================= */
+.confirm-dialog { max-width: 380px; }
+.confirm-message { color: var(--ds-text-2); font-size: var(--fs-body); line-height: 1.5; margin: 0 0 var(--sp-lg); }
+
 .section-title { font-size: var(--fs-h3); font-weight: 800; margin-bottom: var(--sp-md); }
 .card-title { font-weight: 800; font-size: var(--fs-h3); margin-bottom: var(--sp-md); }
 .required { color: var(--ds-danger); }

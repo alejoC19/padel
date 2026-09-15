@@ -4,6 +4,38 @@
    Pensada para verse vendible y funcionar en desktop y mobile.
    ========================================================================= */
 
+/* --- Tira de estado de canchas: "¿qué está libre AHORA?" --- */
+.court-strip {
+  display: flex;
+  gap: var(--sp-sm);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: var(--sp-lg);
+}
+.court-chip-lg {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--ds-border);
+  border-radius: var(--r-lg);
+  background: var(--ds-surface);
+  cursor: pointer;
+  text-align: left;
+  min-width: 168px;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.court-chip-lg:hover { border-color: var(--ds-border-strong); }
+.court-chip-lg.is-selected { border-color: var(--ds-primary); background: var(--ds-primary-soft); }
+.court-chip-lg-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-top: 2px; }
+.court-chip-lg-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.court-chip-lg-name { font-weight: 800; font-size: var(--fs-small); white-space: nowrap; }
+.court-chip-lg-status { font-size: var(--fs-caption); font-weight: 600; color: var(--ds-muted); white-space: nowrap; }
+.court-chip-lg.is-busy .court-chip-lg-status { color: var(--ds-warning); }
+.court-chip-lg.is-block .court-chip-lg-status { color: var(--ds-danger); }
+.court-chip-lg.is-free .court-chip-lg-status { color: var(--ds-success); }
+
 .board {
   max-width: 720px;
   margin: 0 auto;
@@ -28,7 +60,9 @@
   background-position: center;
   background-blend-mode: overlay;
 }
-.board-court-picker {
+/* Etiqueta estática (ya no es un botón: el cambio de cancha lo hace la
+   tira de arriba, no un desplegable acá abajo). */
+.board-court-label {
   position: absolute;
   left: 50%;
   bottom: -20px;
@@ -37,127 +71,97 @@
   align-items: center;
   gap: 10px;
   padding: 12px 20px;
-  background: #060809;
-  color: #fff;
-  border: none;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  cursor: pointer;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-elevated);
   font-size: 16px;
   white-space: nowrap;
 }
 .board-court-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
 .board-court-name { font-weight: 800; }
 .board-court-env { font-size: 13px; opacity: 0.7; }
-.board-chevron { transition: transform 0.15s; margin-left: 2px; }
-.board-chevron.open { transform: rotate(180deg); }
-
-/* Lista desplegable de canchas */
-.board-court-list {
-  position: absolute;
-  left: 50%;
-  bottom: -20px;
-  transform: translateX(-50%) translateY(100%);
-  margin-top: 8px;
-  background: var(--app-surface, #1c212c);
-  border: 1px solid var(--app-border, rgba(255,255,255,0.09));
-  border-radius: 14px;
-  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
-  padding: 6px;
-  z-index: 10;
-  min-width: 240px;
-}
-.board-court-opt {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 11px 14px;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 15px;
-  color: var(--app-text, #eef1f5);
-}
-.board-court-opt:hover { background: var(--app-bg, #12151d); }
-.board-court-opt.is-active { background: rgba(222, 100, 53, 0.16); }
 
 /* --- Lista de turnos --- */
-.board-slots { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
+.board-slots { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; }
 
 .slot-card {
   display: flex;
   align-items: center;
   gap: 16px;
   width: 100%;
-  padding: 16px 18px;
-  border: 1.5px solid var(--app-border, rgba(255,255,255,0.09));
-  border-radius: 14px;
-  background: var(--app-surface, #1c212c);
+  padding: 14px 18px;
+  border: 1.5px solid var(--ds-border);
+  border-radius: var(--r-lg);
+  background: var(--ds-surface);
   cursor: pointer;
   text-align: left;
-  transition: transform 0.1s, box-shadow 0.12s, border-color 0.12s;
+  transition: border-color var(--t-fast);
 }
-.slot-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
+.slot-card:hover { border-color: var(--ds-border-strong); }
+/* El turno/horario que está pasando AHORA se distingue por borde, no por
+   moverse ni agrandarse — en una lista que se escanea rápido, un salto de
+   tamaño en el ítem activo hace perder el lugar en vez de ayudar. */
+.slot-card.is-now { border-color: var(--ds-primary); border-width: 2px; padding: 13px 17px; }
 
 /* Franja horaria izquierda */
 .slot-time {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
-  font-weight: 800;
-  font-size: 18px;
-  color: var(--app-text, #eef1f5);
-  min-width: 62px;
-  border-right: 1px solid var(--app-border, rgba(255,255,255,0.09));
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ds-text);
+  min-width: 58px;
+  border-right: 1px solid var(--ds-border);
   padding-right: 14px;
   line-height: 1.25;
 }
-.slot-time span:last-child { color: #98a2b3; font-weight: 700; font-size: 15px; }
+.slot-time span:last-child { color: var(--ds-muted); font-weight: 600; font-size: 14px; }
 
 .slot-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.slot-state { display: inline-flex; align-items: center; gap: 7px; font-weight: 800; font-size: 15px; }
-.slot-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.slot-name { font-weight: 700; color: var(--app-text, #eef1f5); }
-.slot-sub { font-size: 13px; color: #98a2b3; }
-.slot-book { font-weight: 800; color: #4ecb92; font-size: 15px; flex: none; }
-.slot-note { color: #5da8e8; font-size: 16px; flex: none; }
+.slot-state { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; }
+.slot-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.slot-name { font-weight: 700; color: var(--ds-text); }
+.slot-sub { font-size: var(--fs-caption); color: var(--ds-muted); }
+.slot-book { font-weight: 700; color: var(--ds-success); font-size: 14px; flex: none; }
+.slot-note { color: var(--ds-info); flex: none; }
+.slot-now-tag {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #fff; background: var(--ds-primary); border-radius: var(--r-sm); padding: 1px 6px;
+}
 
-/* Tonos por estado (fondo suave + acento) */
-.slot-state.ok     { color: #4ecb92; }
-.slot-state.warn   { color: #e3ab52; }
-.slot-state.danger { color: #ef6b5f; }
-.slot-state.muted  { color: #98a2b3; }
-.slot-dot.ok     { background: #4ecb92; }
-.slot-dot.warn   { background: #e3ab52; }
-.slot-dot.danger { background: #ef6b5f; }
-.slot-dot.muted  { background: #98a2b3; }
+/* Tonos por estado — solo el texto/punto lleva color fuerte; el fondo de
+   la tarjeta es casi neutro para que la lista no parpadee en semáforo. */
+.slot-state.ok     { color: var(--ds-success); }
+.slot-state.warn   { color: var(--ds-warning); }
+.slot-state.danger { color: var(--ds-danger); }
+.slot-state.muted  { color: var(--ds-muted); }
+.slot-dot.ok     { background: var(--ds-success); }
+.slot-dot.warn   { background: var(--ds-warning); }
+.slot-dot.danger { background: var(--ds-danger); }
+.slot-dot.muted  { background: var(--ds-muted); }
 
-.slot-card.is-free   { background: rgba(46, 157, 110, 0.12); border-color: rgba(46, 157, 110, 0.3); }
-.slot-card.is-ok     { background: rgba(46, 157, 110, 0.12); border-color: rgba(46, 157, 110, 0.3); }
-.slot-card.is-warn   { background: rgba(199, 125, 32, 0.14); border-color: rgba(199, 125, 32, 0.32); }
-.slot-card.is-danger { background: rgba(192, 57, 43, 0.14); border-color: rgba(192, 57, 43, 0.32); }
-.slot-card.is-muted  { background: var(--app-surface, #1c212c); border-color: var(--app-border, rgba(255,255,255,0.09)); opacity: 0.6; }
+.slot-card.is-free   { background: var(--ds-surface); }
+.slot-card.is-ok     { background: var(--ds-success-soft); border-color: transparent; }
+.slot-card.is-warn   { background: var(--ds-warning-soft); border-color: transparent; }
+.slot-card.is-danger { background: var(--ds-danger-soft); border-color: transparent; }
+.slot-card.is-muted  { background: var(--ds-surface); opacity: 0.55; }
 
 .board-empty {
   padding: 40px 20px;
   text-align: center;
-  color: #98a2b3;
-  border: 1px dashed var(--app-border, rgba(255,255,255,0.09));
-  border-radius: 14px;
+  color: var(--ds-muted);
+  border: 1px dashed var(--ds-border);
+  border-radius: var(--r-lg);
 }
 
 /* --- Mobile --- */
 @media (max-width: 640px) {
   .board-hero-img { height: 120px; }
-  .slot-card { padding: 14px; gap: 12px; }
-  .slot-time { min-width: 54px; font-size: 16px; padding-right: 10px; }
-  .slot-book { font-size: 14px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .slot-card:hover { transform: none; }
-  .board-chevron { transition: none; }
+  .slot-card { padding: 12px 14px; gap: 12px; }
+  .slot-time { min-width: 50px; font-size: 15px; padding-right: 10px; }
+  .slot-book { font-size: 13px; }
 }

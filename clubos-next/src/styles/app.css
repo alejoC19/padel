@@ -114,9 +114,8 @@
   margin: 0 auto;
 }
 
-/* Tarjetas / paneles */
-.card,
-.panel {
+/* Tarjetas */
+.card {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius);

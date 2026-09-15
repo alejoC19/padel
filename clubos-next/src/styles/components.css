@@ -37,21 +37,52 @@
 }
 .date-nav button:hover { background: var(--ds-surface-2, #f8fafb); }
 .current-date {
-  font-size: var(--fs-h3, 18px);
+  font-family: var(--font-display);
+  font-size: var(--fs-h1, 25px);
   font-weight: 800;
   letter-spacing: -0.01em;
   text-transform: capitalize;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 .date-relative {
+  font-family: var(--font-body);
   font-size: var(--fs-caption, 12px);
-  color: var(--ds-muted, #6b7c8a);
-  font-weight: 600;
+  color: var(--ds-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
+
+/* "Así viene el día": una fila de números, no cuatro cards. La línea
+   vertical entre ellos alcanza para separarlos — un borde+fondo por número
+   sería la misma card repetida cuatro veces. */
 .day-stats {
   display: flex;
-  gap: var(--sp-lg, 16px);
+  align-items: stretch;
   flex-wrap: wrap;
-  align-items: center;
+}
+.day-vital {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--sp-lg, 16px);
+  border-left: 1px solid var(--ds-border);
+}
+.day-vital:first-child { border-left: none; padding-left: 0; }
+.day-vital-value {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.day-vital-value.is-warn { color: var(--ds-warning); }
+.day-vital-label {
+  font-size: var(--fs-caption, 12px);
+  color: var(--ds-muted);
+  font-weight: 600;
+  margin-top: 1px;
 }
 
 /* Grilla de la agenda: wrappers de scroll */
