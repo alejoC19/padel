@@ -134,7 +134,7 @@
 .mini-spinner {
   width: 15px; height: 15px;
   border: 2px solid var(--app-border, rgba(255,255,255,0.09));
-  border-top-color: var(--pad-red, #0ea5a0);
+  border-top-color: var(--pad-red, #de6435);
   border-radius: 50%;
   animation: ms-spin 0.7s linear infinite;
   flex: none;
@@ -174,7 +174,7 @@
 .nb-dialog-head h3 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
 .nb-dialog-sub {
   margin: 4px 0 0;
-  color: var(--pad-red, #0ea5a0);
+  color: var(--pad-red, #de6435);
   font-weight: 700;
   font-size: 14px;
 }
@@ -214,9 +214,9 @@
 }
 .nb-seg-btn:hover { border-color: rgba(255,255,255,0.18); }
 .nb-seg-btn.on {
-  border-color: var(--pad-red, #0ea5a0);
-  background: rgba(14, 165, 160, 0.16);
-  color: var(--pad-red, #0ea5a0);
+  border-color: var(--pad-red, #de6435);
+  background: rgba(222, 100, 53, 0.16);
+  color: var(--pad-red, #de6435);
 }
 
 /* Cliente elegido */
@@ -232,7 +232,7 @@
 }
 .nb-link-btn {
   border: none; background: none; cursor: pointer;
-  color: var(--pad-red, #0ea5a0);
+  color: var(--pad-red, #de6435);
   font-weight: 700; font-size: 13px;
 }
 .nb-link-btn:hover { text-decoration: underline; }

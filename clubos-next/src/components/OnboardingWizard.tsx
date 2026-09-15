@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError, setSession } from '@/lib/api';
+import { BrandMark } from '@/components/BrandMark';
 
 /**
  * Wizard de alta de club (self-service).
@@ -157,7 +158,7 @@ export function OnboardingWizard() {
     <div className="auth-wrap">
       <div className="auth-card wide">
         <div className="auth-brand">
-          <span className="auth-brand-mark" />
+          <BrandMark size={30} />
           <span className="auth-brand-name">ClubOS</span>
         </div>
 

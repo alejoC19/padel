@@ -81,7 +81,7 @@
   color: var(--app-text, #eef1f5);
 }
 .board-court-opt:hover { background: var(--app-bg, #12151d); }
-.board-court-opt.is-active { background: rgba(14, 165, 160, 0.16); }
+.board-court-opt.is-active { background: rgba(222, 100, 53, 0.16); }
 
 /* --- Lista de turnos --- */
 .board-slots { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }

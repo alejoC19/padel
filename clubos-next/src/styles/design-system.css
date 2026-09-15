@@ -10,44 +10,69 @@
    No toca ninguna lógica: solo aporta apariencia.
    ========================================================================= */
 
+/* =========================================================================
+   IDENTIDAD — de dónde salen estos valores
+   -------------------------------------------------------------------------
+   El primer intento de paleta de ClubOS (ver el comentario histórico en
+   auth.css) salía del arte de la landing: rojo-terracota de la pelota como
+   acento primario, celeste de cancha, crema de cuaderno de anotaciones.
+   En algún momento se pidió "más color, más moderno" y se reemplazó todo
+   por teal + fondo azulado — que es exactamente la paleta de cualquier
+   dashboard SaaS genérico. Esta vuelta NO es nostalgia: es que el terracota
+   es lo único de las dos versiones que no se puede confundir con un
+   template de IA, porque no sale de una librería de UI — sale de la
+   pelota. El lima de la pelota queda como detalle rarísimo (nunca como
+   color de fondo ni de botón), y el celeste como tono informativo/
+   financiero — así Tesorería puede diferenciarse de Caja sin inventar una
+   paleta nueva.
+   ========================================================================= */
 :root {
-  /* --- Color: superficies --- */
-  --ds-bg: var(--app-bg, #12151d);
-  --ds-surface: var(--app-surface, #1c212c);
-  --ds-surface-2: #262c3a;
-  --ds-border: var(--app-border, rgba(255, 255, 255, 0.09));
-  --ds-border-strong: rgba(255, 255, 255, 0.18);
+  /* --- Color: superficies (charcoal cálido, no azulado tipo fintech) --- */
+  --ds-bg: #131110;
+  --ds-surface: #1c1a17;
+  --ds-surface-2: #262320;
+  --ds-border: rgba(255, 248, 240, 0.08);
+  --ds-border-strong: rgba(255, 248, 240, 0.16);
 
-  /* --- Color: texto --- */
-  --ds-text: var(--app-text, #eef1f5);
-  --ds-text-2: #c3cad4;
-  --ds-muted: var(--app-muted, #98a2b3);
-  --ds-faint: #707a8c;
+  /* --- Color: texto (blanco cálido, no gris azulado) --- */
+  --ds-text: #f5f2ec;
+  --ds-text-2: #cec8bf;
+  --ds-muted: #9a938a;
+  --ds-faint: #6c6660;
 
   /* --- Color: marca y semánticos ---
-     Los "-soft" eran fondos pastel pensados para tarjetas blancas; sobre
-     superficie oscura, un pastel claro se ve como un parche desprolijo.
-     Pasan a ser tinte translúcido del color (chip "glow" sobre oscuro,
-     patrón estándar de dashboards dark), y los textos semánticos se
-     aclaran un poco para seguir siendo legibles sobre --ds-surface. */
-  --ds-primary: var(--pad-red, #0ea5a0);
-  --ds-primary-hover: var(--pad-red-dark, #0b8480);
-  --ds-primary-soft: rgba(14, 165, 160, 0.16);
-  --ds-success: #4ecb92;
-  --ds-success-soft: rgba(46, 157, 110, 0.18);
-  --ds-warning: #e3ab52;
-  --ds-warning-soft: rgba(199, 125, 32, 0.18);
-  --ds-danger: #ef6b5f;
-  --ds-danger-soft: rgba(192, 57, 43, 0.2);
-  --ds-info: #5da8e8;
-  --ds-info-soft: rgba(43, 108, 176, 0.2);
+     Primario = terracota de la pelota (acción, navegación activa, foco).
+     Danger es un rojo distinto en matiz (más frío/carmesí) a propósito:
+     un botón "eliminar" no puede leerse igual que un botón primario.
+     Los "-soft" son tinte translúcido del color sobre superficie oscura,
+     no un pastel — un pastel claro sobre --ds-surface se ve como parche. */
+  --ds-primary: #de6435;
+  --ds-primary-hover: #c1502a;
+  --ds-primary-soft: rgba(222, 100, 53, 0.16);
+  --ds-accent: #d7e639;
+  --ds-accent-soft: rgba(215, 230, 57, 0.16);
+  --ds-success: #4fbe84;
+  --ds-success-soft: rgba(79, 190, 132, 0.16);
+  --ds-warning: #e3a83f;
+  --ds-warning-soft: rgba(227, 168, 63, 0.16);
+  --ds-danger: #e5484d;
+  --ds-danger-soft: rgba(229, 72, 77, 0.16);
+  --ds-info: #6eb6e0;
+  --ds-info-soft: rgba(110, 182, 224, 0.16);
 
-  /* --- Tipografía --- */
-  --ds-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --fs-display: 40px;
-  --fs-h1: 28px;
-  --fs-h2: 22px;
-  --fs-h3: 18px;
+  /* --- Tipografía ---
+     Display: Inter Tight (peso condensado, para títulos y números grandes
+     — es lo que le da carácter a un saldo de caja). Body: Inter, para que
+     una tabla densa siga siendo legible en un turno de 8 horas. Las
+     variables las define next/font en layout.tsx; el fallback es el mismo
+     stack de sistema de antes, para que nada se rompa si el font no cargó. */
+  --font-display: var(--font-display, "Inter Tight"), system-ui, sans-serif;
+  --font-body: var(--font-body, "Inter"), system-ui, sans-serif;
+  --ds-font: var(--font-body, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  --fs-display: 38px;
+  --fs-h1: 25px;
+  --fs-h2: 19px;
+  --fs-h3: 15px;
   --fs-body: 14px;
   --fs-small: 13px;
   --fs-caption: 12px;
@@ -61,18 +86,23 @@
   --sp-xl: 24px;
   --sp-2xl: 40px;
 
-  /* --- Radius --- */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
+  /* --- Radius — deliberadamente MENOS redondeado que un template genérico.
+     Una herramienta operativa se ve más seria con esquinas cortas; el
+     "pill" queda reservado para lo que de verdad es una pastilla (track de
+     progreso, contador), no para cada badge de la interfaz. --- */
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 9px;
+  --r-xl: 12px;
   --r-pill: 999px;
 
-  /* --- Sombras --- */
-  --sh-subtle: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --sh-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
-  --sh-elevated: 0 10px 28px rgba(0, 0, 0, 0.45);
-  --sh-modal: 0 24px 60px rgba(0, 0, 0, 0.55);
+  /* --- Sombras — casi planas. El borde hace el trabajo de separar
+     superficies; una sombra grande y difusa es lo que hace que un panel se
+     vea "flotando" tipo glassmorphism. --- */
+  --sh-subtle: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --sh-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --sh-elevated: 0 12px 24px -8px rgba(0, 0, 0, 0.5);
+  --sh-modal: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
 
   /* --- Transiciones --- */
   --t-fast: 0.12s ease;
@@ -85,9 +115,20 @@
 * { box-sizing: border-box; }
 
 body {
-  font-family: var(--ds-font);
+  font-family: var(--font-body);
   color: var(--ds-text);
   background: var(--ds-bg);
+}
+
+/* Títulos y números importantes en la fuente de display (condensada, con
+   carácter) — todo lo demás (tablas, formularios, texto de cuerpo) se queda
+   con --font-body por legibilidad a densidad alta. */
+h1, h2, h3,
+.screen-title, .screen-head h1,
+.card-title, .section-title, .panel-title,
+.stat-value, .metric-value, .cash-hero-value, .cart-total-value,
+.change-value, .display-num, .brand {
+  font-family: var(--font-display);
 }
 
 /* Foco visible y consistente para accesibilidad */
@@ -97,14 +138,27 @@ body {
 }
 
 /* =========================================================================
-   APP SHELL — barra superior, navegación, menú de usuario
+   APP SHELL — sidebar + topbar + barra inferior mobile
+   -------------------------------------------------------------------------
+   Antes era una topbar con 11 links en fila (Agenda/Caja/Canchas/Buffet/
+   Productos/Clientes/Torneos/Tesorería/Reportes/Equipo/Club, todos con el
+   mismo peso visual) — sin jerarquía entre "esto lo usás todo el día" y
+   "esto lo tocás una vez por semana", y en mobile el mismo listado plano
+   metido en un drawer. Ahora la sidebar agrupa por frecuencia de uso real
+   (Operación → Negocio → Administración) y mobile tiene su propia barra de
+   4 destinos, no una sidebar de escritorio comprimida.
    ========================================================================= */
 .shell,
 .app-shell {
   min-height: 100dvh;
   display: flex;
-  flex-direction: column;
   background: var(--ds-bg);
+}
+.shell-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .shell-body {
   flex: 1;
@@ -114,20 +168,19 @@ body {
   padding: var(--sp-xl);
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-lg);
-  padding: 0 var(--sp-xl);
-  height: 60px;
+/* --- Sidebar (desktop) --- */
+.shell-sidebar {
+  flex: none;
+  width: 216px;
   background: var(--ds-surface);
-  border-bottom: 1px solid var(--ds-border);
+  border-right: 1px solid var(--ds-border);
+  display: flex;
+  flex-direction: column;
   position: sticky;
   top: 0;
-  z-index: 20;
+  height: 100dvh;
+  overflow-y: auto;
 }
-.topbar-spacer { flex: 1; }
-
 .brand {
   display: flex;
   align-items: center;
@@ -137,37 +190,44 @@ body {
   letter-spacing: -0.02em;
   color: var(--ds-text);
   text-decoration: none;
-}
-.brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: var(--ds-primary);
-  flex: none;
-  display: grid;
-  place-items: center;
+  padding: var(--sp-lg) var(--sp-lg) var(--sp-md);
 }
 .brand-club {
+  display: block;
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ds-muted);
-  padding-left: var(--sp-sm);
-  border-left: 1px solid var(--ds-border);
-  margin-left: var(--sp-xs);
+  margin-top: 1px;
 }
-
-.main-nav {
+.sidebar-nav {
+  flex: 1;
+  padding: var(--sp-sm) var(--sp-md) var(--sp-lg);
   display: flex;
-  gap: 2px;
+  flex-direction: column;
+  gap: var(--sp-lg);
+}
+.nav-group-label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ds-faint);
+  padding: 0 10px;
+  margin-bottom: 5px;
+}
+.nav-group-links {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 .nav-link,
 .nav-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 13px;
+  gap: 10px;
+  padding: 9px 10px;
   border-radius: var(--r-md);
-  color: var(--ds-muted);
+  color: var(--ds-text-2);
   font-size: var(--fs-body);
   font-weight: 600;
   text-decoration: none;
@@ -177,15 +237,68 @@ body {
   transition: background var(--t-fast), color var(--t-fast);
   white-space: nowrap;
 }
+.nav-link svg, .nav-btn svg { flex: none; opacity: 0.85; }
 .nav-link:hover,
 .nav-btn:hover {
   background: var(--ds-surface-2);
   color: var(--ds-text);
 }
-.nav-link.active,
-.nav-link[aria-current="page"] {
+.nav-link.is-active {
   background: var(--ds-primary-soft);
   color: var(--ds-primary);
+}
+.nav-link.is-active svg { opacity: 1; }
+
+/* --- Barra inferior (mobile) --- */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 25;
+  background: var(--ds-surface);
+  border-top: 1px solid var(--ds-border);
+  padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left));
+}
+.bottom-nav-row { display: flex; }
+.bottom-nav-link,
+.bottom-nav-more {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: var(--r-md);
+  color: var(--ds-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+}
+.bottom-nav-link.is-active { color: var(--ds-primary); }
+.bottom-nav-link svg, .bottom-nav-more svg { flex: none; }
+
+/* --- Topbar (dentro de shell-main, ya no lleva la navegación) --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-lg);
+  padding: 0 var(--sp-xl);
+  height: 60px;
+  border-bottom: 1px solid var(--ds-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--ds-bg);
+}
+.topbar-spacer { flex: 1; }
+
+/* La marca vive en la sidebar; en mobile (sidebar oculta) se repite acá,
+   sin el padding pensado para el panel vertical. */
+.topbar-brand-mobile { display: none; padding: 0; }
+@media (max-width: 860px) {
+  .topbar-brand-mobile { display: flex; }
 }
 
 /* Menú de usuario */
@@ -404,8 +517,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
+  padding: 2px 8px;
+  /* Etiqueta, no pastilla: un badge-pill en cada celda es uno de los tics
+     más "genérico admin panel" que hay. Radio chico, forma de tag. */
+  border-radius: var(--r-sm);
   font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.6;
@@ -796,10 +911,16 @@ body {
   .pos-screen { grid-template-columns: 1fr; }
   .pos-cart { position: static; max-height: none; }
 }
+@media (max-width: 860px) {
+  .shell-sidebar { display: none; }
+  .bottom-nav { display: block; }
+  /* Deja aire para que la barra inferior fija no tape el último elemento
+     del contenido — el clásico "botón fantasma" de las apps con tabbar. */
+  .shell-body { padding-bottom: calc(var(--sp-xl) + 58px + env(safe-area-inset-bottom, 0px)); }
+}
 @media (max-width: 768px) {
-  .shell-body { padding: var(--sp-lg); }
+  .shell-body { padding: var(--sp-lg); padding-bottom: calc(var(--sp-lg) + 58px + env(safe-area-inset-bottom, 0px)); }
   .topbar { padding: 0 var(--sp-lg); gap: var(--sp-md); }
-  .main-nav { display: none; } /* se reemplaza por drawer en mobile (ver AppShell) */
   .screen-head { flex-direction: column; align-items: stretch; }
   .cash-hero { flex-direction: column; }
   .cash-hero-value { font-size: 32px; }
@@ -807,7 +928,7 @@ body {
   .data-table { display: block; overflow-x: auto; white-space: nowrap; }
 }
 @media (max-width: 480px) {
-  .shell-body { padding: var(--sp-md); }
+  .shell-body { padding: var(--sp-md); padding-bottom: calc(var(--sp-md) + 58px + env(safe-area-inset-bottom, 0px)); }
   .stat-grid { grid-template-columns: 1fr; }
   .drawer { width: 100vw; }
   .change-value { font-size: 36px; }

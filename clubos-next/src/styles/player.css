@@ -69,7 +69,7 @@
   gap: 6px;
   font-size: var(--fs-small, 13px);
   font-weight: 700;
-  color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #de6435);
 }
 
 /* --- Secciones --- */
@@ -133,11 +133,11 @@
 .date-chip .dow { font-size: var(--fs-caption, 12px); font-weight: 700; color: var(--ds-muted, #6b7c8a); text-transform: uppercase; }
 .date-chip .dnum { font-size: 17px; font-weight: 800; }
 .date-chip.is-active {
-  border-color: var(--ds-primary, #c8443e);
+  border-color: var(--ds-primary, #de6435);
   background: var(--ds-primary-soft, #fbeceb);
-  color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #de6435);
 }
-.date-chip.is-active .dow { color: var(--ds-primary, #c8443e); }
+.date-chip.is-active .dow { color: var(--ds-primary, #de6435); }
 
 /* --- Duración: segmentos tipo pill (mismo patrón que booking-dialog.css) --- */
 .duration-seg {
@@ -157,9 +157,9 @@
   cursor: pointer;
 }
 .duration-seg button.is-active {
-  border-color: var(--ds-primary, #c8443e);
+  border-color: var(--ds-primary, #de6435);
   background: var(--ds-primary-soft, #fbeceb);
-  color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #de6435);
 }
 
 /* --- Canchas: chips con punto de color --- */
@@ -188,9 +188,9 @@
   cursor: pointer;
 }
 .court-chip.is-active {
-  border-color: var(--ds-primary, #c8443e);
+  border-color: var(--ds-primary, #de6435);
   background: var(--ds-primary-soft, #fbeceb);
-  color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #de6435);
 }
 .court-dot {
   width: 10px;
@@ -217,8 +217,8 @@
   font-variant-numeric: tabular-nums;
 }
 .slot-btn.is-selected {
-  border-color: var(--ds-primary, #c8443e);
-  background: var(--ds-primary, #c8443e);
+  border-color: var(--ds-primary, #de6435);
+  background: var(--ds-primary, #de6435);
   color: #fff;
 }
 .slot-btn:disabled {
@@ -242,7 +242,7 @@
   padding: var(--sp-md, 12px) var(--sp-lg, 16px);
   border-radius: var(--r-lg, 14px);
   background: var(--ds-primary-soft, #fbeceb);
-  color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #de6435);
   font-weight: 700;
 }
 .booking-summary .muted-line {
@@ -496,7 +496,7 @@
 }
 .player-tab svg { flex: none; }
 .player-tab.is-active {
-  color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #de6435);
 }
 
 /* --- Producto/menú del buffet (solo lectura) --- */
@@ -587,7 +587,7 @@
   margin-bottom: 8px;
 }
 .tournament-card-foot { display: flex; align-items: center; justify-content: space-between; }
-.tournament-fee { font-weight: 800; color: var(--ds-primary, #c8443e); }
+.tournament-fee { font-weight: 800; color: var(--ds-primary, #de6435); }
 
 .tournament-banner-lg {
   height: 150px;
@@ -617,7 +617,7 @@
 .player-link-btn {
   background: none;
   border: none;
-  color: var(--ds-primary, #c8443e);
+  color: var(--ds-primary, #de6435);
   cursor: pointer;
   font-weight: 700;
   font-size: var(--fs-small, 13px);
