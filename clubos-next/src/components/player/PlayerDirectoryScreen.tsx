@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/lib/api';
 import { publicApi, type PublicClubDirectoryEntry } from '@/lib/publicApi';
+import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
 
 type Load =
   | { status: 'loading' }
@@ -71,7 +72,7 @@ export function PlayerDirectoryScreen() {
 
       {load.status === 'error' && (
         <div className="player-state" style={{ minHeight: 'auto', padding: '32px 16px' }}>
-          <div className="state-icon">⚠️</div>
+          <PlayerStateIcon kind="warning" />
           <p>{load.message}</p>
           <button className="btn btn-secondary" onClick={() => void search(term)}>Reintentar</button>
         </div>

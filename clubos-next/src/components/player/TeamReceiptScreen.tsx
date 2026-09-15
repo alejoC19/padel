@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api';
 import { publicApi, type PublicTeamDetail } from '@/lib/publicApi';
 import { getPublicTeam } from '@/lib/publicStorage';
 import { formatLocalDate, formatMinute, formatMoney } from '@/lib/grid';
+import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
 
 type Load =
   | { status: 'loading' }
@@ -112,7 +113,7 @@ export function TeamReceiptScreen({ slug, teamId }: { slug: string; teamId: stri
   if (load.status === 'no-token') {
     return (
       <div className="player-state">
-        <div className="state-icon">🔒</div>
+        <PlayerStateIcon kind="locked" />
         <h2>No encontramos esta inscripción en este dispositivo</h2>
         <p>Usá el link que te dimos al anotar el equipo — es tu comprobante único.</p>
         <a className="btn btn-secondary" href={`/c/${slug}/torneos`}>Ver torneos</a>
@@ -123,7 +124,7 @@ export function TeamReceiptScreen({ slug, teamId }: { slug: string; teamId: stri
   if (load.status === 'not-found') {
     return (
       <div className="player-state">
-        <div className="state-icon">🔎</div>
+        <PlayerStateIcon kind="search" />
         <h2>Inscripción no encontrada</h2>
         <p>El link puede estar incompleto o el equipo no existe.</p>
       </div>
@@ -133,7 +134,7 @@ export function TeamReceiptScreen({ slug, teamId }: { slug: string; teamId: stri
   if (load.status === 'error') {
     return (
       <div className="player-state">
-        <div className="state-icon">⚠️</div>
+        <PlayerStateIcon kind="warning" />
         <h2>Algo salió mal</h2>
         <p>{load.message}</p>
         <button className="btn btn-primary" onClick={() => void load1()}>Reintentar</button>

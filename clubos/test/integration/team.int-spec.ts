@@ -24,6 +24,7 @@ import { runWithTenant, runWithoutTenancy } from '../../src/tenancy/tenant-conte
 import { PERMISSIONS, ROLE_PRESETS, type Permission } from '../../src/common/permissions';
 import { TeamService } from '../../src/team/services/team.service';
 import { EmailChannel } from '../../src/notifications/services/channels/email.channel';
+import { PlanLimitsService } from '../../src/common/services/plan-limits.service';
 
 const HAS_DB = Boolean(process.env.DATABASE_URL_TEST);
 const d = HAS_DB ? describe : describe.skip;
@@ -56,7 +57,7 @@ d('Alta y administración de staff (TeamService)', () => {
     process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
     prisma = new PrismaService();
     await prisma.onModuleInit();
-    team = new TeamService(prisma, noopConfig, new EmailChannel(noopConfig));
+    team = new TeamService(prisma, noopConfig, new EmailChannel(noopConfig), new PlanLimitsService(prisma));
 
     await runWithoutTenancy(randomUUID(), async () => {
       const plan = await prisma.plan.upsert({
@@ -243,4 +244,57 @@ d('Alta y administración de staff (TeamService)', () => {
       ),
     ).rejects.toThrow('No podés quitarte a vos mismo del club');
   });
+
+  it('respeta el maxUsers del plan: no deja invitar por encima del límite', async () => {
+    // Club aparte con un plan que solo permite 1 usuario (el dueño), para no
+    // interferir con el resto de los tests que comparten `clubId` (su plan
+    // permite 10). `Plan.maxUsers` existía en el schema pero nada lo leía
+    // antes de esta corrección — un club podía sumar staff sin tope.
+    let limitedClubId!: string;
+    let limitedOwnerId!: string;
+    const roleId2: Record<string, string> = {};
+
+    await runWithoutTenancy(randomUUID(), async () => {
+      const plan = await prisma.plan.upsert({
+        where: { code: 'test-plan-team-limit1' },
+        update: {},
+        create: {
+          code: 'test-plan-team-limit1', name: 'Test Limit 1',
+          priceMonthly: 0, priceYearly: 0, maxCourts: 10, maxUsers: 1, maxClients: 1000,
+        },
+      });
+      const club = await prisma.club.create({
+        data: { slug: `test-team-limit1-${Date.now()}`, name: 'Club Limit 1', planId: plan.id, status: 'ACTIVE' },
+      });
+      limitedClubId = club.id;
+
+      const owner = await prisma.user.create({
+        data: {
+          email: `team-limit-owner-${randomUUID().slice(0, 8)}@test.com`,
+          passwordHash: null, firstName: 'Due', lastName: 'Ño2',
+        },
+      });
+      limitedOwnerId = owner.id;
+      createdUserIds.push(owner.id);
+    });
+
+    await runWithTenant(ctx(limitedClubId, limitedOwnerId, 'OWNER'), async () => {
+      const role = await prisma.db.role.create({
+        data: { clubId: limitedClubId, code: 'OWNER', name: 'OWNER', permissions: ROLE_PRESETS.OWNER as string[], isSystem: true },
+      });
+      roleId2.OWNER = role.id;
+      await prisma.db.membership.create({
+        data: { clubId: limitedClubId, userId: limitedOwnerId, roleId: role.id, status: 'ACTIVE' },
+      });
+    });
+
+    await expect(
+      runWithTenant(ctx(limitedClubId, limitedOwnerId, 'OWNER'), async () =>
+        team.invite(ctx(limitedClubId, limitedOwnerId, 'OWNER'), {
+          email: `segundo-${randomUUID().slice(0, 8)}@test.com`,
+          firstName: 'Segundo', lastName: 'Usuario', roleId: roleId2.OWNER,
+        }),
+      ),
+    ).rejects.toThrow(/permite hasta 1/);
+  }, 30_000);
 });

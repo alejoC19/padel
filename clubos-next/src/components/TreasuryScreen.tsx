@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  api, type CashFlowProjection, type PendingExpense,
+  api, ApiError, type CashFlowProjection, type PendingExpense,
 } from '@/lib/api';
 import { formatMoney, todayISO } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
@@ -38,11 +38,19 @@ export function TreasuryScreen() {
   const [horizon, setHorizon] = useState(30);
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo`: acá el backend respondió (hay sesión y hay red),
+  // pero con un error real — permisos, un 500, lo que sea. Antes cualquier
+  // excepción, sin distinguir, caía en "esta pantalla necesita el backend",
+  // el mismo cartel que si nunca hubiera habido conexión — un dueño con
+  // sesión activa y un error real de servidor veía un mensaje que sugiere
+  // que el problema es suyo (o de su conexión), no del backend.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
 
   const load = useCallback(async (days: number) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [f, e] = await Promise.all([
         api.treasury.cashFlow(days),
@@ -51,8 +59,13 @@ export function TreasuryScreen() {
       setFlow(f);
       setExpenses(e);
       setDemo(false);
-    } catch {
-      setDemo(true);
+    } catch (e) {
+      // ApiError = el backend respondió con un error real (403, 500, etc.):
+      // hay sesión, hay red, así que "necesita el backend" sería mentira.
+      // Cualquier otra excepción es la request ni siquiera volviendo
+      // (backend/red caídos) — ahí sí corresponde el modo demo.
+      if (e instanceof ApiError) setLoadError(e.message);
+      else setDemo(true);
     } finally {
       setLoading(false);
     }
@@ -79,6 +92,18 @@ export function TreasuryScreen() {
         <p className="muted">
           Flujo de fondos, gastos por vencer y saldos bancarios.
         </p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Tesorería</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load(horizon)}>
+          Reintentar
+        </button>
       </div>
     );
   }

@@ -379,7 +379,10 @@ export class ClientService {
     }
     if (q.birthdayMonth) {
       // Prisma no expresa EXTRACT; se resuelve con raw en el índice creado.
-      const ids = await this.prisma.db.$queryRawUnsafe<Array<{ id: string }>>(
+      // tenantQueryRaw (no prisma.db): las raw queries no pasan por el
+      // interceptor que setea current_club_id() — sin esto, RLS bloquea
+      // todo y la condición "clubId" = current_club_id() nunca matchea.
+      const ids = await this.prisma.tenantQueryRaw<Array<{ id: string }>>(
         `SELECT id FROM clients
          WHERE "clubId" = current_club_id() AND "deletedAt" IS NULL
            AND "birthDate" IS NOT NULL

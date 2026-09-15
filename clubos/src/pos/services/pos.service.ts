@@ -96,9 +96,15 @@ export class PosService {
     return this.prisma.tenantTransaction(async (tx) => {
       const { code } = await this.docNumber.next(tx, clubId, 'SALE');
 
+      // Primera pasada: precio y descuento POR LÍNEA, sin impuesto todavía.
+      // El impuesto no se puede calcular línea por línea en esta pasada
+      // porque falta `dto.globalDiscount` (un descuento del TICKET completo,
+      // no de un producto puntual) — si se extrajera el impuesto acá, sobre
+      // el total SIN el descuento global, quedaría calculado sobre plata que
+      // el cliente nunca pagó (impuesto de más).
       let subtotal = 0;
-      let taxAmount = 0;
-      const lines = dto.items.map((item: {
+      let lineDiscountSum = 0;
+      const draftLines = dto.items.map((item: {
         productId: string; quantity: number;
         unitPrice?: number; discountAmount?: number;
       }) => {
@@ -108,37 +114,65 @@ export class PosService {
         // se toma el de lista.
         const unitPrice = item.unitPrice ?? this.num(p.salePrice);
         const gross = this.round(unitPrice * item.quantity);
-        const discount = this.round(item.discountAmount ?? 0);
-        const total = this.round(gross - discount);
-        const rate = this.num(p.taxRate);
-        // El precio de lista es final (IVA incluido), así que el impuesto se
-        // extrae del total, no se suma encima.
-        const tax = this.round(total - total / (1 + rate / 100));
+        const lineDiscount = this.round(item.discountAmount ?? 0);
+        const lineTotal = this.round(gross - lineDiscount);
 
         subtotal += gross;
-        taxAmount += tax;
+        lineDiscountSum += lineDiscount;
 
         return {
           productId: p.id,
           description: p.name,
           quantity: item.quantity,
           unitPrice,
-          discountAmount: discount,
-          taxRate: rate,
-          total,
+          lineDiscount,
+          lineTotal,
+          taxRate: this.num(p.taxRate),
           trackStock: p.trackStock,
           kind: p.kind,
         };
       });
 
-      const discountAmount = this.round(
-        lines.reduce((acc: number, l: { discountAmount: number }) => acc + l.discountAmount, 0) + (dto.globalDiscount ?? 0),
-      );
+      const globalDiscount = this.round(dto.globalDiscount ?? 0);
+      const discountAmount = this.round(lineDiscountSum + globalDiscount);
       const total = this.round(subtotal - discountAmount);
 
       if (total < 0) {
         throw new BadRequestException('El descuento supera el total de la venta.');
       }
+
+      // Segunda pasada: se reparte el descuento global entre las líneas a
+      // prorrata de lo que cada una vale (después de SU propio descuento),
+      // y recién ahí se extrae el impuesto — sobre lo que el cliente
+      // realmente termina pagando por esa línea, no sobre el precio de lista.
+      const sumLineTotals = this.round(subtotal - lineDiscountSum);
+      let taxAmount = 0;
+      const lines = draftLines.map((l) => {
+        const globalShare =
+          globalDiscount > 0 && sumLineTotals > 0
+            ? this.round((l.lineTotal / sumLineTotals) * globalDiscount)
+            : 0;
+        const netTotal = this.round(l.lineTotal - globalShare);
+        // El precio de lista es final (IVA incluido), así que el impuesto se
+        // extrae del total, no se suma encima.
+        const tax = this.round(netTotal - netTotal / (1 + l.taxRate / 100));
+        taxAmount += tax;
+
+        return {
+          productId: l.productId,
+          description: l.description,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          // Se guarda el descuento de LÍNEA tal cual lo pidieron (no incluye
+          // la parte del descuento global): es el dato que un reclamo del
+          // cliente necesita para verificar el ticket.
+          discountAmount: l.lineDiscount,
+          taxRate: l.taxRate,
+          total: l.lineTotal,
+          trackStock: l.trackStock,
+          kind: l.kind,
+        };
+      });
 
       const sale = await tx.sale.create({
         data: {
@@ -296,7 +330,10 @@ export class PosService {
           },
           payments: {
             where: { status: { in: ['COMPLETED', 'PARTIALLY_REFUNDED'] } },
-            select: { id: true, amount: true, refundedAmount: true },
+            select: {
+              id: true, amount: true, refundedAmount: true,
+              gatewayProvider: true, method: { select: { kind: true } },
+            },
           },
         },
       });
@@ -325,6 +362,12 @@ export class PosService {
       for (const p of sale.payments) {
         const available = this.num(p.amount) - this.num(p.refundedAmount);
         if (available <= 0) continue;
+        // Pago de Mercado Pago: ClubOS no llama a la API real de MP para
+        // devolver la plata (ver PaymentService.refund) — no se marca
+        // reembolsado acá, queda pendiente de que el club lo procese a mano.
+        const isMercadoPago =
+          p.gatewayProvider === 'MERCADO_PAGO' || p.method.kind === 'MERCADO_PAGO';
+        if (isMercadoPago) continue;
         await this.payments.refund(tx, {
           clubId,
           paymentId: p.id,

@@ -254,6 +254,23 @@ export class PaymentService {
   /**
    * Reembolso. No borra ni edita el pago original: registra un movimiento
    * inverso. El libro de caja es append-only por diseño.
+   *
+   * ---------------------------------------------------------------------------
+   * PAGOS DE MERCADO PAGO: ACÁ NO SALE PLATA DE VERDAD
+   * ---------------------------------------------------------------------------
+   * `MercadoPagoClient.refund()` (POST /v1/payments/{id}/refunds) existe pero
+   * nada lo llama en todo el sistema — no hay ningún camino de código que
+   * efectivamente le pida a Mercado Pago que devuelva la plata. Marcar el
+   * `Payment` como REFUNDED sin eso sería mentirle a la contabilidad: el
+   * dinero sigue en la cuenta de MP del club, pero el sistema diría que ya
+   * se devolvió.
+   *
+   * Por eso, para un pago de MP, este método bloquea el reembolso salvo que
+   * `confirmedByGateway: true` — reservado para el ÚNICO caso legítimo hoy:
+   * el webhook de MP avisando que MP YA reembolsó del otro lado (ver
+   * `PaymentOrderService.handleWebhook`), donde la fuente de verdad es MP
+   * mismo, no una acción del staff en ClubOS.
+   * ---------------------------------------------------------------------------
    */
   async refund(
     tx: Prisma.TransactionClient,
@@ -265,6 +282,12 @@ export class PaymentService {
       cashSessionId?: string | null;
       createdById?: string | null;
       membershipId?: string | null;
+      /**
+       * true SOLO cuando el reembolso ya está confirmado por el gateway (el
+       * webhook de MP avisó `refunded`/`charged_back`). Nunca pasar true
+       * desde una acción iniciada por un usuario del panel.
+       */
+      confirmedByGateway?: boolean;
     },
   ): Promise<{ refundedAmount: number }> {
     const payment = await tx.payment.findFirst({
@@ -276,13 +299,24 @@ export class PaymentService {
         clientId: true,
         bookingId: true,
         status: true,
-        method: { select: { id: true, affectsCashCount: true } },
+        gatewayProvider: true,
+        method: { select: { id: true, affectsCashCount: true, kind: true } },
       },
     });
 
     if (!payment) throw new NotFoundException('Pago no encontrado');
     if (payment.status === 'REFUNDED') {
       throw new ConflictException('El pago ya fue reembolsado en su totalidad');
+    }
+
+    const isMercadoPago =
+      payment.gatewayProvider === 'MERCADO_PAGO' || payment.method.kind === 'MERCADO_PAGO';
+    if (isMercadoPago && !input.confirmedByGateway) {
+      throw new BadRequestException(
+        'ClubOS todavía no reembolsa online por Mercado Pago: hacé el reembolso ' +
+          'desde el panel de Mercado Pago del club. Cuando confirme la devolución ' +
+          'vía webhook, el pago se va a marcar reembolsado automáticamente acá.',
+      );
     }
 
     const already = this.num(payment.refundedAmount);

@@ -433,6 +433,12 @@ export class PublicService {
         >[1],
         club.id,
         owner.userId,
+        null,
+        // El jugador cancela sin que nadie del club esté presente: la
+        // devolución (efectivo de caja o Mercado Pago) queda pendiente de
+        // que el club la procese, no se ejecuta sola. Ver el comentario de
+        // `BookingService.cancel`.
+        { autoRefund: false },
       );
 
       return { ok: true };

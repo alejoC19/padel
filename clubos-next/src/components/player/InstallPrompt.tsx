@@ -96,7 +96,13 @@ export function InstallPrompt() {
 
   return (
     <div className="install-banner">
-      <div className="install-banner-icon">🎾</div>
+      <div className="install-banner-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="1.5" />
+          <path d="M12 4v16M3 12h18" />
+        </svg>
+      </div>
       <div className="install-banner-text">
         <strong>Instalá ClubOS</strong>
         <span>
@@ -114,7 +120,12 @@ export function InstallPrompt() {
           Entendido
         </button>
       )}
-      <button type="button" className="install-banner-close" aria-label="Cerrar" onClick={dismiss}>✕</button>
+      <button type="button" className="install-banner-close" aria-label="Cerrar" onClick={dismiss}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   );
 }

@@ -4,9 +4,26 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { readSession, useSession, type Session } from '@/hooks';
+import { BrandMark } from '@/components/BrandMark';
 
 /**
  * Marco de las pantallas internas.
+ *
+ * ---------------------------------------------------------------------------
+ * POR QUÉ SIDEBAR AGRUPADA, NO UNA FILA DE 11 LINKS
+ * ---------------------------------------------------------------------------
+ * La topbar horizontal anterior le daba el mismo peso visual a Agenda (lo
+ * que recepción mira 8 horas) que a "Club" (lo que se toca una vez al dar de
+ * alta el club). Agrupar por frecuencia real de uso —Operación, Negocio,
+ * Administración— es lo que hace que la navegación transmita jerarquía en
+ * vez de ser una lista de features.
+ *
+ * ---------------------------------------------------------------------------
+ * MOBILE NO ES EL SIDEBAR COMPRIMIDO
+ * ---------------------------------------------------------------------------
+ * En un celular, recepción usa Agenda, Caja y Clientes — el resto es
+ * ocasional. Por eso mobile tiene su propia barra de 4 destinos (los 3 de
+ * uso diario + "Más"), no la sidebar de escritorio metida en un drawer.
  *
  * ---------------------------------------------------------------------------
  * LA NAVEGACIÓN SE FILTRA POR PERMISO
@@ -27,138 +44,137 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const NAV: NavItem[] = [
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const ICONS = {
+  agenda: (
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18M8 2v4M16 2v4" />
+    </>
+  ),
+  caja: (
+    <>
+      <rect x="2" y="6" width="20" height="13" rx="2" />
+      <path d="M2 11h20M6 15h4" />
+    </>
+  ),
+  canchas: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M12 4v16M3 12h18" />
+    </>
+  ),
+  buffet: (
+    <>
+      <path d="M6 2h12l-1 8H7L6 2z" />
+      <path d="M7 10v11a1 1 0 001 1h8a1 1 0 001-1V10" />
+    </>
+  ),
+  productos: (
+    <>
+      <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+      <path d="M3 8v8l9 5 9-5V8M12 13v8" />
+    </>
+  ),
+  clientes: (
+    <>
+      <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 00-3-3.87" />
+    </>
+  ),
+  torneos: (
+    <>
+      <path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18" />
+      <path d="M6 4h12v5a6 6 0 01-12 0V4zM12 15v4M8 22h8" />
+    </>
+  ),
+  tesoreria: (
+    <>
+      <rect x="2" y="7" width="20" height="14" rx="2" />
+      <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2M12 12v4M10 14h4" />
+    </>
+  ),
+  reportes: (
+    <>
+      <path d="M3 3v18h18" />
+      <path d="M7 15l4-5 4 3 5-7" />
+    </>
+  ),
+  equipo: (
+    <>
+      <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+    </>
+  ),
+  club: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a15 15 0 000 18M12 3a15 15 0 010 18M3 12h18" />
+    </>
+  ),
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </>
+  ),
+};
+
+const GROUPS: NavGroup[] = [
   {
-    href: '/agenda',
-    label: 'Agenda',
-    permission: 'booking.view',
-    icon: (
-      <>
-        <rect x="3" y="4" width="18" height="17" rx="2" />
-        <path d="M3 9h18M8 2v4M16 2v4" />
-      </>
-    ),
+    label: 'Operación',
+    items: [
+      { href: '/agenda', label: 'Agenda', permission: 'booking.view', icon: ICONS.agenda },
+      { href: '/caja', label: 'Caja', permission: 'cash.view', icon: ICONS.caja },
+      { href: '/canchas', label: 'Canchas', permission: 'court.view', icon: ICONS.canchas },
+    ],
   },
   {
-    href: '/caja',
-    label: 'Caja',
-    permission: 'cash.view',
-    icon: (
-      <>
-        <rect x="2" y="6" width="20" height="13" rx="2" />
-        <path d="M2 11h20M6 15h4" />
-      </>
-    ),
+    label: 'Negocio',
+    items: [
+      { href: '/clientes', label: 'Clientes', permission: 'client.view', icon: ICONS.clientes },
+      { href: '/buffet', label: 'Buffet', permission: 'sale.create', icon: ICONS.buffet },
+      { href: '/productos', label: 'Productos', permission: 'product.manage', icon: ICONS.productos },
+      { href: '/torneos', label: 'Torneos', permission: 'tournament.view', icon: ICONS.torneos },
+    ],
   },
   {
-    href: '/canchas',
-    label: 'Canchas',
-    permission: 'court.view',
-    icon: (
-      <>
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <path d="M12 4v16M3 12h18" />
-      </>
-    ),
-  },
-  {
-    href: '/buffet',
-    label: 'Buffet',
-    permission: 'sale.create',
-    icon: (
-      <>
-        <path d="M6 2h12l-1 8H7L6 2z" />
-        <path d="M7 10v11a1 1 0 001 1h8a1 1 0 001-1V10" />
-      </>
-    ),
-  },
-  {
-    href: '/productos',
-    label: 'Productos',
-    permission: 'product.manage',
-    icon: (
-      <>
-        <path d="M21 8l-9-5-9 5 9 5 9-5z" />
-        <path d="M3 8v8l9 5 9-5V8M12 13v8" />
-      </>
-    ),
-  },
-  {
-    href: '/clientes',
-    label: 'Clientes',
-    permission: 'client.view',
-    icon: (
-      <>
-        <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 00-3-3.87" />
-      </>
-    ),
-  },
-  {
-    href: '/torneos',
-    label: 'Torneos',
-    permission: 'tournament.view',
-    icon: (
-      <>
-        <path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18" />
-        <path d="M6 4h12v5a6 6 0 01-12 0V4zM12 15v4M8 22h8" />
-      </>
-    ),
-  },
-  {
-    href: '/tesoreria',
-    label: 'Tesorería',
-    permission: 'treasury.view',
-    icon: (
-      <>
-        <rect x="2" y="7" width="20" height="14" rx="2" />
-        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2M12 12v4M10 14h4" />
-      </>
-    ),
-  },
-  {
-    href: '/reportes',
-    label: 'Reportes',
-    permission: 'report.financial',
-    icon: (
-      <>
-        <path d="M3 3v18h18" />
-        <path d="M7 15l4-5 4 3 5-7" />
-      </>
-    ),
-  },
-  {
-    href: '/equipo',
-    label: 'Equipo',
-    permission: 'user.view',
-    icon: (
-      <>
-        <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-      </>
-    ),
-  },
-  {
-    href: '/club',
-    label: 'Club',
-    permission: 'club.settings',
-    icon: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 3a15 15 0 000 18M12 3a15 15 0 010 18M3 12h18" />
-      </>
-    ),
+    label: 'Administración',
+    items: [
+      { href: '/tesoreria', label: 'Tesorería', permission: 'treasury.view', icon: ICONS.tesoreria },
+      { href: '/reportes', label: 'Reportes', permission: 'report.financial', icon: ICONS.reportes },
+      { href: '/equipo', label: 'Equipo', permission: 'user.view', icon: ICONS.equipo },
+      { href: '/club', label: 'Club', permission: 'club.settings', icon: ICONS.club },
+    ],
   },
 ];
+
+/** Los 3 destinos que recepción realmente toca desde el celular. El resto
+ *  vive en la hoja de "Más" (ver MoreSheet más abajo). */
+const MOBILE_PRIMARY = ['/agenda', '/caja', '/clientes'];
+
+function NavIcon({ children, size = 15 }: { children: React.ReactNode; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { session, can, logout } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   // La sesión se lee después de montar; hasta entonces no se sabe si hay
   // backend, y mostrar la navegación filtrada con datos incompletos haría
   // parpadear los links.
@@ -166,118 +182,148 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { setReady(true); }, []);
 
-  // Cerrar el drawer mobile al cambiar de ruta.
-  useEffect(() => { setNavOpen(false); }, [pathname]);
+  // Cerrar la hoja mobile al cambiar de ruta.
+  useEffect(() => { setMoreOpen(false); }, [pathname]);
 
-  // Cerrar drawer/menú con la tecla Escape.
+  // Cerrar hoja/menú con la tecla Escape.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { setNavOpen(false); setMenuOpen(false); }
+      if (e.key === 'Escape') { setMoreOpen(false); setMenuOpen(false); }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   const demo = ready && session === null;
-  const visible = NAV.filter((n) => !n.permission || can(n.permission));
+  const visibleGroups = GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((n) => !n.permission || demo || can(n.permission)) }))
+    .filter((g) => g.items.length > 0);
+  const allVisible = visibleGroups.flatMap((g) => g.items);
+  const primaryItems = MOBILE_PRIMARY
+    .map((href) => allVisible.find((n) => n.href === href))
+    .filter((n): n is NavItem => Boolean(n));
+  const secondaryItems = allVisible.filter((n) => !MOBILE_PRIMARY.includes(n.href));
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <button
-          className="nav-burger"
-          onClick={() => setNavOpen(true)}
-          aria-label="Abrir menú de navegación"
-          aria-expanded={navOpen}
-          aria-controls="mobile-nav"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M3 12h18M3 6h18M3 18h18" />
-          </svg>
-        </button>
-
+      <aside className="shell-sidebar">
         <Link href="/agenda" className="brand">
-          <span className="brand-mark" aria-hidden="true">C</span>
+          <BrandMark size={28} />
           ClubOS
-          <span className="brand-club">{session?.clubName ?? 'Club Demo Pádel'}</span>
+          {session?.clubName && <span className="brand-club">{session.clubName}</span>}
         </Link>
 
-        <nav className="main-nav" aria-label="Secciones">
-          {visible.map((item) => (
+        <nav className="sidebar-nav" aria-label="Secciones">
+          {visibleGroups.map((group) => (
+            <div key={group.label}>
+              <div className="nav-group-label">{group.label}</div>
+              <div className="nav-group-links">
+                {group.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`nav-link${pathname.startsWith(item.href) ? ' is-active' : ''}`}
+                  >
+                    <NavIcon>{item.icon}</NavIcon>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="shell-main">
+        <header className="topbar">
+          <Link href="/agenda" className="brand topbar-brand-mobile">
+            <BrandMark size={26} />
+            ClubOS
+          </Link>
+
+          <div className="topbar-spacer" />
+
+          {demo && (
+            <span className="demo-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" />
+              </svg>
+              Datos de ejemplo
+            </span>
+          )}
+
+          <div className="user-menu">
+            <button
+              className="user-btn"
+              onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            >
+              {session
+                ? session.userName.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+                : '—'}
+            </button>
+            {menuOpen && (
+              <div className="user-pop" role="menu">
+                <div className="user-info">
+                  <div className="user-name">{session?.userName ?? 'Modo demostración'}</div>
+                  <div className="user-club">{session?.clubName ?? 'Sin conexión'}</div>
+                </div>
+                <button
+                  className="user-action"
+                  onClick={() => { void logout().then(() => router.push('/entrar')); }}
+                  role="menuitem"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+                  </svg>
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <main className="shell-body">{children}</main>
+      </div>
+
+      {/* Barra inferior mobile: los 3 destinos de uso diario + "Más". */}
+      <nav className="bottom-nav" aria-label="Secciones">
+        <div className="bottom-nav-row">
+          {primaryItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`nav-link${pathname.startsWith(item.href) ? ' is-active' : ''}`}
+              className={`bottom-nav-link${pathname.startsWith(item.href) ? ' is-active' : ''}`}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                {item.icon}
-              </svg>
+              <NavIcon size={20}>{item.icon}</NavIcon>
               {item.label}
             </Link>
           ))}
-        </nav>
-
-        <div className="topbar-spacer" />
-
-        {demo && (
-          <span className="demo-badge">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" />
-            </svg>
-            Datos de ejemplo
-          </span>
-        )}
-
-        <div className="user-menu">
           <button
-            className="user-btn"
-            onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
+            className="bottom-nav-more"
+            onClick={() => setMoreOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
           >
-            {session
-              ? session.userName.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-              : '—'}
+            <NavIcon size={20}>{ICONS.more}</NavIcon>
+            Más
           </button>
-          {menuOpen && (
-            <div className="user-pop" role="menu">
-              <div className="user-info">
-                <div className="user-name">{session?.userName ?? 'Modo demostración'}</div>
-                <div className="user-club">{session?.clubName ?? 'Sin conexión'}</div>
-              </div>
-              <button
-                className="user-action"
-                onClick={() => { logout(); router.push('/entrar'); }}
-                role="menuitem"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-                </svg>
-                Cerrar sesión
-              </button>
-            </div>
-          )}
         </div>
-      </header>
+      </nav>
 
-      {/* Drawer de navegación para móvil */}
-      {navOpen && (
+      {moreOpen && (
         <>
-          <div className="nav-drawer-backdrop" onClick={() => setNavOpen(false)} />
-          <nav id="mobile-nav" className="nav-drawer" aria-label="Navegación">
-            <div className="nav-drawer-head">
-              <span className="brand">
-                <span className="brand-mark" aria-hidden="true">C</span>
-                ClubOS
-              </span>
+          <div className="more-sheet-backdrop" onClick={() => setMoreOpen(false)} />
+          <div className="more-sheet" role="dialog" aria-modal="true" aria-label="Más secciones">
+            <div className="more-sheet-head">
+              <span className="more-sheet-title">Más</span>
               <button
-                className="nav-drawer-close"
-                onClick={() => setNavOpen(false)}
-                aria-label="Cerrar menú"
+                className="more-sheet-close"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Cerrar"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -285,27 +331,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </svg>
               </button>
             </div>
-            <div className="nav-drawer-links">
-              {visible.map((item) => (
+            <div className="more-sheet-links">
+              {secondaryItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`nav-drawer-link${pathname.startsWith(item.href) ? ' is-active' : ''}`}
-                  onClick={() => setNavOpen(false)}
+                  className={`more-sheet-link${pathname.startsWith(item.href) ? ' is-active' : ''}`}
+                  onClick={() => setMoreOpen(false)}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    {item.icon}
-                  </svg>
+                  <NavIcon size={18}>{item.icon}</NavIcon>
                   {item.label}
                 </Link>
               ))}
             </div>
-          </nav>
+          </div>
         </>
       )}
-
-      <main className="shell-body">{children}</main>
     </div>
   );
 }

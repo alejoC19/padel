@@ -407,6 +407,13 @@ export class TreasuryService {
         throw new ConflictException('El movimiento ya está conciliado.');
       }
 
+      // Se guarda el estado previo del gasto para poder desconciliar
+      // exactamente lo que esta conciliación cambió (ver `unreconcile`): si
+      // el gasto ya estaba PAID por otra vía (caja) antes de este movimiento
+      // bancario, desconciliar no debe des-pagarlo; si quedó PAID como
+      // efecto directo de ESTA conciliación, sí hay que poder revertirlo.
+      let previousExpenseStatus: string | null = null;
+
       if (match.kind === 'PAYMENT') {
         const payment = await tx.payment.findFirst({
           where: { id: match.id },
@@ -426,10 +433,32 @@ export class TreasuryService {
           select: { id: true, status: true },
         });
         if (!expense) throw new NotFoundException('El gasto no existe.');
-        await tx.expense.update({
-          where: { id: match.id },
-          data: { status: 'PAID', paidAt: new Date() },
+
+        // Mismo resguardo que ya existe para Payment (`settledAt`), pero acá
+        // faltaba: sin esto, el mismo gasto podía conciliarse contra DOS
+        // movimientos bancarios distintos — doble imputación de una sola
+        // obligación real contra dos salidas de plata.
+        const alreadyLinked = await tx.bankTransaction.findFirst({
+          where: {
+            reconciledWith: match.id,
+            isReconciled: true,
+            id: { not: transactionId },
+          },
+          select: { id: true },
         });
+        if (alreadyLinked) {
+          throw new ConflictException(
+            'Ese gasto ya fue conciliado con otro movimiento bancario.',
+          );
+        }
+
+        previousExpenseStatus = expense.status;
+        if (expense.status !== 'PAID') {
+          await tx.expense.update({
+            where: { id: match.id },
+            data: { status: 'PAID', paidAt: new Date() },
+          });
+        }
       }
 
       await tx.bankTransaction.update({
@@ -449,6 +478,7 @@ export class TreasuryService {
             reconciledWith: match.id,
             kind: match.kind,
             amount: this.num(bankTx.amount),
+            ...(match.kind === 'EXPENSE' ? { previousExpenseStatus } : {}),
           } as never,
         },
       });
@@ -470,14 +500,60 @@ export class TreasuryService {
         throw new ConflictException('El movimiento no está conciliado.');
       }
 
-      // Se revierte el lado del cobro si era un pago; el gasto queda pagado
-      // porque desconciliar no significa que no se pagó, solo que el
-      // movimiento bancario era otro.
+      // `reconciledWith` guarda el id de un Payment O de un Expense según
+      // `reconcile()` — hay que revertir el que corresponda. Antes esto
+      // asumía siempre Payment: para un Expense, el `updateMany` no
+      // encontraba ninguna fila (los ids de otra tabla no coinciden) y el
+      // gasto quedaba marcado PAID para siempre, aunque la conciliación
+      // hubiera sido un error.
       if (bankTx.reconciledWith) {
-        await tx.payment.updateMany({
+        const payment = await tx.payment.findFirst({
           where: { id: bankTx.reconciledWith },
-          data: { settledAt: null },
+          select: { id: true },
         });
+
+        if (payment) {
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: { settledAt: null },
+          });
+        } else {
+          const expense = await tx.expense.findFirst({
+            where: { id: bankTx.reconciledWith },
+            select: { id: true, status: true },
+          });
+
+          if (expense && expense.status === 'PAID') {
+            // Revertir a PENDING solo si quedó PAID como efecto DIRECTO de
+            // esta conciliación (estaba PENDING antes). Si ya estaba pagado
+            // por otra vía (caja) cuando se conciliró este movimiento, no
+            // corresponde des-pagarlo: seguiría pago, solo cambia con qué
+            // movimiento bancario está vinculado.
+            const lastReconcile = await tx.auditLog.findFirst({
+              where: {
+                entityType: 'BankTransaction',
+                entityId: transactionId,
+                action: 'UPDATE',
+              },
+              orderBy: { createdAt: 'desc' },
+              select: { changes: true },
+            });
+            const changes = lastReconcile?.changes as {
+              kind?: string;
+              previousExpenseStatus?: string | null;
+            } | null;
+
+            if (
+              changes?.kind === 'EXPENSE' &&
+              changes.previousExpenseStatus === 'PENDING'
+            ) {
+              await tx.expense.update({
+                where: { id: expense.id },
+                data: { status: 'PENDING', paidAt: null },
+              });
+            }
+          }
+        }
       }
 
       await tx.bankTransaction.update({

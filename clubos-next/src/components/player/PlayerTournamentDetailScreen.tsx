@@ -8,6 +8,7 @@ import {
 } from '@/lib/publicApi';
 import { savePublicTeam } from '@/lib/publicStorage';
 import { formatLocalDate, formatMinute, formatMoney } from '@/lib/grid';
+import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
 
 type Load =
   | { status: 'loading' }
@@ -120,7 +121,7 @@ export function PlayerTournamentDetailScreen({ slug, id }: { slug: string; id: s
   if (load.status === 'not-found') {
     return (
       <div className="player-state">
-        <div className="state-icon">🔎</div>
+        <PlayerStateIcon kind="search" />
         <h2>Torneo no encontrado</h2>
         <a className="btn btn-secondary" href={`/c/${slug}/torneos`}>Ver otros torneos</a>
       </div>
@@ -130,7 +131,7 @@ export function PlayerTournamentDetailScreen({ slug, id }: { slug: string; id: s
   if (load.status === 'error') {
     return (
       <div className="player-state">
-        <div className="state-icon">⚠️</div>
+        <PlayerStateIcon kind="warning" />
         <h2>Algo salió mal</h2>
         <p>{load.message}</p>
         <button className="btn btn-primary" onClick={() => void fetchDetail()}>Reintentar</button>

@@ -37,6 +37,28 @@ const TERMINAL_STATUSES = [
   'COMPLETED',
 ];
 
+/**
+ * Estados en los que `collect()` NO debe aceptar un cobro nuevo.
+ *
+ * A propósito es un subconjunto de `TERMINAL_STATUSES`, sin `COMPLETED`: es
+ * normal que el cliente pague recién al terminar de jugar, así que cobrar
+ * después del check-out sigue siendo válido.
+ *
+ * Los otros cuatro sí tienen que bloquearse: `totalPrice`/`paidAmount` de la
+ * reserva no cambian al cancelarla o marcarla ausente (lo que cambia es
+ * `cancellationFee`/el cargo a cuenta corriente, calculados aparte), así que
+ * sin este freno `collect()` deja cobrar hasta el precio ORIGINAL completo
+ * de una reserva cancelada — muy por encima de lo que la política de
+ * cancelación dice que corresponde. Para `RESCHEDULED`, la reserva vigente
+ * es la nueva; cobrar sobre la vieja cobra contra un turno que ya no existe.
+ */
+const UNCOLLECTIBLE_STATUSES = [
+  'CANCELLED_BY_CLIENT',
+  'CANCELLED_BY_CLUB',
+  'NO_SHOW',
+  'RESCHEDULED',
+];
+
 @Injectable()
 export class BookingService {
   private readonly log = new Logger(BookingService.name);
@@ -298,6 +320,17 @@ export class BookingService {
 
   /**
    * Cancela una reserva y procesa la devolución según la política del club.
+   *
+   * `autoRefund` (default true) controla si la devolución se EJECUTA acá
+   * mismo (Payment.refundedAmount, movimiento de caja si corresponde, asiento
+   * en cuenta corriente) o solo se CALCULA. El portal público la llama con
+   * `autoRefund: false`: un jugador cancelando desde el celular no puede
+   * disparar una salida de caja real sin que nadie del club esté presente
+   * para entregar la plata, y para un pago online tampoco existe ninguna
+   * llamada al reembolso real de Mercado Pago en el sistema — marcarlo como
+   * "reembolsado" acá sería mentirle a la contabilidad. El monto calculado
+   * queda igual en `refundAmount` de la reserva y en un asiento de auditoría,
+   * para que el club lo vea y lo procese a mano.
    */
   async cancel(
     bookingId: string,
@@ -305,7 +338,9 @@ export class BookingService {
     clubId: string,
     userId: string,
     membershipId?: string | null,
+    options?: { autoRefund?: boolean },
   ): Promise<{ refundAmount: number; cancellationFee: number; tierApplied: string }> {
+    const autoRefund = options?.autoRefund ?? true;
     const club = await this.config.get(clubId);
     const policy = parsePolicy(club.settings);
 
@@ -322,7 +357,10 @@ export class BookingService {
           paidAmount: true,
           payments: {
             where: { status: { in: ['COMPLETED', 'PARTIALLY_REFUNDED'] } },
-            select: { id: true, amount: true, refundedAmount: true },
+            select: {
+              id: true, amount: true, refundedAmount: true,
+              gatewayProvider: true, method: { select: { kind: true } },
+            },
             orderBy: { paidAt: 'asc' },
           },
         },
@@ -347,21 +385,31 @@ export class BookingService {
       // Repartir así mantiene la trazabilidad: cada devolución queda ligada
       // al cobro que la originó, que es lo que pide una auditoría.
       let pending = calc.refundAmount;
-      for (const p of booking.payments) {
-        if (pending <= 0) break;
-        const available = this.num(p.amount) - this.num(p.refundedAmount);
-        if (available <= 0) continue;
-        const take = Math.min(available, pending);
-        await this.payments.refund(tx, {
-          clubId,
-          paymentId: p.id,
-          amount: take,
-          reason: dto.reason ?? 'Cancelación de reserva',
-          cashSessionId: dto.cashSessionId ?? null,
-          membershipId,
-          createdById: userId,
-        });
-        pending = this.round(pending - take);
+      if (autoRefund) {
+        for (const p of booking.payments) {
+          if (pending <= 0) break;
+          const available = this.num(p.amount) - this.num(p.refundedAmount);
+          if (available <= 0) continue;
+          // Pago de Mercado Pago: ClubOS no llama a la API real de MP para
+          // devolver la plata (ver el comentario de PaymentService.refund),
+          // así que este cobro NO se marca reembolsado acá — queda como
+          // saldo pendiente (cae en el aviso de faltante de abajo) para que
+          // el club lo procese a mano desde su panel de MP.
+          const isMercadoPago =
+            p.gatewayProvider === 'MERCADO_PAGO' || p.method.kind === 'MERCADO_PAGO';
+          if (isMercadoPago) continue;
+          const take = Math.min(available, pending);
+          await this.payments.refund(tx, {
+            clubId,
+            paymentId: p.id,
+            amount: take,
+            reason: dto.reason ?? 'Cancelación de reserva',
+            cashSessionId: dto.cashSessionId ?? null,
+            membershipId,
+            createdById: userId,
+          });
+          pending = this.round(pending - take);
+        }
       }
 
       // `refundAmount` se calcula sobre `paidAmount`, así que normalmente
@@ -369,8 +417,14 @@ export class BookingService {
       // Payment reales divergieron (dato corrupto o migración incompleta).
       // Se registra lo efectivamente devuelto, no lo teórico: la reserva
       // no debe afirmar que devolvió plata que nunca salió de la caja.
-      const actuallyRefunded = this.round(calc.refundAmount - pending);
-      if (pending > 0) {
+      const actuallyRefunded = autoRefund ? this.round(calc.refundAmount - pending) : 0;
+      if (!autoRefund && calc.refundAmount > 0) {
+        await this.audit(tx, clubId, userId, 'UPDATE', booking.id, {
+          action: 'REFUND_PENDING_MANUAL',
+          amount: calc.refundAmount,
+          note: 'Cancelación del jugador vía portal público: el reembolso no se ejecutó, queda a cargo del club procesarlo.',
+        });
+      } else if (pending > 0) {
         await this.audit(tx, clubId, userId, 'UPDATE', booking.id, {
           action: 'REFUND_SHORTFALL',
           expected: calc.refundAmount,
@@ -392,7 +446,7 @@ export class BookingService {
           cancelledById: userId,
           cancellationReason: dto.reason,
           cancellationFee: calc.cancellationFee,
-          refundAmount: actuallyRefunded,
+          refundAmount: autoRefund ? actuallyRefunded : calc.refundAmount,
         },
       });
 
@@ -717,6 +771,11 @@ export class BookingService {
       });
 
       if (!booking) throw new NotFoundException('Reserva no encontrada');
+      if (UNCOLLECTIBLE_STATUSES.includes(booking.status)) {
+        throw new ConflictException(
+          `La reserva está en estado ${booking.status} y no admite más cobros.`,
+        );
+      }
 
       const total = this.num(booking.totalPrice);
       const already = this.num(booking.paidAmount);

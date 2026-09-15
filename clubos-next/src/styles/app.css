@@ -6,33 +6,35 @@
    la app sea usable mientras se desarrolla el sistema visual definitivo. */
 
 /* =========================================================================
-   PALETA — oscura, con acento turquesa + lima (ver docs/DESIGN.md si hace
-   falta el detalle). Reemplaza a la paleta clara original a pedido: se
-   quería más color y sensación "profesional/moderna", en la misma línea
-   que apps de referencia oscuras con foto y acento flúo.
+   PALETA — terracota de la pelota como acento primario.
+   -------------------------------------------------------------------------
+   Esto vuelve a la idea ORIGINAL (--pad-red era literalmente rojo, sacado
+   de la pelota en Art.tsx). En el medio se pidió "más color, más moderno" y
+   se lo reemplazó por turquesa sobre fondo azulado — que es la paleta de
+   cualquier dashboard de SaaS genérico. El turquesa no es menos "bonito",
+   pero no es de nadie: el terracota sale de la pelota de pádel, así que
+   Agenda/Caja/Clientes se pueden reconocer como ClubOS sin leer el logo.
 
-   --pad-red se mantiene con ESE NOMBRE por compatibilidad (lo usan decenas
-   de componentes vía var(--pad-red, ...)), pero el valor ahora es el
-   turquesa de marca — no rojo. --accent-lime es el acento secundario
-   (activo de tabbar, highlights puntuales) para las piezas donde se
-   controla texto Y fondo a la vez (no genera el problema de contraste de
-   "texto blanco sobre lima" que tendría si fuera el primario).
+   --pad-red sigue con ESE NOMBRE porque lo usan decenas de componentes vía
+   var(--pad-red, ...) — cambiar el VALOR alcanza para que todos hereden el
+   nuevo color sin tocar cada uno. Ver design-system.css para el resto de
+   los tokens (--ds-*) y la paleta semántica completa.
    ========================================================================= */
 :root {
-  --pad-red: #0ea5a0;
-  --pad-red-dark: #0b8480;
-  --accent-lime: #c6ff4d;
+  --pad-red: #de6435;
+  --pad-red-dark: #c1502a;
+  --accent-lime: #d7e639;
   --pad-sky: #8fd3f4;
   --pad-dark: #2b3a47;
   --pad-slate: #4a6070;
   --pad-cream: #f2efe4;
   --pad-lime: #edf56b;
 
-  --app-bg: #12151d;
-  --app-surface: #1c212c;
-  --app-border: rgba(255, 255, 255, 0.09);
-  --app-text: #eef1f5;
-  --app-muted: #98a2b3;
+  --app-bg: #131110;
+  --app-surface: #1c1a17;
+  --app-border: rgba(255, 248, 240, 0.08);
+  --app-text: #f5f2ec;
+  --app-muted: #9a938a;
   --app-radius: 12px;
   --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
@@ -112,9 +114,8 @@
   margin: 0 auto;
 }
 
-/* Tarjetas / paneles */
-.card,
-.panel {
+/* Tarjetas */
+.card {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius);
@@ -178,7 +179,18 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--pad-red);
-  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.22);
+  box-shadow: 0 0 0 3px rgba(222, 100, 53, 0.22);
+}
+
+/* Sin flechitas nativas: son el detalle "sin diseñar" más visible en un
+   input de monto — cada navegador las dibuja distinto y no siguen la
+   paleta. El teclado numérico (inputMode="numeric") ya cubre el caso de
+   uso real en mobile. */
+input[type='number'] { -moz-appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Utilidades */

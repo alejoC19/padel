@@ -5,8 +5,9 @@
  * Reconstruye las clases que usa LoginScreen (auth-card, field, input, btn…)
  * con la paleta de marca de ClubOS, y agrega las del wizard de alta.
  *
- * Paleta (de Art.tsx):
- *   --pad-red   #C8443E   acento primario (pelota / CTA)
+ * Paleta (de Art.tsx — ver design-system.css para el porqué de volver a
+ * ella después del paso intermedio por turquesa):
+ *   --pad-red   #DE6435   acento primario (pelota / CTA)
  *   --pad-sky   #8FD3F4   celeste
  *   --pad-dark  #2B3A47   texto / fondos oscuros
  *   --pad-slate #4A6070   texto secundario
@@ -15,19 +16,19 @@
  * ========================================================================== */
 
 :root {
-  --pad-red: #0ea5a0;
-  --pad-red-dark: #0b8480;
+  --pad-red: #de6435;
+  --pad-red-dark: #c1502a;
   --pad-sky: #8fd3f4;
   --pad-dark: #2b3a47;
   --pad-slate: #4a6070;
   --pad-cream: #f2efe4;
   --pad-lime: #edf56b;
 
-  --auth-bg: #12151d;
-  --auth-card-bg: #1c212c;
-  --auth-border: rgba(255, 255, 255, 0.1);
-  --auth-text: #eef1f5;
-  --auth-muted: #98a2b3;
+  --auth-bg: #131110;
+  --auth-card-bg: #1c1a17;
+  --auth-border: rgba(255, 248, 240, 0.09);
+  --auth-text: #f5f2ec;
+  --auth-muted: #9a938a;
   --auth-radius: 14px;
   --auth-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
@@ -39,10 +40,10 @@
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(1200px 600px at 100% -10%, rgba(143, 211, 244, 0.1), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(14, 165, 160, 0.16), transparent 55%),
+    radial-gradient(1200px 600px at 100% -10%, rgba(143, 211, 244, 0.08), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(222, 100, 53, 0.14), transparent 55%),
     var(--auth-bg);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   color: var(--auth-text);
 }
 
@@ -64,21 +65,6 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 22px;
-}
-.auth-brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--pad-red);
-  position: relative;
-  flex: none;
-}
-.auth-brand-mark::after {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.7);
 }
 .auth-brand-name {
   font-weight: 700;
@@ -128,7 +114,7 @@
 .input:focus {
   outline: none;
   border-color: var(--pad-red);
-  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.22);
+  box-shadow: 0 0 0 3px rgba(222, 100, 53, 0.22);
 }
 .input:disabled { background: rgba(255,255,255,0.03); color: var(--auth-muted); }
 .input.has-error { border-color: #ef6b5f; }
@@ -143,7 +129,7 @@
 }
 .input-affix:focus-within {
   border-color: var(--pad-red);
-  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.22);
+  box-shadow: 0 0 0 3px rgba(222, 100, 53, 0.22);
 }
 .input-affix .input {
   border: none;

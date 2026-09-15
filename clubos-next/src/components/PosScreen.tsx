@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
@@ -67,25 +67,32 @@ export function PosScreen() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo` (sin backend/red): acá hubo sesión y respuesta real
+  // del backend, pero con error (permisos, un 500) — antes se confundía con
+  // el mismo "necesita el backend".
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [cat, pm] = await Promise.all([
-          api.pos.catalog(),
-          api.cash.paymentMethods(),
-        ]);
-        setProducts(cat as Product[]);
-        setMethods(pm.filter((m) => m.kind !== 'ACCOUNT_CREDIT'));
-        setDemo(false);
-      } catch {
-        setDemo(true);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [cat, pm] = await Promise.all([
+        api.pos.catalog(),
+        api.cash.paymentMethods(),
+      ]);
+      setProducts(cat as Product[]);
+      setMethods(pm.filter((m) => m.kind !== 'ACCOUNT_CREDIT'));
+      setDemo(false);
+    } catch (e) {
+      if (e instanceof ApiError) setLoadError(e.message);
+      else setDemo(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { void load(); }, [load]);
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -106,6 +113,10 @@ export function PosScreen() {
 
   const total = useMemo(
     () => cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
+    [cart],
+  );
+  const itemCount = useMemo(
+    () => cart.reduce((s, l) => s + l.quantity, 0),
     [cart],
   );
 
@@ -155,16 +166,47 @@ export function PosScreen() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Buffet</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load()}>
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="pos-screen">
       <div className="pos-catalog">
-        <div className="pos-filters">
+        {/* La búsqueda va primero y grande: encontrar el producto es el
+            primer paso de "producto → carrito → total → cobrar". */}
+        <div className="search-bar-lg">
+          <svg className="search-bar-lg-icon" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+          </svg>
           <input
-            className="input"
+            className="search-bar-lg-input"
             placeholder="Buscar producto…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              className="search-bar-lg-clear"
+              aria-label="Limpiar búsqueda"
+              onClick={() => setSearch('')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2.3"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
+
+        <div className="pos-filters">
           <div className="chip-row">
             <button
               className={`chip${category === null ? ' is-active' : ''}`}
@@ -242,9 +284,9 @@ export function PosScreen() {
                     )}
                   </div>
                   <div className="qty-control">
-                    <button onClick={() => changeQty(l.productId, -1)} aria-label="Quitar uno">−</button>
-                    <span>{l.quantity}</span>
-                    <button onClick={() => changeQty(l.productId, 1)} aria-label="Agregar uno">+</button>
+                    <button className="qty-btn" onClick={() => changeQty(l.productId, -1)} aria-label="Quitar uno">−</button>
+                    <span className="qty-value">{l.quantity}</span>
+                    <button className="qty-btn" onClick={() => changeQty(l.productId, 1)} aria-label="Agregar uno">+</button>
                   </div>
                   <span className="cart-line-total">
                     {formatMoney(l.unitPrice * l.quantity)}
@@ -269,6 +311,29 @@ export function PosScreen() {
           </button>
         </footer>
       </aside>
+
+      {/* Mobile: el carrito pasa a flujo normal (después de toda la grilla
+          de productos) — sin esto, cobrar exigía scrollear más allá de
+          todo el catálogo. Esta barra fija reemplaza al total/Cobrar de
+          `.cart-foot` en mobile; el resto del carrito (líneas, vaciar)
+          sigue en su lugar para quien quiera revisarlo. */}
+      {cart.length > 0 && (
+        <div className="pos-mobile-bar">
+          <span className="pos-mobile-bar-info">
+            <span className="pos-mobile-bar-count">
+              {itemCount} {itemCount === 1 ? 'ítem' : 'ítems'}
+            </span>
+            <strong className="pos-mobile-bar-total">{formatMoney(total)}</strong>
+          </span>
+          <button
+            className="btn btn-primary"
+            disabled={!canOrDemo('sale.create')}
+            onClick={() => setPayOpen(true)}
+          >
+            Cobrar
+          </button>
+        </div>
+      )}
 
       {payOpen && (
         <PayDialog

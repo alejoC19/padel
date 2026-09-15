@@ -60,9 +60,11 @@ export default async function PlayerLayout({
   const { slug } = await params;
   return (
     <div className="player-shell">
-      <main className="player-main">{children}</main>
-      <InstallPrompt />
-      <PlayerTabBar slug={slug} />
+      <div className="player-frame">
+        <main className="player-main">{children}</main>
+        <InstallPrompt />
+        <PlayerTabBar slug={slug} />
+      </div>
     </div>
   );
 }

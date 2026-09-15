@@ -257,16 +257,86 @@ export class PaymentOrderService {
       return { handled: false, reason: 'club no coincide' };
     }
 
-    // 3. IDEMPOTENCIA: si ya registramos este payment de MP, salir sin repetir.
-    if (order.providerPaymentId === mpPayment.id && order.paymentId) {
+    // 3. IDEMPOTENCIA: si ya vimos este MISMO estado de MP para este pago,
+    // salir sin repetir. No alcanza con comprobar que `paymentId` ya esté
+    // seteado: un pago aprobado puede pasar después a `refunded` o
+    // `charged_back` en un webhook POSTERIOR (el club lo reembolsa, o el
+    // comprador hace un contracargo), y ese cambio de estado hay que
+    // procesarlo aunque el pago original ya esté acreditado — si no, la
+    // reserva queda PAID para siempre aunque a MP le hayan sacado la plata.
+    if (
+      order.providerPaymentId === mpPayment.id &&
+      order.providerStatus === mpPayment.status
+    ) {
       return { handled: true, reason: 'ya procesado' };
     }
 
     // 4. Mapear estado de MP → nuestro flujo.
     const mapped = this.mapStatus(mpPayment.status);
 
+    // 4bis. El pago ya se había acreditado (existe `paymentId`) y MP ahora
+    // avisa que se devolvió o se contracargó: revertir la contabilidad con
+    // el mismo `PaymentService.refund()` que usa un reembolso manual.
+    if ((mapped === 'REFUNDED' || mapped === 'CANCELLED') && order.paymentId) {
+      await this.prisma.tenantTransaction(async (tx) => {
+        const payment = await tx.payment.findUnique({
+          where: { id: order.paymentId! },
+          select: {
+            id: true, amount: true, refundedAmount: true,
+            status: true, bookingId: true,
+          },
+        });
+        if (!payment || payment.status === 'REFUNDED') return; // ya revertido
+
+        const remaining = this.round(
+          this.num(payment.amount) - this.num(payment.refundedAmount),
+        );
+        if (remaining > 0) {
+          await this.payments.refund(tx, {
+            clubId: input.clubId,
+            paymentId: payment.id,
+            amount: remaining,
+            reason:
+              mapped === 'REFUNDED'
+                ? 'Reembolsado en Mercado Pago'
+                : 'Pago cancelado/contracargo en Mercado Pago',
+            // Único caso legítimo: MP mismo confirmó la devolución por
+            // webhook. La fuente de verdad es MP, no una acción del staff.
+            confirmedByGateway: true,
+          });
+        }
+
+        if (payment.bookingId) {
+          await this.settleBooking(tx, payment.bookingId);
+        } else if (order.teamId) {
+          // La inscripción a torneo se cobra completa (sin pagos parciales
+          // online): revertido el pago, vuelve a quedar sin pagar.
+          await tx.tournamentTeam.update({
+            where: { id: order.teamId },
+            data: { paymentStatus: 'UNPAID' },
+          });
+        }
+      });
+
+      await this.prisma.db.paymentOrder.update({
+        where: { id: order.id },
+        data: {
+          status: mapped,
+          providerPaymentId: mpPayment.id,
+          providerStatus: mpPayment.status,
+          providerRawWebhook: mpPayment.raw as object,
+        },
+      });
+
+      this.log.warn(
+        `Orden ${order.id} revertida vía MP (pago ${mpPayment.id}, estado ${mapped}, club ${input.clubId}).`,
+      );
+      return { handled: true, reason: `estado ${mapped} (revertido)` };
+    }
+
     if (mapped !== 'APPROVED') {
-      // Rechazado / pendiente / en proceso: actualizar estado, no cobrar.
+      // Rechazado / pendiente / en proceso, nunca se había acreditado:
+      // actualizar estado, no cobrar.
       await this.prisma.db.paymentOrder.update({
         where: { id: order.id },
         data: {

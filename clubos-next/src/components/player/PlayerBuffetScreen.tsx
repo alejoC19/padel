@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api';
 import { publicApi, type PublicProduct } from '@/lib/publicApi';
 import { formatMoney } from '@/lib/grid';
 import { CategoryIcon } from '@/components/player/CategoryIcon';
+import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
 
 type Load =
   | { status: 'loading' }
@@ -69,7 +70,7 @@ export function PlayerBuffetScreen({ slug }: { slug: string }) {
   if (load.status === 'error') {
     return (
       <div className="player-state">
-        <div className="state-icon">⚠️</div>
+        <PlayerStateIcon kind="warning" />
         <h2>Algo salió mal</h2>
         <p>{load.message}</p>
         <button className="btn btn-primary" onClick={() => void fetchMenu()}>Reintentar</button>
@@ -87,7 +88,7 @@ export function PlayerBuffetScreen({ slug }: { slug: string }) {
 
       {grouped.length === 0 && (
         <div className="player-state" style={{ minHeight: 'auto', padding: '32px 16px' }}>
-          <div className="state-icon">🥤</div>
+          <PlayerStateIcon kind="drink" />
           <p>El club todavía no cargó el menú del buffet.</p>
         </div>
       )}

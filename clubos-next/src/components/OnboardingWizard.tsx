@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError, setSession } from '@/lib/api';
+import { BrandMark } from '@/components/BrandMark';
 
 /**
  * Wizard de alta de club (self-service).
@@ -88,7 +89,12 @@ export function OnboardingWizard() {
     clubName.trim().length >= 2 && slug.length >= 3 && slugState.status === 'ok';
   const step2Valid =
     firstName.trim() && lastName.trim() && /\S+@\S+\.\S+/.test(email) &&
-    password.length >= 8;
+    // Misma política que el resto de la app (ResetPasswordScreen,
+    // AcceptInviteScreen): 10+ caracteres con letra y número. Antes acá
+    // alcanzaba con 8 sin más requisitos, así que el dueño de un club podía
+    // arrancar con una contraseña que después el backend (y las otras
+    // pantallas) le rechazarían al intentar resetearla.
+    password.length >= 10 && /(?=.*[a-zA-Z])(?=.*\d)/.test(password);
 
   const submit = useCallback(async () => {
     setLoading(true);
@@ -136,7 +142,12 @@ export function OnboardingWizard() {
       <div className="auth-wrap">
         <div className="auth-card">
           <div className="success">
-            <div className="success-mark">✓</div>
+            <div className="success-mark">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
             <h1 className="auth-h1">¡Tu club está listo!</h1>
             <p className="auth-sub">
               Entrando a ClubOS…
@@ -152,7 +163,7 @@ export function OnboardingWizard() {
     <div className="auth-wrap">
       <div className="auth-card wide">
         <div className="auth-brand">
-          <span className="auth-brand-mark" />
+          <BrandMark size={30} />
           <span className="auth-brand-name">ClubOS</span>
         </div>
 
@@ -209,7 +220,14 @@ export function OnboardingWizard() {
                 <p className="hint">Verificando disponibilidad…</p>
               )}
               {slugState.status === 'ok' && (
-                <p className="hint ok">✓ Disponible</p>
+                <p className="hint ok">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                       style={{ marginRight: 4, verticalAlign: -1 }}>
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Disponible
+                </p>
               )}
               {slugState.status === 'taken' && (
                 <p className="hint bad">{slugState.reason}</p>
@@ -323,7 +341,7 @@ export function OnboardingWizard() {
                   className="input"
                   type={showPw ? 'text' : 'password'}
                   autoComplete="new-password"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres, con letra y número"
                   value={password}
                   disabled={loading}
                   onChange={(e) => setPassword(e.target.value)}

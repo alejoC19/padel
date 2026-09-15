@@ -55,6 +55,10 @@ d('Idempotencia del webhook de Mercado Pago', () => {
   // corre contra una base de test persistente — un valor fijo colisionaría
   // con lo que dejó una corrida anterior.
   const PROVIDER_PAYMENT_ID = `mp-payment-idem-${randomUUID()}`;
+  // Mutable: el mock de MercadoPagoClient lee este valor en cada llamada, así
+  // que un test posterior puede simular que el MISMO pago pasa a otro estado
+  // (p. ej. `approved` → `refunded`) sin tener que recompilar el módulo.
+  let mockStatus = 'approved';
 
   beforeAll(async () => {
     process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
@@ -68,11 +72,11 @@ d('Idempotencia del webhook de Mercado Pago', () => {
       .useValue({
         getPayment: async () => ({
           id: PROVIDER_PAYMENT_ID,
-          status: 'approved',
-          statusDetail: 'accredited',
+          status: mockStatus,
+          statusDetail: mockStatus,
           externalReference,
           amount: 13_000,
-          raw: { id: PROVIDER_PAYMENT_ID, status: 'approved' },
+          raw: { id: PROVIDER_PAYMENT_ID, status: mockStatus },
         }),
       })
       .compile();
@@ -201,5 +205,42 @@ d('Idempotencia del webhook de Mercado Pago', () => {
     // doble, aunque handleWebhook se haya llamado dos veces.
     expect(notifications.filter((n) => n.type === 'PAYMENT_RECEIVED')).toHaveLength(1);
     expect(notifications.filter((n) => n.type === 'BOOKING_CONFIRMED')).toHaveLength(1);
+  }, 20_000);
+
+  it('un webhook posterior con estado "refunded" revierte el pago y la reserva', async () => {
+    // MP avisa, en un webhook POSTERIOR sobre el MISMO pago, que se devolvió
+    // (el club lo reembolsó desde su panel de MP, o el comprador hizo un
+    // contracargo). Antes de la corrección, el chequeo de idempotencia solo
+    // miraba si ya había `paymentId` y descartaba este webhook entero —la
+    // reserva quedaba PAID para siempre aunque a la cuenta de MP del club le
+    // hubieran sacado la plata.
+    mockStatus = 'refunded';
+
+    const result = await runWithTenant(ctx(clubId), async () =>
+      orders.handleWebhook({ clubId, providerPaymentId: PROVIDER_PAYMENT_ID }),
+    );
+    expect(result.handled).toBe(true);
+    expect(result.reason).toContain('revertido');
+
+    const payment = await runWithTenant(ctx(clubId), async () =>
+      prisma.db.payment.findFirstOrThrow({ where: { clubId, bookingId } }),
+    );
+    expect(payment.status).toBe('REFUNDED');
+    expect(Number(payment.refundedAmount)).toBe(13_000);
+
+    const booking = await runWithTenant(ctx(clubId), async () =>
+      prisma.db.booking.findUniqueOrThrow({ where: { id: bookingId } }),
+    );
+    // Reembolsado en su totalidad: la reserva vuelve a estar sin pagar.
+    expect(Number(booking.paidAmount)).toBe(0);
+    expect(booking.paymentStatus).toBe('UNPAID');
+
+    // Un segundo webhook con el MISMO estado 'refunded' (reintento de MP) no
+    // debe volver a intentar revertir un pago que ya está en REFUNDED.
+    const again = await runWithTenant(ctx(clubId), async () =>
+      orders.handleWebhook({ clubId, providerPaymentId: PROVIDER_PAYMENT_ID }),
+    );
+    expect(again.handled).toBe(true);
+    expect(again.reason).toBe('ya procesado');
   }, 20_000);
 });

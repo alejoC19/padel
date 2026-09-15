@@ -10,44 +10,68 @@
    No toca ninguna lógica: solo aporta apariencia.
    ========================================================================= */
 
+/* =========================================================================
+   IDENTIDAD — de dónde salen estos valores
+   -------------------------------------------------------------------------
+   El primer intento de paleta de ClubOS (ver el comentario histórico en
+   auth.css) salía del arte de la landing: rojo-terracota de la pelota como
+   acento primario, celeste de cancha, crema de cuaderno de anotaciones.
+   En algún momento se pidió "más color, más moderno" y se reemplazó todo
+   por teal + fondo azulado — que es exactamente la paleta de cualquier
+   dashboard SaaS genérico. Esta vuelta NO es nostalgia: es que el terracota
+   es lo único de las dos versiones que no se puede confundir con un
+   template de IA, porque no sale de una librería de UI — sale de la
+   pelota. El lima de la pelota queda como detalle rarísimo (nunca como
+   color de fondo ni de botón), y el celeste como tono informativo/
+   financiero — así Tesorería puede diferenciarse de Caja sin inventar una
+   paleta nueva.
+   ========================================================================= */
 :root {
-  /* --- Color: superficies --- */
-  --ds-bg: var(--app-bg, #12151d);
-  --ds-surface: var(--app-surface, #1c212c);
-  --ds-surface-2: #262c3a;
-  --ds-border: var(--app-border, rgba(255, 255, 255, 0.09));
-  --ds-border-strong: rgba(255, 255, 255, 0.18);
+  /* --- Color: superficies (charcoal cálido, no azulado tipo fintech) --- */
+  --ds-bg: #131110;
+  --ds-surface: #1c1a17;
+  --ds-surface-2: #262320;
+  --ds-border: rgba(255, 248, 240, 0.08);
+  --ds-border-strong: rgba(255, 248, 240, 0.16);
 
-  /* --- Color: texto --- */
-  --ds-text: var(--app-text, #eef1f5);
-  --ds-text-2: #c3cad4;
-  --ds-muted: var(--app-muted, #98a2b3);
-  --ds-faint: #707a8c;
+  /* --- Color: texto (blanco cálido, no gris azulado) --- */
+  --ds-text: #f5f2ec;
+  --ds-text-2: #cec8bf;
+  --ds-muted: #9a938a;
+  --ds-faint: #6c6660;
 
   /* --- Color: marca y semánticos ---
-     Los "-soft" eran fondos pastel pensados para tarjetas blancas; sobre
-     superficie oscura, un pastel claro se ve como un parche desprolijo.
-     Pasan a ser tinte translúcido del color (chip "glow" sobre oscuro,
-     patrón estándar de dashboards dark), y los textos semánticos se
-     aclaran un poco para seguir siendo legibles sobre --ds-surface. */
-  --ds-primary: var(--pad-red, #0ea5a0);
-  --ds-primary-hover: var(--pad-red-dark, #0b8480);
-  --ds-primary-soft: rgba(14, 165, 160, 0.16);
-  --ds-success: #4ecb92;
-  --ds-success-soft: rgba(46, 157, 110, 0.18);
-  --ds-warning: #e3ab52;
-  --ds-warning-soft: rgba(199, 125, 32, 0.18);
-  --ds-danger: #ef6b5f;
-  --ds-danger-soft: rgba(192, 57, 43, 0.2);
-  --ds-info: #5da8e8;
-  --ds-info-soft: rgba(43, 108, 176, 0.2);
+     Primario = terracota de la pelota (acción, navegación activa, foco).
+     Danger es un rojo distinto en matiz (más frío/carmesí) a propósito:
+     un botón "eliminar" no puede leerse igual que un botón primario.
+     Los "-soft" son tinte translúcido del color sobre superficie oscura,
+     no un pastel — un pastel claro sobre --ds-surface se ve como parche. */
+  --ds-primary: #de6435;
+  --ds-primary-hover: #c1502a;
+  --ds-primary-soft: rgba(222, 100, 53, 0.16);
+  --ds-accent: #d7e639;
+  --ds-accent-soft: rgba(215, 230, 57, 0.16);
+  --ds-success: #4fbe84;
+  --ds-success-soft: rgba(79, 190, 132, 0.16);
+  --ds-warning: #e3a83f;
+  --ds-warning-soft: rgba(227, 168, 63, 0.16);
+  --ds-danger: #e5484d;
+  --ds-danger-soft: rgba(229, 72, 77, 0.16);
+  --ds-info: #6eb6e0;
+  --ds-info-soft: rgba(110, 182, 224, 0.16);
 
-  /* --- Tipografía --- */
-  --ds-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --fs-display: 40px;
-  --fs-h1: 28px;
-  --fs-h2: 22px;
-  --fs-h3: 18px;
+  /* --- Tipografía ---
+     Se probó Inter/Inter Tight vía next/font en la Fase 1 y se volvió atrás
+     a pedido explícito: la tipografía de sistema queda como estaba antes.
+     Las variables se mantienen (title/body ya las usan en todo el CSS) para
+     no tener que tocar cada selector — solo cambia a qué stack apuntan. */
+  --font-display: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ds-font: var(--font-body);
+  --fs-display: 38px;
+  --fs-h1: 25px;
+  --fs-h2: 19px;
+  --fs-h3: 15px;
   --fs-body: 14px;
   --fs-small: 13px;
   --fs-caption: 12px;
@@ -61,18 +85,23 @@
   --sp-xl: 24px;
   --sp-2xl: 40px;
 
-  /* --- Radius --- */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 20px;
+  /* --- Radius — deliberadamente MENOS redondeado que un template genérico.
+     Una herramienta operativa se ve más seria con esquinas cortas; el
+     "pill" queda reservado para lo que de verdad es una pastilla (track de
+     progreso, contador), no para cada badge de la interfaz. --- */
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 9px;
+  --r-xl: 12px;
   --r-pill: 999px;
 
-  /* --- Sombras --- */
-  --sh-subtle: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --sh-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
-  --sh-elevated: 0 10px 28px rgba(0, 0, 0, 0.45);
-  --sh-modal: 0 24px 60px rgba(0, 0, 0, 0.55);
+  /* --- Sombras — casi planas. El borde hace el trabajo de separar
+     superficies; una sombra grande y difusa es lo que hace que un panel se
+     vea "flotando" tipo glassmorphism. --- */
+  --sh-subtle: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --sh-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --sh-elevated: 0 12px 24px -8px rgba(0, 0, 0, 0.5);
+  --sh-modal: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
 
   /* --- Transiciones --- */
   --t-fast: 0.12s ease;
@@ -85,9 +114,20 @@
 * { box-sizing: border-box; }
 
 body {
-  font-family: var(--ds-font);
+  font-family: var(--font-body);
   color: var(--ds-text);
   background: var(--ds-bg);
+}
+
+/* Títulos y números importantes en la fuente de display (condensada, con
+   carácter) — todo lo demás (tablas, formularios, texto de cuerpo) se queda
+   con --font-body por legibilidad a densidad alta. */
+h1, h2, h3,
+.screen-title, .screen-head h1,
+.card-title, .section-title, .panel-title,
+.stat-value, .metric-value, .cash-hero-value, .cart-total-value,
+.change-value, .display-num, .brand {
+  font-family: var(--font-display);
 }
 
 /* Foco visible y consistente para accesibilidad */
@@ -97,14 +137,27 @@ body {
 }
 
 /* =========================================================================
-   APP SHELL — barra superior, navegación, menú de usuario
+   APP SHELL — sidebar + topbar + barra inferior mobile
+   -------------------------------------------------------------------------
+   Antes era una topbar con 11 links en fila (Agenda/Caja/Canchas/Buffet/
+   Productos/Clientes/Torneos/Tesorería/Reportes/Equipo/Club, todos con el
+   mismo peso visual) — sin jerarquía entre "esto lo usás todo el día" y
+   "esto lo tocás una vez por semana", y en mobile el mismo listado plano
+   metido en un drawer. Ahora la sidebar agrupa por frecuencia de uso real
+   (Operación → Negocio → Administración) y mobile tiene su propia barra de
+   4 destinos, no una sidebar de escritorio comprimida.
    ========================================================================= */
 .shell,
 .app-shell {
   min-height: 100dvh;
   display: flex;
-  flex-direction: column;
   background: var(--ds-bg);
+}
+.shell-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .shell-body {
   flex: 1;
@@ -114,20 +167,19 @@ body {
   padding: var(--sp-xl);
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-lg);
-  padding: 0 var(--sp-xl);
-  height: 60px;
+/* --- Sidebar (desktop) --- */
+.shell-sidebar {
+  flex: none;
+  width: 216px;
   background: var(--ds-surface);
-  border-bottom: 1px solid var(--ds-border);
+  border-right: 1px solid var(--ds-border);
+  display: flex;
+  flex-direction: column;
   position: sticky;
   top: 0;
-  z-index: 20;
+  height: 100dvh;
+  overflow-y: auto;
 }
-.topbar-spacer { flex: 1; }
-
 .brand {
   display: flex;
   align-items: center;
@@ -137,37 +189,44 @@ body {
   letter-spacing: -0.02em;
   color: var(--ds-text);
   text-decoration: none;
-}
-.brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: var(--ds-primary);
-  flex: none;
-  display: grid;
-  place-items: center;
+  padding: var(--sp-lg) var(--sp-lg) var(--sp-md);
 }
 .brand-club {
+  display: block;
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ds-muted);
-  padding-left: var(--sp-sm);
-  border-left: 1px solid var(--ds-border);
-  margin-left: var(--sp-xs);
+  margin-top: 1px;
 }
-
-.main-nav {
+.sidebar-nav {
+  flex: 1;
+  padding: var(--sp-sm) var(--sp-md) var(--sp-lg);
   display: flex;
-  gap: 2px;
+  flex-direction: column;
+  gap: var(--sp-lg);
+}
+.nav-group-label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ds-faint);
+  padding: 0 10px;
+  margin-bottom: 5px;
+}
+.nav-group-links {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 .nav-link,
 .nav-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 13px;
+  gap: 10px;
+  padding: 9px 10px;
   border-radius: var(--r-md);
-  color: var(--ds-muted);
+  color: var(--ds-text-2);
   font-size: var(--fs-body);
   font-weight: 600;
   text-decoration: none;
@@ -177,15 +236,68 @@ body {
   transition: background var(--t-fast), color var(--t-fast);
   white-space: nowrap;
 }
+.nav-link svg, .nav-btn svg { flex: none; opacity: 0.85; }
 .nav-link:hover,
 .nav-btn:hover {
   background: var(--ds-surface-2);
   color: var(--ds-text);
 }
-.nav-link.active,
-.nav-link[aria-current="page"] {
+.nav-link.is-active {
   background: var(--ds-primary-soft);
   color: var(--ds-primary);
+}
+.nav-link.is-active svg { opacity: 1; }
+
+/* --- Barra inferior (mobile) --- */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 25;
+  background: var(--ds-surface);
+  border-top: 1px solid var(--ds-border);
+  padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left));
+}
+.bottom-nav-row { display: flex; }
+.bottom-nav-link,
+.bottom-nav-more {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: var(--r-md);
+  color: var(--ds-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+}
+.bottom-nav-link.is-active { color: var(--ds-primary); }
+.bottom-nav-link svg, .bottom-nav-more svg { flex: none; }
+
+/* --- Topbar (dentro de shell-main, ya no lleva la navegación) --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-lg);
+  padding: 0 var(--sp-xl);
+  height: 60px;
+  border-bottom: 1px solid var(--ds-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--ds-bg);
+}
+.topbar-spacer { flex: 1; }
+
+/* La marca vive en la sidebar; en mobile (sidebar oculta) se repite acá,
+   sin el padding pensado para el panel vertical. */
+.topbar-brand-mobile { display: none; padding: 0; }
+@media (max-width: 860px) {
+  .topbar-brand-mobile { display: flex; }
 }
 
 /* Menú de usuario */
@@ -404,8 +516,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
+  padding: 2px 8px;
+  /* Etiqueta, no pastilla: un badge-pill en cada celda es uno de los tics
+     más "genérico admin panel" que hay. Radio chico, forma de tag. */
+  border-radius: var(--r-sm);
   font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.6;
@@ -417,10 +531,10 @@ body {
 .tag-color { border: none; color: #fff; }
 .tag-muted { background: var(--ds-surface-2); color: var(--ds-muted); }
 .tag-danger { background: var(--ds-danger-soft); color: var(--ds-danger); border-color: transparent; }
-.badge.success, .status-pill.success { background: var(--ds-success-soft); color: var(--ds-success); border-color: transparent; }
-.badge.warning, .status-pill.warning { background: var(--ds-warning-soft); color: var(--ds-warning); border-color: transparent; }
-.badge.danger, .status-pill.danger { background: var(--ds-danger-soft); color: var(--ds-danger); border-color: transparent; }
-.badge.info, .status-pill.info { background: var(--ds-info-soft); color: var(--ds-info); border-color: transparent; }
+.badge.success, .status-pill.success, .tag.success { background: var(--ds-success-soft); color: var(--ds-success); border-color: transparent; }
+.badge.warning, .status-pill.warning, .tag.warning { background: var(--ds-warning-soft); color: var(--ds-warning); border-color: transparent; }
+.badge.danger, .status-pill.danger, .tag.danger { background: var(--ds-danger-soft); color: var(--ds-danger); border-color: transparent; }
+.badge.info, .status-pill.info, .tag.info { background: var(--ds-info-soft); color: var(--ds-info); border-color: transparent; }
 
 /* Balance de cuenta */
 .balance-owed { color: var(--ds-danger); font-weight: 700; }
@@ -458,10 +572,35 @@ body {
   gap: var(--sp-lg);
 }
 .cash-hero-label { font-size: var(--fs-caption); font-weight: 700; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.04em; }
-.cash-hero-value { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; }
+.cash-hero-value { font-family: var(--font-display); font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; }
 .cash-hero-main { display: flex; flex-direction: column; justify-content: center; }
-.cash-hero-side { display: flex; flex-direction: column; gap: var(--sp-sm); justify-content: center; }
+.cash-hero-side { display: flex; flex-direction: column; justify-content: center; }
 .cash-hero-hint { font-size: var(--fs-small); opacity: 0.8; }
+
+/* Cobrado/Salidas/Movimientos: NO son 3 KPIs con su propia caja adentro del
+   hero (una card oscura flotando sobre el degradé, la card-dentro-de-card
+   que hace que un dashboard se vea genérico) — son datos secundarios del
+   mismo bloque, separados por una línea fina como en el resumen del día de
+   la Agenda. El color del hero ya hace de fondo; no hace falta otro. */
+.cash-hero-stat {
+  padding: var(--sp-sm) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.cash-hero-stat:first-child { border-top: none; padding-top: 0; }
+.cash-hero-stat-label {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+.cash-hero-stat-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 2px;
+}
 
 /* Arqueo */
 .arqueo-summary { display: flex; flex-direction: column; gap: var(--sp-sm); }
@@ -471,17 +610,117 @@ body {
 .money-label { color: var(--ds-muted); font-size: var(--fs-body); }
 
 /* =========================================================================
+   BARRA DE BÚSQUEDA GRANDE (Clientes, POS…)
+   -------------------------------------------------------------------------
+   Genérica a propósito: la búsqueda es infraestructura compartida entre
+   módulos ("buscar → abrir ficha" en Clientes, "buscar → agregar" en POS),
+   no algo que deba tener personalidad propia — el carácter de cada módulo
+   va en lo que rodea a la búsqueda, no en la búsqueda misma.
+   ========================================================================= */
+.search-bar-lg {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 14px var(--sp-lg);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--sp-md);
+  transition: border-color var(--t-fast);
+}
+.search-bar-lg:focus-within { border-color: var(--ds-primary); }
+.search-bar-lg-icon { color: var(--ds-muted); flex: none; }
+.search-bar-lg-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 16px;
+  color: var(--ds-text);
+}
+.search-bar-lg-input::placeholder { color: var(--ds-faint, var(--ds-muted)); }
+.search-bar-lg-clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--ds-surface-2);
+  color: var(--ds-muted);
+  cursor: pointer;
+}
+.search-bar-lg-clear:hover { color: var(--ds-text); }
+
+/* =========================================================================
    CLIENTES
    ========================================================================= */
-.clients-toolbar {
-  display: flex;
-  gap: var(--sp-md);
-  align-items: center;
-  margin-bottom: var(--sp-lg);
-  flex-wrap: wrap;
+/* Lista de jugadores: filas dentro de un único contenedor, no una card por
+   persona ni una tabla de columnas fijas — cada fila se lee como una unidad. */
+.client-list {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
 }
+.client-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  width: 100%;
+  margin: 0;
+  padding: var(--sp-md) var(--sp-lg);
+  border: none;
+  border-bottom: 1px solid var(--ds-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.client-list .client-row:last-child { border-bottom: none; }
+.client-row:hover, .client-row:focus-visible { background: var(--ds-surface-2); }
+.client-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.client-row-name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-row-meta {
+  font-size: var(--fs-small);
+  color: var(--ds-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-row-side {
+  flex: none;
+  text-align: right;
+}
+.client-row-debt {
+  display: inline-block;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-small);
+}
+.client-row-debt.is-owed { color: var(--ds-danger); }
+.client-row-debt.is-credit { color: var(--ds-success); }
+.client-row-count { font-size: var(--fs-caption); color: var(--ds-muted); }
 
-/* Búsqueda */
+/* Búsqueda (modal de selección rápida — Agenda) */
 .search-box, .search-field, .search-inline, .search-input-wrap {
   position: relative;
   flex: 1;
@@ -509,18 +748,62 @@ body {
 .search-empty { padding: var(--sp-xl); text-align: center; color: var(--ds-muted); }
 
 /* =========================================================================
-   BUFFET / POS
+   BUFFET / POS — velocidad, productos, cobro.
+   -------------------------------------------------------------------------
+   `.product-tile`, `.product-stock`, `.method-option` no tenían NINGÚN
+   estilo: el catálogo (el área principal de la pantalla) se veía como una
+   grilla de botones nativos del navegador — ni borde, ni feedback al
+   pasar el mouse, ni jerarquía entre nombre/precio/stock. `.qty-control`
+   tenía el contenedor flex pero los botones −/+ tampoco tenían clase ni
+   estilo propio.
    ========================================================================= */
-.pos-screen { display: grid; grid-template-columns: 1fr 360px; gap: var(--sp-lg); }
+.pos-screen { display: grid; grid-template-columns: 1fr 360px; gap: var(--sp-lg); align-items: start; }
 .pos-catalog { min-width: 0; }
 .pos-filters { display: flex; gap: var(--sp-sm); flex-wrap: wrap; margin-bottom: var(--sp-lg); }
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: var(--sp-md);
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--sp-sm);
 }
-.product-name { font-weight: 700; font-size: var(--fs-body); }
-.product-price { color: var(--ds-primary); font-weight: 800; font-size: var(--fs-h3); margin-top: 4px; }
+
+/* Tile chata a propósito: sin sombra, radio chico — es un catálogo para
+   tocar rápido, no una vidriera de e-commerce. El precio es lo único con
+   color; todo lo demás queda neutro para no competir con él. */
+.product-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 12px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-md);
+  background: var(--ds-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.product-tile:hover { border-color: var(--ds-primary); }
+.product-tile:active { background: var(--ds-primary-soft); }
+.product-tile.is-out { opacity: 0.55; }
+.product-name {
+  font-weight: 700;
+  font-size: var(--fs-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.product-price {
+  font-family: var(--font-display);
+  color: var(--ds-primary);
+  font-weight: 800;
+  font-size: 18px;
+  margin-top: 3px;
+}
+.product-stock { font-size: var(--fs-caption); color: var(--ds-muted); margin-top: 2px; }
+.product-stock.is-out { color: var(--ds-danger); font-weight: 700; }
 
 .pos-cart {
   background: var(--ds-surface);
@@ -544,7 +827,10 @@ body {
 .cart-empty { padding: var(--sp-2xl) var(--sp-lg); text-align: center; color: var(--ds-muted); }
 .cart-foot { padding: var(--sp-lg); border-top: 1px solid var(--ds-border); }
 .cart-total { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--sp-md); }
-.cart-total-value { font-size: var(--fs-h2); font-weight: 800; }
+/* El total tiene que dominar la vista: es lo último que se mira antes de
+   cobrar. Mismo peso que el hero de Caja, sin el degradé (POS no es un
+   turno de caja, es la venta puntual de un producto). */
+.cart-total-value { font-family: var(--font-display); font-size: 30px; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Vuelto — visualmente MUY grande, como pediste */
 .change-box {
@@ -557,9 +843,70 @@ body {
 .change-label { font-size: var(--fs-caption); font-weight: 700; color: var(--ds-success); text-transform: uppercase; }
 .change-value { font-size: 44px; font-weight: 800; color: var(--ds-success); letter-spacing: -0.02em; }
 
-.qty-control { display: inline-flex; align-items: center; gap: var(--sp-sm); }
+.qty-control { display: inline-flex; align-items: center; gap: 6px; }
+.qty-btn {
+  width: 28px; height: 28px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-sm);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.qty-btn:hover { border-color: var(--ds-primary); color: var(--ds-primary); }
+.qty-value { min-width: 18px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Barra de cobro fija en mobile — ver RESPONSIVE más abajo para cuándo
+   se activa y por qué. */
+.pos-mobile-bar { display: none; }
+
+/* Selector de medio de pago: mismo patrón que `.type-option` de Caja. */
+.method-option {
+  padding: 9px 16px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.method-option:hover { border-color: var(--ds-border-strong); }
+.method-option.is-active { border-color: var(--ds-primary); background: var(--ds-primary-soft); color: var(--ds-primary); }
 .quick-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-sm); }
 .method-picker, .type-picker { display: flex; gap: var(--sp-sm); flex-wrap: wrap; }
+
+/* `.type-option` (elegir Ingreso/Gasto/Retiro/Depósito al registrar un
+   movimiento de caja) no tenía ningún estilo propio — se veía con el botón
+   por defecto del navegador, sin poder distinguir a simple vista cuál es
+   plata que entra y cuál que sale. La flecha lleva el color de dirección
+   siempre (entra/sale), independiente de cuál esté seleccionada. */
+.type-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--r-md);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.type-option:hover { border-color: var(--ds-border-strong); }
+.type-option.is-active { border-color: var(--ds-primary); background: var(--ds-primary-soft); }
+.type-arrow { font-weight: 800; }
+.type-arrow.is-in { color: var(--ds-success); }
+.type-arrow.is-out { color: var(--ds-danger); }
 
 /* =========================================================================
    TORNEOS (lista + bracket)
@@ -612,11 +959,33 @@ body {
   margin-bottom: var(--sp-xl);
 }
 
-/* Alertas de tesorería */
-.alert-stack { display: flex; flex-direction: column; gap: var(--sp-sm); }
-.alert-action { font-weight: 700; color: var(--ds-primary); }
-.alert-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.alert-msg { flex: 1; }
+/* Alertas de tesorería.
+   `.alert-row`/`.is-{severity}` no tenían caja ni color: el aviso de
+   "el saldo proyectado queda en negativo" —el motivo por el que la
+   proyección de fondos existe— se veía como texto suelto, sin más peso
+   visual que un párrafo cualquiera de la pantalla. */
+.alert-stack { display: flex; flex-direction: column; gap: var(--sp-sm); margin-bottom: var(--sp-xl); }
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border-radius: var(--r-md);
+  font-size: var(--fs-small);
+}
+/* Los valores reales de `CashFlowProjection.alerts[].severity` son
+   HIGH/MEDIUM (ver api.ts) — el componente los pasa en minúscula. */
+.alert-row.is-high { background: var(--ds-danger-soft); color: var(--ds-danger); }
+.alert-row.is-medium { background: var(--ds-warning-soft); color: var(--ds-warning); }
+/* margin-left: `.alert-msg`/`.alert-action` son spans hermanos dentro de un
+   div sin flex — sin este margen quedan pegados ("Recepción.Cerrá las..."). */
+.alert-action { margin-left: 6px; font-weight: 700; color: var(--ds-primary); }
+.alert-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex: none;
+  margin-top: 6px;
+  background: currentColor;
+}
+.alert-msg { flex: 1; color: var(--ds-text); }
 
 /* =========================================================================
    AGENDA — grilla, bloques, panel
@@ -648,8 +1017,30 @@ body {
 .bk-note-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ds-info); }
 .bk-here { box-shadow: inset 0 0 0 2px var(--ds-success); }
 
-/* Panel lateral de reserva */
-.panel-card { background: var(--ds-surface); }
+/* Panel lateral de reserva: drawer fijo a la derecha, como el de Clientes.
+   Sin position:fixed quedaba en el flujo normal del documento, después de
+   toda la lista de turnos del día — abrir un turno lo mandaba a ~2000px de
+   scroll y no se veía sin bajar toda la agenda. */
+.panel {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 92vw);
+  z-index: 41;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--ds-surface);
+  border-left: 1px solid var(--ds-border);
+  box-shadow: var(--sh-modal);
+}
+.panel.is-open { display: flex; }
+/* min-width: 0 — sin esto, como hijo de un grid (`.cash-grid`, etc.) no
+   encoge por debajo del ancho intrínseco de su tabla, y en vez de que la
+   tabla scrollee internamente (`.data-table` ya tiene `overflow-x: auto`
+   en mobile) es la PÁGINA la que se desborda horizontalmente. */
+.panel-card { background: var(--ds-surface); min-width: 0; }
 .panel-head { padding: var(--sp-lg); border-bottom: 1px solid var(--ds-border); }
 .panel-title { font-weight: 800; font-size: var(--fs-h3); }
 .panel-code { font-size: var(--fs-caption); color: var(--ds-muted); font-variant-numeric: tabular-nums; }
@@ -667,12 +1058,19 @@ body {
 }
 .booking-court { font-weight: 700; }
 .booking-when { color: var(--ds-muted); font-size: var(--fs-small); }
+.status-off { color: var(--ds-danger); font-size: var(--fs-small); font-weight: 600; }
 
 /* Leyenda */
 .legend { display: flex; gap: var(--sp-lg); flex-wrap: wrap; align-items: center; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: var(--fs-caption); color: var(--ds-muted); }
 .legend-swatch { width: 11px; height: 11px; border-radius: 3px; }
 .legend-spacer { flex: 1; }
+/* Los atajos de teclado ("B", "←→") no significan nada en touch — sin
+   teclado físico no hay forma de usarlos, así que en mobile solo ocupan
+   lugar y confunden. */
+@media (max-width: 860px) {
+  .legend-kbd-hint { display: none; }
+}
 
 /* =========================================================================
    DRAWER / MODAL / OVERLAY
@@ -766,7 +1164,15 @@ body {
 /* =========================================================================
    VARIOS / UTILIDADES QUE FALTABAN
    ========================================================================= */
+.confirm-dialog { max-width: 380px; }
+.confirm-message { color: var(--ds-text-2); font-size: var(--fs-body); line-height: 1.5; margin: 0 0 var(--sp-lg); }
+
 .section-title { font-size: var(--fs-h3); font-weight: 800; margin-bottom: var(--sp-md); }
+/* Dentro de un diálogo simple (sin .drawer-section propio) hace falta aire
+   arriba de cada bloque — si no, el título de la sección siguiente queda
+   pegado al campo de arriba. */
+.dialog .section-title { margin-top: var(--sp-lg); }
+.dialog .section-title:first-of-type { margin-top: 0; }
 .card-title { font-weight: 800; font-size: var(--fs-h3); margin-bottom: var(--sp-md); }
 .required { color: var(--ds-danger); }
 .kbd, .k {
@@ -784,7 +1190,6 @@ body {
 .today-btn { font-weight: 700; }
 .progress-bar { height: 6px; border-radius: var(--r-pill); background: var(--ds-border); overflow: hidden; }
 .progress-bar > i { display: block; height: 100%; background: var(--ds-primary); }
-.stat-box .v, .stat-box .k { display: block; }
 .compact { font-size: var(--fs-small); }
 .is-wide { grid-column: 1 / -1; }
 
@@ -793,13 +1198,43 @@ body {
    ========================================================================= */
 @media (max-width: 1024px) {
   .cash-grid { grid-template-columns: 1fr; }
-  .pos-screen { grid-template-columns: 1fr; }
+  .pos-screen { grid-template-columns: 1fr; padding-bottom: 66px; }
   .pos-cart { position: static; max-height: none; }
+  /* Al colapsar a una columna, el carrito pasa a vivir DEBAJO de toda la
+     grilla de productos — cobrar exigiría scrollear más allá de todo el
+     catálogo. `.pos-mobile-bar` (total + Cobrar, fija) reemplaza a
+     `.cart-foot` acá; las líneas del carrito siguen visibles más abajo
+     para quien quiera revisarlas antes de cobrar. */
+  .cart-foot { display: none; }
+  .pos-mobile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-md);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 24;
+    padding: 10px var(--sp-lg);
+    background: var(--ds-surface);
+    border-top: 1px solid var(--ds-border);
+    box-shadow: var(--sh-elevated);
+  }
+  .pos-mobile-bar-info { display: flex; flex-direction: column; line-height: 1.25; }
+  .pos-mobile-bar-count { font-size: var(--fs-caption); color: var(--ds-muted); }
+  .pos-mobile-bar-total { font-family: var(--font-display); font-size: 20px; }
+}
+@media (max-width: 860px) {
+  .shell-sidebar { display: none; }
+  .bottom-nav { display: block; }
+  /* Deja aire para que la barra inferior fija no tape el último elemento
+     del contenido — el clásico "botón fantasma" de las apps con tabbar. */
+  .shell-body { padding-bottom: calc(var(--sp-xl) + 58px + env(safe-area-inset-bottom, 0px)); }
+  .pos-screen { padding-bottom: calc(66px + 58px + env(safe-area-inset-bottom, 0px)); }
+  .pos-mobile-bar { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 768px) {
-  .shell-body { padding: var(--sp-lg); }
+  .shell-body { padding: var(--sp-lg); padding-bottom: calc(var(--sp-lg) + 58px + env(safe-area-inset-bottom, 0px)); }
   .topbar { padding: 0 var(--sp-lg); gap: var(--sp-md); }
-  .main-nav { display: none; } /* se reemplaza por drawer en mobile (ver AppShell) */
   .screen-head { flex-direction: column; align-items: stretch; }
   .cash-hero { flex-direction: column; }
   .cash-hero-value { font-size: 32px; }
@@ -807,7 +1242,7 @@ body {
   .data-table { display: block; overflow-x: auto; white-space: nowrap; }
 }
 @media (max-width: 480px) {
-  .shell-body { padding: var(--sp-md); }
+  .shell-body { padding: var(--sp-md); padding-bottom: calc(var(--sp-md) + 58px + env(safe-area-inset-bottom, 0px)); }
   .stat-grid { grid-template-columns: 1fr; }
   .drawer { width: 100vw; }
   .change-value { font-size: 36px; }

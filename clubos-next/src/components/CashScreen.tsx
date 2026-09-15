@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
@@ -83,15 +83,20 @@ export function CashScreen() {
   const [movementOpen, setMovementOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [demo, setDemo] = useState(false);
+  // Distinto de `demo` (sin backend/red): acá SÍ hubo respuesta, pero un
+  // error real (permisos, un 500). Antes cualquier excepción caía en el
+  // mismo "esta pantalla necesita el backend", aunque hubiera sesión y red.
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoadError(null);
     try {
       const mine = await api.cash.mine();
       setBalance(mine as CashBalance | null);
       setDemo(false);
-    } catch {
-      // Sin backend: la pantalla se muestra igual pero avisa.
-      setDemo(true);
+    } catch (e) {
+      if (e instanceof ApiError) setLoadError(e.message);
+      else setDemo(true);
       setBalance(null);
     } finally {
       setLoading(false);
@@ -123,6 +128,18 @@ export function CashScreen() {
         <p className="muted">
           Abrí turno, registrá movimientos, arqueá y cerrá el día.
         </p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="screen-empty">
+        <h1>Caja</h1>
+        <p>{loadError}</p>
+        <button className="btn btn-secondary" onClick={() => void load()}>
+          Reintentar
+        </button>
       </div>
     );
   }
@@ -181,9 +198,9 @@ export function CashScreen() {
           </span>
         </div>
         <div className="cash-hero-side">
-          <Metric label="Cobrado (todos los medios)" value={formatMoney(balance.totalInflow)} />
-          <Metric label="Salidas" value={formatMoney(balance.totalOutflow)} />
-          <Metric label="Movimientos" value={String(balance.movementCount)} />
+          <HeroStat label="Cobrado (todos los medios)" value={formatMoney(balance.totalInflow)} />
+          <HeroStat label="Salidas" value={formatMoney(balance.totalOutflow)} />
+          <HeroStat label="Movimientos" value={String(balance.movementCount)} />
         </div>
       </section>
 
@@ -210,7 +227,7 @@ export function CashScreen() {
                       {/* Se marca lo que NO se cuenta en el arqueo, porque es
                           la causa número uno de un faltante inexistente. */}
                       {!m.affectsCashCount && (
-                        <span className="tag-muted">no cuenta en el arqueo</span>
+                        <>{' '}<span className="tag-muted">no cuenta en el arqueo</span></>
                       )}
                     </td>
                     <td className="num">{m.inflow > 0 ? formatMoney(m.inflow) : '—'}</td>
@@ -302,11 +319,19 @@ export function CashScreen() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+/**
+ * Un dato secundario del hero de caja, sin caja propia.
+ *
+ * Antes usaba `.metric`, la misma clase que `.stat`/`.stat-box`/`.kpi`:
+ * una card oscura con borde y sombra flotando arriba del degradé del
+ * hero. El hero ya es la superficie; una card adentro de otra card es
+ * el patrón "todo dato es un widget" que hace ver genérico un dashboard.
+ */
+function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="metric">
-      <span className="metric-label">{label}</span>
-      <span className="metric-value">{value}</span>
+    <div className="cash-hero-stat">
+      <span className="cash-hero-stat-label">{label}</span>
+      <span className="cash-hero-stat-value">{value}</span>
     </div>
   );
 }

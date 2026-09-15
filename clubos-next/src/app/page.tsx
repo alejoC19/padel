@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { HeroAgenda } from '@/components/marketing/HeroAgenda';
 import { Ball, PadelDefs } from '@/components/marketing/Art';
+import { ModuleIcon, type ModuleIconName } from '@/components/marketing/ModuleIcon';
 import '@/styles/landing.css';
 
 export const metadata: Metadata = {
@@ -18,14 +19,14 @@ export const metadata: Metadata = {
   },
 };
 
-const FEATURES = [
-  { icon: '📅', name: 'Agenda', desc: 'Reservas por cancha, arrastrá y soltá turnos, evitá superposiciones y cobrá en el momento.' },
-  { icon: '💵', name: 'Caja', desc: 'Abrí y cerrá turno, registrá movimientos, arqueá por denominación y controlá cada peso.' },
-  { icon: '👥', name: 'Clientes', desc: 'Ficha completa, cuenta corriente, historial de turnos y detección de duplicados.' },
-  { icon: '🥤', name: 'Buffet', desc: 'Punto de venta rápido, control de stock y cobro integrado a la caja del club.' },
-  { icon: '🏆', name: 'Torneos', desc: 'Inscripciones, cuadro automático, carga de resultados y tabla de posiciones.' },
-  { icon: '📊', name: 'Reportes', desc: 'Cierre diario, ingresos, ocupación y rentabilidad por cancha en un vistazo.' },
-  { icon: '🏦', name: 'Tesorería', desc: 'Disponible hoy, bancos, por cobrar y por pagar, con alertas de vencimientos.' },
+const FEATURES: { icon: ModuleIconName; name: string; desc: string }[] = [
+  { icon: 'agenda', name: 'Agenda', desc: 'Reservas por cancha, arrastrá y soltá turnos, evitá superposiciones y cobrá en el momento.' },
+  { icon: 'caja', name: 'Caja', desc: 'Abrí y cerrá turno, registrá movimientos, arqueá por denominación y controlá cada peso.' },
+  { icon: 'clientes', name: 'Clientes', desc: 'Ficha completa, cuenta corriente, historial de turnos y detección de duplicados.' },
+  { icon: 'buffet', name: 'Buffet', desc: 'Punto de venta rápido, control de stock y cobro integrado a la caja del club.' },
+  { icon: 'torneos', name: 'Torneos', desc: 'Inscripciones, cuadro automático, carga de resultados y tabla de posiciones.' },
+  { icon: 'reportes', name: 'Reportes', desc: 'Cierre diario, ingresos, ocupación y rentabilidad por cancha en un vistazo.' },
+  { icon: 'tesoreria', name: 'Tesorería', desc: 'Disponible hoy, bancos, por cobrar y por pagar, con alertas de vencimientos.' },
 ];
 
 const BENEFITS = [
@@ -95,7 +96,7 @@ export default function LandingPage() {
         <div className="lp-features">
           {FEATURES.map((f) => (
             <article className="lp-feature" key={f.name}>
-              <div className="lp-feature-icon" aria-hidden="true">{f.icon}</div>
+              <div className="lp-feature-icon"><ModuleIcon name={f.icon} /></div>
               <h3 className="lp-feature-name">{f.name}</h3>
               <p className="lp-feature-desc">{f.desc}</p>
             </article>
@@ -124,7 +125,12 @@ export default function LandingPage() {
         <div className="lp-benefits">
           {BENEFITS.map((b) => (
             <div className="lp-benefit" key={b.t}>
-              <div className="lp-benefit-check" aria-hidden="true">✓</div>
+              <div className="lp-benefit-check" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </div>
               <div>
                 <h3 className="lp-benefit-title">{b.t}</h3>
                 <p className="lp-benefit-desc">{b.d}</p>

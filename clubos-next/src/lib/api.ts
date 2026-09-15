@@ -29,16 +29,21 @@
  *
  * En dev, el front corre en :3001 y la API en :3000, así que el fallback
  * apunta ahí (con override opcional por NEXT_PUBLIC_API_URL si hace falta).
- * En producción es un literal fijo, no una env var: una variable puesta en
- * el dashboard de Vercel le gana siempre a .env.production del repo
- * (process.env ya la trae seteada antes de que Next cargue el archivo), y
- * terminamos sirviendo lo que sea que haya quedado cargada ahí — un literal
- * en el código no tiene ninguna variable que lo pueda pisar.
+ *
+ * En producción usa el proxy same-origin de Next (`rewrites()` en
+ * next.config.mjs), NO la URL directa de Railway. Es obligatorio, no una
+ * preferencia de estilo: el login (`LoginScreen.tsx`) pega contra
+ * `/api/v1/auth/login` same-origin, y el backend deja ahí la cookie httpOnly
+ * del refresh token — esa cookie queda asociada al dominio de Vercel. Si
+ * después este cliente pega directo a Railway (otro dominio), el browser
+ * nunca manda esa cookie, `refreshToken()` falla siempre, y la sesión se
+ * cae sola en cuanto vence el access token (~15 min). Con `/api/v1` todo
+ * pasa por el mismo origin y la cookie viaja siempre.
  */
 const BASE =
   process.env.NODE_ENV === 'development'
     ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1')
-    : 'https://padel-production-f5ff.up.railway.app/api/v1';
+    : '/api/v1';
 
 let accessToken: string | null = null;
 let activeClubId: string | null = null;
@@ -47,6 +52,28 @@ let refreshInFlight: Promise<boolean> | null = null;
 // Claves con las que el login guarda la sesión en sessionStorage.
 const TOKEN_KEY = 'clubos.token';
 const CLUB_KEY = 'clubos.club';
+
+/**
+ * Todas las claves de sessionStorage que le pertenecen a la sesión del
+ * panel de staff (login.ts guarda las tres últimas: nombre del club,
+ * usuario y permisos, además de token/club de acá arriba).
+ *
+ * Se listan una por una y se borran así, en vez de `sessionStorage.clear()`:
+ * el portal del jugador (publicStorage.ts) guarda las suyas en el MISMO
+ * origin (mismo dominio, otra ruta), así que un logout del staff no tiene
+ * por qué llevarse puesto lo que el jugador tenía guardado si comparten
+ * pestaña/navegador.
+ */
+const SESSION_STORAGE_KEYS = [
+  TOKEN_KEY, CLUB_KEY, 'clubos.clubName', 'clubos.user', 'clubos.permissions',
+] as const;
+
+export function clearSessionStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    for (const key of SESSION_STORAGE_KEYS) sessionStorage.removeItem(key);
+  } catch { /* sessionStorage no disponible */ }
+}
 
 export class ApiError extends Error {
   constructor(
@@ -162,7 +189,7 @@ async function refreshToken(): Promise<boolean> {
 function forceLogout(): void {
   setSession(null, null);
   if (typeof window === 'undefined') return;
-  try { sessionStorage.clear(); } catch { /* sessionStorage no disponible */ }
+  clearSessionStorage();
   // Ya estar en /entrar (o yendo para allá) evita un loop de redirects.
   if (!window.location.pathname.startsWith('/entrar')) {
     window.location.href = '/entrar';
@@ -594,6 +621,16 @@ export const api = {
 
     statement: (id: string) =>
       request<Record<string, unknown>>(`/clients/${id}/statement`),
+
+    /** Ficha editable: los mismos campos que ya muestra el perfil. */
+    update: (id: string, input: {
+      firstName?: string; lastName?: string;
+      phone?: string; email?: string; documentNumber?: string;
+      birthDate?: string;
+      skillLevel?: string; dominantHand?: string; preferredSide?: string;
+    }) => request<Record<string, unknown>>(`/clients/${id}`, {
+      method: 'PATCH', body: JSON.stringify(input),
+    }),
 
     /** Mismos filtros que `list()`. Dispara la descarga del CSV. */
     exportCsv: (params: {

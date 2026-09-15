@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PlanLimitsService } from '../../common/services/plan-limits.service';
 import { EmailChannel } from '../../notifications/services/channels/email.channel';
 import { generateSecureToken } from '../../common/utils/secure-token.util';
 import type { TenantContext } from '../../tenancy/tenant-context';
@@ -50,6 +51,7 @@ export class TeamService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly email: EmailChannel,
+    private readonly limits: PlanLimitsService,
   ) {}
 
   async list(clubId: string) {
@@ -112,6 +114,11 @@ export class TeamService {
         throw new ConflictException('Esa persona ya es parte del club');
       }
 
+      // Enforcement real del límite del plan — ver PlanLimitsService. Recién
+      // acá, porque hasta este punto no sabemos todavía si esto suma un
+      // usuario nuevo o si iba a rechazarse igual por "ya es parte del club".
+      await this.assertUserLimit(clubId);
+
       if (membership) {
         await this.prisma.db.membership.update({
           where: { id: membership.id },
@@ -149,6 +156,9 @@ export class TeamService {
 
       return { status: 'ADDED' as const };
     }
+
+    // No tiene cuenta todavía: esto sí es, sin duda, un usuario nuevo.
+    await this.assertUserLimit(clubId);
 
     // No tiene cuenta: se crea sin contraseña y queda INVITED hasta que la fije.
     const newUser = await this.prisma.user.create({
@@ -272,6 +282,19 @@ export class TeamService {
     if (roleCode === 'OWNER' && ctx.roleCode !== 'OWNER' && !ctx.isPlatformAdmin) {
       throw new ForbiddenException('Solo un Dueño puede asignar el rol de Dueño');
     }
+  }
+
+  /**
+   * Enforcement real de `Plan.maxUsers` — ver PlanLimitsService. Cuenta
+   * ACTIVE + INVITED: alguien invitado y todavía sin aceptar ya ocupa un
+   * cupo (si no, el club podría invitar de más y "resolverlo" a lo loco
+   * cuando la gente acepte).
+   */
+  private async assertUserLimit(clubId: string): Promise<void> {
+    const currentCount = await this.prisma.db.membership.count({
+      where: { status: { in: ['ACTIVE', 'INVITED'] }, deletedAt: null },
+    });
+    await this.limits.assertCanAdd(clubId, 'maxUsers', currentCount, 'usuarios del staff');
   }
 
   private async findActiveOrInvited(clubId: string, membershipId: string) {
