@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AgendaStore, type AgendaState } from '@/lib/agenda-store';
-import { api, setSession as setApiSession } from '@/lib/api';
+import { api, setSession as setApiSession, clearSessionStorage } from '@/lib/api';
 
 /**
  * Conecta el AgendaStore a React.
@@ -209,20 +209,31 @@ export function readSession(): Session | null {
   const clubId = sessionStorage.getItem('clubos.club');
   if (!token || !clubId) return null;
 
+  // Defensivo: si el valor guardado no es JSON válido (un valor corrupto de
+  // una versión vieja de la app, o alguien lo editó a mano en devtools), un
+  // JSON.parse sin atajar tira y esto corre dentro de un useEffect — el
+  // error queda sin capturar y la pantalla entera se queda en blanco, sin
+  // ninguna forma de recuperarse salvo que la persona borre el storage a
+  // mano. Preferible: tratarlo como "sin permisos" y seguir andando.
+  let permissions: string[] = [];
+  try {
+    permissions = JSON.parse(
+      sessionStorage.getItem('clubos.permissions') ?? '[]',
+    ) as string[];
+  } catch { /* permissions queda en [] */ }
+
   return {
     token,
     clubId,
     clubName: sessionStorage.getItem('clubos.clubName') ?? '',
     userName: sessionStorage.getItem('clubos.user') ?? '',
-    permissions: new Set<string>(
-      JSON.parse(sessionStorage.getItem('clubos.permissions') ?? '[]') as string[],
-    ),
+    permissions: new Set<string>(permissions),
   };
 }
 
 export function clearSession(): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.clear();
+  clearSessionStorage();
   // Sin esto, api.ts sigue mandando el Authorization/x-club-id viejos en
   // memoria hasta el próximo F5 — un logout que "cierra sesión" pero deja
   // las siguientes requests autenticadas como si nada.

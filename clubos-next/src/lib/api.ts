@@ -53,6 +53,28 @@ let refreshInFlight: Promise<boolean> | null = null;
 const TOKEN_KEY = 'clubos.token';
 const CLUB_KEY = 'clubos.club';
 
+/**
+ * Todas las claves de sessionStorage que le pertenecen a la sesión del
+ * panel de staff (login.ts guarda las tres últimas: nombre del club,
+ * usuario y permisos, además de token/club de acá arriba).
+ *
+ * Se listan una por una y se borran así, en vez de `sessionStorage.clear()`:
+ * el portal del jugador (publicStorage.ts) guarda las suyas en el MISMO
+ * origin (mismo dominio, otra ruta), así que un logout del staff no tiene
+ * por qué llevarse puesto lo que el jugador tenía guardado si comparten
+ * pestaña/navegador.
+ */
+const SESSION_STORAGE_KEYS = [
+  TOKEN_KEY, CLUB_KEY, 'clubos.clubName', 'clubos.user', 'clubos.permissions',
+] as const;
+
+export function clearSessionStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    for (const key of SESSION_STORAGE_KEYS) sessionStorage.removeItem(key);
+  } catch { /* sessionStorage no disponible */ }
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -167,7 +189,7 @@ async function refreshToken(): Promise<boolean> {
 function forceLogout(): void {
   setSession(null, null);
   if (typeof window === 'undefined') return;
-  try { sessionStorage.clear(); } catch { /* sessionStorage no disponible */ }
+  clearSessionStorage();
   // Ya estar en /entrar (o yendo para allá) evita un loop de redirects.
   if (!window.location.pathname.startsWith('/entrar')) {
     window.location.href = '/entrar';
