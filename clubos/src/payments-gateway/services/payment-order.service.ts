@@ -300,6 +300,9 @@ export class PaymentOrderService {
               mapped === 'REFUNDED'
                 ? 'Reembolsado en Mercado Pago'
                 : 'Pago cancelado/contracargo en Mercado Pago',
+            // Único caso legítimo: MP mismo confirmó la devolución por
+            // webhook. La fuente de verdad es MP, no una acción del staff.
+            confirmedByGateway: true,
           });
         }
 

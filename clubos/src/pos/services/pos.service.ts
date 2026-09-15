@@ -330,7 +330,10 @@ export class PosService {
           },
           payments: {
             where: { status: { in: ['COMPLETED', 'PARTIALLY_REFUNDED'] } },
-            select: { id: true, amount: true, refundedAmount: true },
+            select: {
+              id: true, amount: true, refundedAmount: true,
+              gatewayProvider: true, method: { select: { kind: true } },
+            },
           },
         },
       });
@@ -359,6 +362,12 @@ export class PosService {
       for (const p of sale.payments) {
         const available = this.num(p.amount) - this.num(p.refundedAmount);
         if (available <= 0) continue;
+        // Pago de Mercado Pago: ClubOS no llama a la API real de MP para
+        // devolver la plata (ver PaymentService.refund) — no se marca
+        // reembolsado acá, queda pendiente de que el club lo procese a mano.
+        const isMercadoPago =
+          p.gatewayProvider === 'MERCADO_PAGO' || p.method.kind === 'MERCADO_PAGO';
+        if (isMercadoPago) continue;
         await this.payments.refund(tx, {
           clubId,
           paymentId: p.id,

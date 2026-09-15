@@ -357,7 +357,10 @@ export class BookingService {
           paidAmount: true,
           payments: {
             where: { status: { in: ['COMPLETED', 'PARTIALLY_REFUNDED'] } },
-            select: { id: true, amount: true, refundedAmount: true },
+            select: {
+              id: true, amount: true, refundedAmount: true,
+              gatewayProvider: true, method: { select: { kind: true } },
+            },
             orderBy: { paidAt: 'asc' },
           },
         },
@@ -387,6 +390,14 @@ export class BookingService {
           if (pending <= 0) break;
           const available = this.num(p.amount) - this.num(p.refundedAmount);
           if (available <= 0) continue;
+          // Pago de Mercado Pago: ClubOS no llama a la API real de MP para
+          // devolver la plata (ver el comentario de PaymentService.refund),
+          // así que este cobro NO se marca reembolsado acá — queda como
+          // saldo pendiente (cae en el aviso de faltante de abajo) para que
+          // el club lo procese a mano desde su panel de MP.
+          const isMercadoPago =
+            p.gatewayProvider === 'MERCADO_PAGO' || p.method.kind === 'MERCADO_PAGO';
+          if (isMercadoPago) continue;
           const take = Math.min(available, pending);
           await this.payments.refund(tx, {
             clubId,
