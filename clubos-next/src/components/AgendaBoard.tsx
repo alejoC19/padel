@@ -51,11 +51,17 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
   const court = courts.find((c) => c.id === courtId) ?? courts[0];
 
   // Construye la línea de tiempo de la cancha: reservas + huecos libres.
+  //
+  // Cada hueco libre es UN bloque continuo (ej. 14:00–15:30), no una fila por
+  // cada `slotMinutes` (30 min). Cortarlo en fragmentos de 30 min hacía que
+  // un mismo hueco de 90 min apareciera como tres "turnos" sueltos — 14:00,
+  // 14:30, 15:00 — dando la impresión de que la cancha solo se alquila en
+  // bloques de 30 min. El horario real de una reserva lo define quien la crea
+  // (NewBookingDialog: 60/90/120 min), no el tamaño del hueco libre.
   const slots = useMemo<Slot[]>(() => {
     if (!court) return [];
     const open = court.openMinute ?? day.openMinute;
     const close = court.closeMinute ?? day.closeMinute;
-    const step = court.slotMinutes || 60;
 
     const bookings = day.bookings
       .filter((b) => b.courtId === court.id
@@ -65,23 +71,13 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
     const out: Slot[] = [];
     let cursor = open;
     for (const b of bookings) {
-      // Huecos libres antes de esta reserva, en pasos de "step".
-      while (cursor + step <= b.startMinute) {
-        out.push({ kind: 'free', start: cursor, end: cursor + step });
-        cursor += step;
-      }
       if (b.startMinute > cursor) {
         out.push({ kind: 'free', start: cursor, end: b.startMinute });
       }
       out.push({ kind: 'booked', start: b.startMinute, end: b.endMinute, booking: b });
       cursor = Math.max(cursor, b.endMinute);
     }
-    while (cursor + step <= close) {
-      out.push({ kind: 'free', start: cursor, end: cursor + step });
-      cursor += step;
-    }
-    const lastSlot = out[out.length - 1];
-    if (cursor < close && lastSlot && lastSlot.end < close) {
+    if (close > cursor) {
       out.push({ kind: 'free', start: cursor, end: close });
     }
     return out;

@@ -359,6 +359,13 @@
    TORNEOS — detalle, carga de resultados
    ========================================================================= */
 .tournament-detail { display: flex; flex-direction: column; gap: var(--sp-xl, 24px); }
+.tournament-banner-lg {
+  height: 180px;
+  border-radius: var(--r-lg, 14px);
+  background-size: cover;
+  background-position: center;
+  background-color: var(--ds-surface-2, #f8fafb);
+}
 .match-score-btn {
   padding: 6px 12px;
   border: 1px solid var(--ds-border, #e2e7ec);

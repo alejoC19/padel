@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { HeroAgenda } from '@/components/marketing/HeroAgenda';
+import { PhoneBookingDemo } from '@/components/marketing/PhoneBookingDemo';
+import { DesktopMock } from '@/components/marketing/DesktopMock';
 import { Ball, PadelDefs } from '@/components/marketing/Art';
 import { ModuleIcon, type ModuleIconName } from '@/components/marketing/ModuleIcon';
 import '@/styles/landing.css';
@@ -64,11 +65,12 @@ export default function LandingPage() {
       <section className="lp-hero" id="producto">
         <div className="lp-hero-copy">
           <h1 className="lp-h1">
-            Administrá tu club de pádel<br />desde un solo lugar.
+            Tus jugadores reservan solos.<br />Vos manejás todo el club.
           </h1>
           <p className="lp-sub">
-            Agenda, caja, clientes, buffet, torneos y reportes en una única
-            plataforma pensada para clubes de pádel.
+            Tu cliente saca el turno desde el celular, sin llamarte. Vos ves
+            la agenda, la caja, los clientes, el buffet, los torneos y la
+            tesorería del club en una única plataforma.
           </p>
           <div className="lp-hero-cta">
             <Link href="/crear-club" className="lp-btn lp-btn-primary lp-btn-lg">
@@ -78,10 +80,10 @@ export default function LandingPage() {
               Ver demo
             </Link>
           </div>
-          <p className="lp-hero-note">Sin instalar nada. Funciona en la compu de recepción.</p>
+          <p className="lp-hero-note">Sin instalar nada. Funciona en la compu de recepción y en el celular de tu cliente.</p>
         </div>
         <div className="lp-hero-visual">
-          <HeroAgenda />
+          <PhoneBookingDemo />
         </div>
       </section>
 
@@ -104,16 +106,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* AGENDA como diferencial */}
+      {/* AGENDA + TESORERÍA como diferencial */}
       <section className="lp-section lp-agenda-section">
         <div className="lp-section-head">
-          <h2 className="lp-h2">La agenda es el corazón del club</h2>
+          <h2 className="lp-h2">Así lo ves vos, desde la compu del club</h2>
           <p className="lp-section-sub">
-            Arrastrá turnos, evitá superposiciones y cobrá sin salir de la pantalla.
+            La agenda del día y cuánta plata hay — hoy, en el banco y lo que
+            viene — sin saltar entre planillas.
           </p>
         </div>
         <div className="lp-agenda-demo">
-          <HeroAgenda />
+          <DesktopMock />
         </div>
       </section>
 

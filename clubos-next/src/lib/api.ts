@@ -656,6 +656,7 @@ export const api = {
       category?: string;
       skillLevel?: string;
       description?: string;
+      imageUrl?: string;
     }) => request<{ id: string }>('/tournaments', {
       method: 'POST', body: JSON.stringify(input),
     }),
@@ -668,7 +669,8 @@ export const api = {
     }>>(`/tournaments${status ? `?status=${status}` : ''}`),
 
     detail: (id: string) => request<{
-      id: string; name: string; description: string | null; format: string;
+      id: string; name: string; description: string | null; imageUrl: string | null;
+      format: string;
       category: string | null; startsAt: string; status: string;
       maxTeams: number; entryFee: number; prizeDescription: string | null;
       teams: Array<{
@@ -715,6 +717,10 @@ export const api = {
       `/tournaments/matches/${matchId}/result`,
       { method: 'POST', body: JSON.stringify(input) },
     ),
+
+    /** Saca al torneo de borrador: recién ahí lo ve y se anota el público. */
+    publish: (id: string) =>
+      request<{ id: string; status: string }>(`/tournaments/${id}/publish`, { method: 'POST' }),
 
     /** No reembolsa inscripciones pagadas — eso se hace a mano desde tesorería. */
     cancel: (id: string) =>

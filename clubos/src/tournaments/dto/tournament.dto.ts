@@ -56,6 +56,9 @@ export class CreateTournamentDto {
 
   @IsOptional() @IsString()
   registrationClosesAt?: string;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  imageUrl?: string;
 }
 
 /**
@@ -101,6 +104,9 @@ export class UpdateTournamentDto {
 
   @IsOptional() @IsString()
   registrationClosesAt?: string;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  imageUrl?: string;
 }
 
 export class TeamPaymentDto {

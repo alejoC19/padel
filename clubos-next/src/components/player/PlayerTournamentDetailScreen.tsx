@@ -201,6 +201,9 @@ export function PlayerTournamentDetailScreen({ slug, id }: { slug: string; id: s
                 <span className="booking-item-dot" style={{ background: 'var(--ds-primary, #c8443e)' }} />
                 <div className="booking-item-main">
                   <span className="booking-item-court">{team.name}</span>
+                  {team.players.length > 0 && (
+                    <span className="booking-item-time">{team.players.join(' · ')}</span>
+                  )}
                 </div>
               </div>
             ))}
