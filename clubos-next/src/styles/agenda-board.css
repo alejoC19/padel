@@ -127,6 +127,7 @@
 .slot-name { font-weight: 700; color: var(--ds-text); }
 .slot-sub { font-size: var(--fs-caption); color: var(--ds-muted); }
 .slot-book { font-weight: 700; color: var(--ds-success); font-size: 14px; flex: none; }
+.slot-occupied-mark { color: var(--ds-danger); flex: none; }
 .slot-note { color: var(--ds-info); flex: none; }
 .slot-now-tag {
   font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;

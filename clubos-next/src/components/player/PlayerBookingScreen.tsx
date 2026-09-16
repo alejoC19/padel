@@ -390,16 +390,24 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
               <div className="slot-grid">
                 {candidates.map((cand) => {
                   const past = isPastSlot(cand);
-                  const free = !past && isSlotFree(cand, courtId, availLoad.data.busy);
+                  const occupied = !past && !isSlotFree(cand, courtId, availLoad.data.busy);
+                  const free = !past && !occupied;
                   return (
                     <button
                       key={cand.startMinute}
                       type="button"
-                      className={`slot-btn ${cand.startsAt === slotStartsAt ? 'is-selected' : ''}`}
+                      className={`slot-btn ${cand.startsAt === slotStartsAt ? 'is-selected' : ''}${occupied ? ' is-occupied' : ''}`}
                       disabled={!free}
                       onClick={() => setSlotStartsAt(cand.startsAt)}
                     >
                       {formatMinute(cand.startMinute)}
+                      {occupied && (
+                        <svg className="slot-btn-cross" width="11" height="11" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+                             aria-label="Ocupado">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      )}
                     </button>
                   );
                 })}

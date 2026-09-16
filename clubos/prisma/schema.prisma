@@ -447,7 +447,7 @@ model Court {
   hasCustomHours Boolean @default(false)
 
   /// Duración mínima reservable en minutos (grilla de la agenda).
-  slotMinutes Int @default(30)
+  slotMinutes Int @default(60)
 
   sortOrder Int       @default(0)
   createdAt DateTime  @default(now()) @db.Timestamptz(3)

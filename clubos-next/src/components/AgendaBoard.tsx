@@ -167,6 +167,11 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
                   {b.paymentStatus === 'PAID' && ` · ${formatMoney(b.totalPrice)}`}
                 </span>
               </div>
+              <svg className="slot-occupied-mark" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                   aria-label="Ocupado">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
               {b.hasNotes && (
                 <svg className="slot-note" width="15" height="15" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" strokeWidth="2" aria-label="Tiene notas">
