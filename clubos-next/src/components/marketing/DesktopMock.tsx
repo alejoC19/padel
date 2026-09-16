@@ -18,6 +18,11 @@ import { useState } from 'react';
  * La pestaña de Tesorería existía en la lista de funcionalidades pero nunca
  * se veía en acción — es la parte que un dueño de club googlea primero
  * ("¿me alcanza para pagar el viernes?").
+ *
+ * Todo esto va adentro de la pantalla de una MacBook real (devices.css —
+ * ver styles/devices.css): una ventana de navegador sola, flotando sobre
+ * fondo oscuro, no se lee como "así lo uso en mi compu" sin el contexto
+ * físico de la notebook alrededor.
  */
 
 const COURTS = [
@@ -51,7 +56,12 @@ export function DesktopMock() {
   const [tab, setTab] = useState<'agenda' | 'tesoreria'>('agenda');
 
   return (
-    <div className="lp-window">
+    <div className="lp-macbook-wrap">
+    <div className="marvel-device macbook lp-macbook-device">
+      <div className="top-bar" />
+      <div className="camera" />
+      <div className="screen">
+      <div className="lp-window">
       <div className="lp-demo-bar">
         <span className="lp-dot" style={{ background: '#F26D6D' }} />
         <span className="lp-dot" style={{ background: '#F5A524' }} />
@@ -133,6 +143,10 @@ export function DesktopMock() {
           </div>
         </div>
       )}
+      </div>
+      </div>
+      <div className="bottom-bar" />
+    </div>
     </div>
   );
 }

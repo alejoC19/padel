@@ -7,6 +7,11 @@
  * ("mis jugadores reservan solos, no me llaman por WhatsApp"). Server
  * component: toda la animación (el tap en el horario y el cartel de
  * confirmación) es CSS puro.
+ *
+ * El marco (notch, cámara, parlante, botones) es el iPhone X de
+ * `devices.css` — ver styles/devices.css — no un rectángulo con esquinas
+ * redondeadas dibujado a mano: eso es lo que lo hace leerse como una foto
+ * de producto real y no como un ícono.
  */
 
 const DAYS = [
@@ -22,9 +27,23 @@ const SLOTS = ['18:00', '19:30', '21:00'];
 export function PhoneBookingDemo() {
   return (
     <div className="lp-phone-wrap">
-      <div className="lp-phone">
-        <div className="lp-phone-notch" />
-        <div className="lp-phone-screen">
+      <div className="marvel-device iphone-x lp-phone-device">
+        <div className="notch">
+          <div className="camera" />
+          <div className="speaker" />
+        </div>
+        <div className="top-bar" />
+        <div className="sleep" />
+        <div className="bottom-bar" />
+        <div className="volume" />
+        <div className="overflow">
+          <div className="shadow shadow--tr" />
+          <div className="shadow shadow--tl" />
+          <div className="shadow shadow--br" />
+          <div className="shadow shadow--bl" />
+        </div>
+        <div className="inner-shadow" />
+        <div className="screen lp-phone-screen">
           <div className="lp-phone-statusbar">
             <span>9:41</span>
             <span className="lp-phone-statusbar-icons">

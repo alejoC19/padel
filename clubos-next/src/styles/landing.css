@@ -306,9 +306,34 @@
   100% { box-shadow: 0 0 0 0 rgba(78,203,146,0); }
 }
 
-/* --- VENTANA DE ESCRITORIO (DesktopMock: agenda + tesorería) --- */
-.lp-window { background: var(--lp-bg-soft); border: 1px solid var(--lp-border); border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden; }
+/* --- VENTANA DE ESCRITORIO (DesktopMock: agenda + tesorería) ---
+   Va adentro de una MacBook real (`.marvel-device.macbook` de devices.css —
+   ver styles/devices.css): webcam, bisel y base de teclado dibujados con
+   CSS real, no una ventana de navegador flotando sobre fondo vacío. */
+.lp-macbook-wrap { display: flex; justify-content: center; padding: 20px 0 40px; }
+.lp-macbook-device { zoom: 0.68; }
+/* Mismo desempate de especificidad que en el teléfono: sin el ancestro
+   `.marvel-device.macbook` de más, empata con `.marvel-device .screen` de
+   devices.css y queda a merced del orden de los imports. */
+.lp-macbook-wrap .marvel-device.macbook .screen { display: flex; }
+.lp-macbook-device .lp-window {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+}
+@media (max-width: 900px) {
+  .lp-macbook-device { zoom: 0.46; }
+}
+@media (max-width: 640px) {
+  .lp-macbook-device { zoom: 0.3; }
+}
+.lp-window {
+  background: var(--lp-bg-soft); border: 1px solid var(--lp-border); border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5); overflow: hidden;
+  display: flex; flex-direction: column;
+}
 .lp-window-tabs { display: flex; gap: 4px; margin-left: 8px; }
 .lp-window-tab {
   border: none; background: transparent; color: var(--lp-muted);
@@ -317,7 +342,9 @@
 }
 .lp-window-tab:hover { color: var(--lp-ink); }
 .lp-window-tab.is-active { background: rgba(255,255,255,0.08); color: var(--lp-ink); }
-.lp-window-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+/* En la MacBook, la pantalla es mucho más alta que el contenido: centrarlo
+   se ve intencional, arriba pegado se ve como que "sobró pantalla". */
+.lp-window-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; flex: 1; justify-content: center; }
 
 /* Tira de estado por cancha */
 .lp-mini-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -375,36 +402,16 @@
 .lp-treasury-row-amount { font-weight: 700; }
 
 /* --- MOCKUP DE TELÉFONO (PhoneBookingDemo) ---
-   Un `rotate()` 2D sobre un rectángulo plano se lee como un ícono, no una
-   foto de producto — falta la profundidad de mirarlo desde un costado. Acá
-   se arma con `perspective()` + rotateY/rotateX reales (foreshortening de
-   verdad, no un simple giro), marco con gradiente metálico en vez de color
-   plano, botones laterales insinuados y un barrido de brillo sobre el
-   vidrio — el mismo lenguaje que un render de producto real. */
+   El marco (notch, cámara, parlante, botones de volumen/sleep) es el
+   `.marvel-device.iphone-x` de devices.css — ver styles/devices.css —,
+   dibujado con sombras/gradientes reales, no un rectángulo con esquinas
+   redondeadas armado a mano. Acá solo se ajusta el tamaño (nace a 375×812,
+   `zoom` lo lleva al tamaño de hero) y, en el hero, la perspectiva 3D real
+   (rotateY/rotateX, no un simple `rotate()` 2D) para que se vea como una
+   foto de producto mirada desde un costado, no un ícono plano. */
 .lp-phone-wrap { display: flex; justify-content: center; padding: 20px 0; }
-.lp-phone {
-  width: 300px;
-  border-radius: 46px;
-  background: linear-gradient(152deg, #5a5a62 0%, #232326 14%, #0a0a0c 46%, #1c1c1f 78%, #4a4a52 100%);
-  padding: 11px;
-  box-sizing: border-box;
-  box-shadow: 0 4px 0 0 rgba(255,255,255,0.04) inset, 0 0 0 1px rgba(0,0,0,0.4);
-  position: relative;
-}
-/* Botón de volumen (izquierda) y power (derecha) — dos tiras claras sobre
-   el marco, ahí donde un iPhone real los tiene. */
-.lp-phone::before, .lp-phone::after {
-  content: '';
-  position: absolute;
-  width: 3px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.6) 40%, rgba(255,255,255,0.6) 60%, rgba(255,255,255,0.05));
-}
-.lp-phone::before { left: -2px; top: 19%; height: 13%; }
-.lp-phone::after { right: -2px; top: 27%; height: 17%; }
-/* En el hero, el teléfono se ve desde un costado, como una foto de
-   producto real apoyada sobre el blob — no un ícono flotando sin contexto. */
-.lp-hero-visual .lp-phone {
+.lp-phone-device { zoom: 0.7; }
+.lp-hero-visual .lp-phone-device {
   transform: perspective(1300px) rotateY(-24deg) rotateX(5deg) rotateZ(-1deg);
   animation: lp-phone-float 6s ease-in-out infinite;
 }
@@ -413,22 +420,22 @@
   50% { transform: perspective(1300px) rotateY(-24deg) rotateX(5deg) rotateZ(-1deg) translateY(-12px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .lp-hero-visual .lp-phone, .lp-hero-blob { animation: none; }
+  .lp-hero-visual .lp-phone-device, .lp-hero-blob { animation: none; }
 }
-.lp-phone-notch {
-  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-  width: 86px; height: 22px; background: #000; border-radius: 14px; z-index: 3;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
-}
-.lp-phone-screen {
+/* `.screen.lp-phone-screen`: la especificidad de un solo selector de clase
+   empata con la de devices.css (`.marvel-device .screen`) y el resultado
+   queda a merced del orden de los imports. Calificarlo con las dos clases
+   del propio elemento lo desempata sin pelear con el orden del bundle. */
+.lp-phone-wrap .screen.lp-phone-screen {
   background: var(--lp-bg-soft);
-  border-radius: 36px;
   overflow: hidden;
-  padding: 14px 14px 18px;
+  padding: 30px 14px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   position: relative;
+  height: 100%;
+  box-sizing: border-box;
 }
 /* Barrido de brillo diagonal sobre el vidrio — lo que hace que una pantalla
    dibujada en CSS deje de leerse como una tarjeta plana. */
