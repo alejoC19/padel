@@ -93,24 +93,109 @@
   margin: 0 auto;
   padding: 72px 40px 48px;
 }
+.lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--turf);
+  margin: 0 0 14px;
+}
+.lp-eyebrow::before {
+  content: '';
+  width: 8px; height: 8px; border-radius: 2px;
+  background: var(--turf);
+  transform: rotate(45deg);
+}
 .lp-h1 {
-  font-size: 52px;
-  line-height: 1.05;
-  font-weight: 850;
-  letter-spacing: -0.03em;
+  font-size: 60px;
+  line-height: 1.02;
+  font-weight: 900;
+  letter-spacing: -0.035em;
   margin: 0 0 20px;
 }
+.lp-accent { color: var(--turf); }
 .lp-sub { font-size: 19px; color: var(--lp-muted); line-height: 1.5; margin: 0 0 28px; max-width: 30em; }
 .lp-hero-cta { display: flex; gap: 14px; flex-wrap: wrap; }
 .lp-hero-note { margin-top: 16px; font-size: 14px; color: var(--lp-muted); }
-.lp-hero-visual { min-width: 0; }
+.lp-hero-visual { min-width: 0; position: relative; display: grid; place-items: center; }
 .lp-hero-copy { min-width: 0; }
+
+/* Blob de color detrás del teléfono — el mismo truco de "foto de producto
+   flotando sobre una mancha" que hace que un hero se sienta terminado en
+   vez de un elemento suelto sobre fondo vacío. */
+.lp-hero-blob {
+  position: absolute;
+  width: 420px; height: 420px;
+  background: radial-gradient(circle, rgba(78,203,146,0.35) 0%, rgba(78,203,146,0.12) 55%, transparent 75%);
+  filter: blur(6px);
+  border-radius: 50%;
+  z-index: 0;
+  animation: lp-blob-anim 7s ease-in-out infinite;
+}
+@keyframes lp-blob-anim {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.06) translateY(-10px); }
+}
+.lp-hero-visual > .lp-phone-wrap { position: relative; z-index: 1; }
 
 /* --- SECCIONES --- */
 .lp-section { max-width: 1200px; margin: 0 auto; padding: 64px 40px; }
 .lp-section-head { text-align: center; margin-bottom: 44px; }
 .lp-h2 { font-size: 36px; font-weight: 820; letter-spacing: -0.02em; margin: 0 0 12px; }
 .lp-section-sub { font-size: 18px; color: var(--lp-muted); margin: 0; }
+
+/* --- IMPACTO (números grandes, "vende a primera vista") --- */
+.lp-impact { padding-top: 8px; }
+.lp-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+.lp-impact-card {
+  padding: 28px 22px;
+  border-radius: 20px;
+  border: 1px solid var(--lp-border);
+  background: linear-gradient(160deg, rgba(78,203,146,0.14), rgba(78,203,146,0.02) 65%);
+  text-align: center;
+}
+.lp-impact-num {
+  display: block;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--lp-ink);
+  margin-bottom: 8px;
+}
+.lp-impact-label { font-size: 14.5px; color: var(--lp-muted); line-height: 1.4; }
+
+/* --- EL PROBLEMA --- */
+.lp-problem {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 64px 40px;
+}
+.lp-problem-visual { display: flex; justify-content: center; }
+.lp-problem-visual svg { width: 100%; max-width: 380px; height: auto; }
+.lp-problem-list { display: flex; flex-direction: column; gap: 22px; margin-top: 28px; }
+.lp-problem-item { display: flex; gap: 14px; align-items: flex-start; }
+.lp-problem-item-icon {
+  width: 38px; height: 38px; border-radius: 11px; flex: none;
+  background: rgba(222,100,53,0.14); color: var(--lp-primary);
+  display: grid; place-items: center;
+}
+.lp-problem-item-title { font-size: 16px; font-weight: 800; margin: 0 0 3px; }
+.lp-problem-item-desc { font-size: 14.5px; color: var(--lp-muted); margin: 0; line-height: 1.45; }
 
 /* --- FUNCIONALIDADES --- */
 .lp-features {
@@ -299,6 +384,19 @@
   box-shadow: 0 30px 60px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,255,255,0.06);
   position: relative;
 }
+/* En el hero, el teléfono va apoyado sobre el blob con una leve inclinación
+   — "producto en uso", no un ícono flotando sin contexto. */
+.lp-hero-visual .lp-phone {
+  transform: rotate(-5deg);
+  animation: lp-phone-float 6s ease-in-out infinite;
+}
+@keyframes lp-phone-float {
+  0%, 100% { transform: rotate(-5deg) translateY(0); }
+  50% { transform: rotate(-5deg) translateY(-12px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-hero-visual .lp-phone, .lp-hero-blob { animation: none; }
+}
 .lp-phone-notch {
   position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
   width: 90px; height: 20px; background: #0d0d0f; border-radius: 12px; z-index: 2;
@@ -400,11 +498,14 @@
    ========================================================================= */
 @media (max-width: 900px) {
   .lp-hero { grid-template-columns: 1fr; padding: 48px 24px; }
-  .lp-h1 { font-size: 38px; }
+  .lp-h1 { font-size: 40px; }
   .lp-nav-links { display: none; }
   .lp-hero-visual { order: -1; }
   .lp-mini-strip { grid-template-columns: repeat(2, 1fr); }
   .lp-treasury-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-impact-grid { grid-template-columns: repeat(2, 1fr); padding: 0 24px; }
+  .lp-problem { grid-template-columns: 1fr; padding: 48px 24px; gap: 32px; }
+  .lp-problem-visual { order: -1; }
 }
 @media (max-width: 640px) {
   .lp-nav { padding: 14px 20px; }
@@ -414,6 +515,10 @@
   .lp-nav-cta .lp-link-signin { display: none; }
   .lp-footer { flex-direction: column; align-items: flex-start; }
   .lp-phone { width: 260px; }
+  .lp-hero-blob { width: 300px; height: 300px; }
+  .lp-impact-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .lp-impact-card { padding: 20px 14px; }
+  .lp-impact-num { font-size: 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PhoneBookingDemo } from '@/components/marketing/PhoneBookingDemo';
 import { DesktopMock } from '@/components/marketing/DesktopMock';
-import { Ball, PadelDefs } from '@/components/marketing/Art';
+import { Ball, NotebookScene, PadelDefs } from '@/components/marketing/Art';
 import { ModuleIcon, type ModuleIconName } from '@/components/marketing/ModuleIcon';
 import '@/styles/landing.css';
 
@@ -38,6 +38,19 @@ const BENEFITS = [
   { t: 'Información centralizada', d: 'Reportes y tesorería al día para decidir con datos reales.' },
 ];
 
+const IMPACT = [
+  { num: '7', label: 'módulos trabajando juntos: agenda, caja, clientes, buffet, torneos, reportes y tesorería.' },
+  { num: '24/7', label: 'tus jugadores reservan solos desde el celular, sin llamarte.' },
+  { num: '0', label: 'planillas sueltas ni cuadernos: todo lo que pasa en el club queda registrado.' },
+  { num: '100%', label: 'de la caja controlada, en todo momento, no solo al cierre.' },
+];
+
+const PROBLEMS = [
+  { t: 'El cuaderno se llena de tachones', d: 'Turnos repetidos, letra que no se entiende, y nadie sabe si ese cliente ya pagó.' },
+  { t: 'El grupo de WhatsApp no escala', d: 'Cuando el club crece, coordinar reservas a mano se vuelve un segundo trabajo.' },
+  { t: 'La plata se pierde en el camino', d: 'Sin caja centralizada, cerrar el día es adivinar cuánto entró de verdad.' },
+];
+
 export default function LandingPage() {
   return (
     <div className="lp">
@@ -64,8 +77,10 @@ export default function LandingPage() {
       {/* HERO */}
       <section className="lp-hero" id="producto">
         <div className="lp-hero-copy">
+          <span className="lp-eyebrow">Gestión para clubes de pádel</span>
           <h1 className="lp-h1">
-            Tus jugadores reservan solos.<br />Vos manejás todo el club.
+            Tus jugadores <span className="lp-accent">reservan solos</span>.<br />
+            Vos manejás todo el club.
           </h1>
           <p className="lp-sub">
             Tu cliente saca el turno desde el celular, sin llamarte. Vos ves
@@ -83,13 +98,60 @@ export default function LandingPage() {
           <p className="lp-hero-note">Sin instalar nada. Funciona en la compu de recepción y en el celular de tu cliente.</p>
         </div>
         <div className="lp-hero-visual">
+          <div className="lp-hero-blob" aria-hidden="true" />
           <PhoneBookingDemo />
+        </div>
+      </section>
+
+      {/* IMPACTO — vender a primera vista, con números grandes */}
+      <section className="lp-impact">
+        <div className="lp-impact-grid">
+          {IMPACT.map((s) => (
+            <div className="lp-impact-card" key={s.label}>
+              <span className="lp-impact-num">{s.num}</span>
+              <span className="lp-impact-label">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* EL PROBLEMA */}
+      <section className="lp-problem">
+        <div className="lp-problem-visual">
+          <NotebookScene />
+        </div>
+        <div>
+          <span className="lp-eyebrow">El problema</span>
+          <h2 className="lp-h2" style={{ marginBottom: 8 }}>
+            El cuaderno y el grupo de <span className="lp-accent">WhatsApp</span> ya no alcanzan
+          </h2>
+          <p className="lp-section-sub" style={{ textAlign: 'left', margin: 0 }}>
+            Así se maneja hoy la mayoría de los clubes — hasta que un turno
+            pisado o una caja que no cierra les hace perder un cliente.
+          </p>
+          <div className="lp-problem-list">
+            {PROBLEMS.map((p) => (
+              <div className="lp-problem-item" key={p.t}>
+                <span className="lp-problem-item-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="lp-problem-item-title">{p.t}</h3>
+                  <p className="lp-problem-item-desc">{p.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* FUNCIONALIDADES */}
       <section className="lp-section" id="funcionalidades">
         <div className="lp-section-head">
+          <span className="lp-eyebrow" style={{ justifyContent: 'center' }}>La solución</span>
           <h2 className="lp-h2">Todo tu club en un solo lugar</h2>
           <p className="lp-section-sub">
             Siete módulos que trabajan juntos, sin planillas sueltas.
