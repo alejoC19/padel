@@ -647,6 +647,19 @@ export const api = {
   },
 
   tournaments: {
+    create: (input: {
+      name: string;
+      format: string;
+      startsAt: string;
+      maxTeams?: number;
+      entryFee?: number;
+      category?: string;
+      skillLevel?: string;
+      description?: string;
+    }) => request<{ id: string }>('/tournaments', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+
     list: (status?: string) => request<Array<{
       id: string; name: string; format: string; category: string | null;
       startsAt: string; endsAt: string | null; status: string;

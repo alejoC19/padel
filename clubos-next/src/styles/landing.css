@@ -8,13 +8,16 @@
 
 :root {
   --turf: #4ecb92;
-  --lp-ink: #f2f4f8;
-  --lp-muted: #9aa5b5;
+  /* Mismos valores que --auth-* (auth.css) y --ds-* (design-system.css):
+     la landing es lo primero que se ve y tiene que sentirse la misma app
+     que el resto, no una paleta fría aparte. */
+  --lp-ink: #f5f2ec;
+  --lp-muted: #9a938a;
   --lp-primary: var(--pad-red, #de6435);
   --lp-primary-dark: var(--pad-red-dark, #c1502a);
-  --lp-bg: #12151d;
-  --lp-bg-soft: #1c212c;
-  --lp-border: rgba(255, 255, 255, 0.1);
+  --lp-bg: #131110;
+  --lp-bg-soft: #1c1a17;
+  --lp-border: rgba(255, 248, 240, 0.09);
 }
 
 .lp {
