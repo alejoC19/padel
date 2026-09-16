@@ -229,16 +229,18 @@
   background: var(--ds-primary, #de6435);
   color: #fff;
 }
+/* Pasado (ya no se puede reservar): rojo tachado, no gris — tiene que leerse
+   de un vistazo, no confundirse con un simple "inactivo". */
 .slot-btn:disabled {
-  color: var(--ds-faint, #93a1ac);
+  color: var(--ds-danger, #c0392b);
   background: var(--ds-surface-2, #f8fafb);
   text-decoration: line-through;
   cursor: not-allowed;
   border-color: var(--ds-border, #e2e7ec);
 }
 /* Ocupado (hay un turno real ahí) es distinto de simplemente pasado: se
-   marca con una cruz roja, no solo tachado, para que se distinga de un
-   vistazo de un horario que ya pasó. */
+   marca con una cruz roja, sin tachado, para que se distinga de un vistazo
+   de un horario que ya pasó. */
 .slot-btn.is-occupied:disabled {
   color: var(--ds-danger, #c0392b);
   background: var(--ds-danger-soft, #fbe4e1);

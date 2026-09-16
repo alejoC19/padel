@@ -729,6 +729,15 @@ export const api = {
     /** Solo funciona antes de que exista fixture. */
     withdrawTeam: (id: string, teamId: string) =>
       request<void>(`/tournaments/${id}/teams/${teamId}`, { method: 'DELETE' }),
+
+    /** Inscribe una pareja/equipo. `payment` es opcional: sin él queda "a pagar". */
+    registerTeam: (id: string, input: {
+      name: string;
+      clientIds: string[];
+      payment?: { paymentMethodId: string; amount: number; cashSessionId?: string };
+    }) => request<{ id: string; name: string }>(
+      `/tournaments/${id}/teams`, { method: 'POST', body: JSON.stringify(input) },
+    ),
   },
 
   treasury: {
