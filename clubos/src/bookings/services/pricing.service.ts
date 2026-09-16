@@ -12,7 +12,11 @@ export interface PriceQuery {
 }
 
 export interface PriceQuote {
+  /** Tarifa que carga el club en la lista de precios: por jugador, no por cancha. */
   basePrice: number;
+  /** basePrice × 4 (el pádel se juega en dobles) — la base sobre la que se
+   *  aplica el descuento, antes de restarlo. */
+  courtPrice: number;
   discountPercent: number;
   discountAmount: number;
   totalPrice: number;
@@ -21,6 +25,10 @@ export interface PriceQuote {
   priceListId: string;
   breakdown: string[];
 }
+
+/** El pádel se juega siempre de a 4 (dobles): la tarifa que carga el club es
+ *  por jugador, y lo que se cobra por el turno es esa tarifa × 4. */
+const PLAYERS_PER_COURT = 4;
 
 interface CandidateRule {
   id: string;
@@ -139,11 +147,15 @@ export class PricingService {
     )[0];
 
     const basePrice = this.toNumber(winner.price);
+    const courtPrice = this.round(basePrice * PLAYERS_PER_COURT);
     const discountPercent = this.toNumber(client?.discountPercent ?? 0);
-    const discountAmount = this.round(basePrice * (discountPercent / 100));
-    const totalPrice = this.round(basePrice - discountAmount);
+    const discountAmount = this.round(courtPrice * (discountPercent / 100));
+    const totalPrice = this.round(courtPrice - discountAmount);
 
-    const breakdown = [`Tarifa base: ${this.money(basePrice)}`];
+    const breakdown = [
+      `Tarifa por jugador: ${this.money(basePrice)}`,
+      `Turno (x4): ${this.money(courtPrice)}`,
+    ];
     if (discountPercent > 0) {
       breakdown.push(
         `Descuento cliente ${discountPercent}%: -${this.money(discountAmount)}`,
@@ -152,6 +164,7 @@ export class PricingService {
 
     return {
       basePrice,
+      courtPrice,
       discountPercent,
       discountAmount,
       totalPrice,

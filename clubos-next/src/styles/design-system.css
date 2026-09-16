@@ -608,6 +608,7 @@ h1, h2, h3,
 .arqueo-row.is-large { font-size: var(--fs-h3); font-weight: 800; border-bottom: none; }
 .money-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; }
 .money-label { color: var(--ds-muted); font-size: var(--fs-body); }
+.money-sublabel { color: var(--ds-muted); font-size: var(--fs-caption); margin-top: 1px; }
 
 /* =========================================================================
    BARRA DE BÚSQUEDA GRANDE (Clientes, POS…)

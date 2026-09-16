@@ -306,6 +306,10 @@ export function BookingReceiptScreen({ slug, id }: { slug: string; id: string })
           </span>
         </div>
         <div className="receipt-row">
+          <span className="receipt-k">Por jugador</span>
+          <span className="receipt-v">{formatMoney(detail.totalPrice / 4)}</span>
+        </div>
+        <div className="receipt-row">
           <span className="receipt-k">Total</span>
           <span className="receipt-v">{formatMoney(detail.totalPrice)}</span>
         </div>

@@ -59,6 +59,7 @@ export function TournamentsScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   // Distinto de `demo` (sin backend/red): acá hubo sesión y respuesta real
   // del backend, pero con error (permisos, un 500) — antes se confundía con
   // el mismo "necesita el backend".
@@ -130,6 +131,13 @@ export function TournamentsScreen() {
           <h1 className="screen-title">Torneos</h1>
           <p className="screen-sub">{list.length} torneo{list.length === 1 ? '' : 's'}</p>
         </div>
+        {canOrDemo('tournament.manage') && (
+          <div className="screen-actions">
+            <button className="btn btn-primary" onClick={() => setFormOpen(true)}>
+              Nuevo torneo
+            </button>
+          </div>
+        )}
       </header>
 
       {loading ? (
@@ -138,7 +146,9 @@ export function TournamentsScreen() {
         <div className="screen-empty">
           <p>Todavía no hay torneos.</p>
           <p className="muted">
-            Creá uno desde la configuración del club para empezar a inscribir parejas.
+            {canOrDemo('tournament.manage')
+              ? 'Creá el primero con "Nuevo torneo" para empezar a inscribir parejas.'
+              : 'Todavía no se cargó ningún torneo.'}
           </p>
         </div>
       ) : (
@@ -181,7 +191,116 @@ export function TournamentsScreen() {
         </div>
       )}
 
+      {formOpen && (
+        <NewTournamentDialog
+          onClose={() => setFormOpen(false)}
+          onCreated={(id) => {
+            setFormOpen(false);
+            void load();
+            setSelectedId(id);
+          }}
+          onError={(msg) => show(msg, 'error')}
+        />
+      )}
+
       <Toasts toasts={toasts} onDismiss={dismiss} />
+    </div>
+  );
+}
+
+/** Alta de torneo: nombre, formato y fecha son lo único obligatorio — el
+ *  resto (cupo, inscripción, categoría) se puede ajustar después. */
+function NewTournamentDialog({
+  onClose, onCreated, onError,
+}: {
+  onClose: () => void;
+  onCreated: (id: string) => void;
+  onError: (message: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [format, setFormat] = useState('ELIMINATION');
+  const [startsAt, setStartsAt] = useState('');
+  const [maxTeams, setMaxTeams] = useState('16');
+  const [entryFee, setEntryFee] = useState('');
+  const [category, setCategory] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = useCallback(async () => {
+    if (!name.trim() || !startsAt) return;
+    setSubmitting(true);
+    try {
+      const created = await api.tournaments.create({
+        name: name.trim(),
+        format,
+        startsAt: new Date(startsAt).toISOString(),
+        maxTeams: maxTeams ? Number(maxTeams) : undefined,
+        entryFee: entryFee ? Number(entryFee) : undefined,
+        category: category.trim() || undefined,
+      });
+      onCreated(created.id);
+    } catch (e) {
+      onError(e instanceof ApiError ? e.message : 'No pudimos crear el torneo.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [name, format, startsAt, maxTeams, entryFee, category, onCreated, onError]);
+
+  return (
+    <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-label="Nuevo torneo">
+        <h2 className="dialog-title">Nuevo torneo</h2>
+
+        <label className="field-block">
+          <span className="label">Nombre</span>
+          <input className="input" autoFocus value={name}
+                 onChange={(e) => setName(e.target.value)} placeholder="Torneo de otoño" />
+        </label>
+
+        <label className="field-block">
+          <span className="label">Formato</span>
+          <select className="input" value={format} onChange={(e) => setFormat(e.target.value)}>
+            {Object.entries(FORMAT_LABEL).map(([code, label]) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field-block">
+          <span className="label">Fecha y hora de inicio</span>
+          <input className="input" type="datetime-local" value={startsAt}
+                 onChange={(e) => setStartsAt(e.target.value)} />
+        </label>
+
+        <div className="field-pair">
+          <label className="field-block">
+            <span className="label">Cupo de parejas</span>
+            <input className="input" type="number" inputMode="numeric" min={2}
+                   value={maxTeams} onChange={(e) => setMaxTeams(e.target.value)} />
+          </label>
+          <label className="field-block">
+            <span className="label">Inscripción (opcional)</span>
+            <input className="input" type="number" inputMode="decimal" min={0}
+                   value={entryFee} onChange={(e) => setEntryFee(e.target.value)}
+                   placeholder="$" />
+          </label>
+        </div>
+
+        <label className="field-block">
+          <span className="label">Categoría (opcional)</span>
+          <input className="input" value={category}
+                 onChange={(e) => setCategory(e.target.value)} placeholder="4ta, Damas, Mixto…" />
+        </label>
+
+        <div className="dialog-actions">
+          <button className="btn btn-secondary" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" onClick={() => void submit()}
+                  disabled={submitting || !name.trim() || !startsAt}>
+            {submitting ? 'Creando…' : 'Crear torneo'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

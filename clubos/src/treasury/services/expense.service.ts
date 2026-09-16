@@ -144,6 +144,22 @@ export class ExpenseService {
         );
       }
 
+      // Reclamo exclusivo del gasto ANTES de mover ninguna plata: bajo
+      // ReadCommitted (el nivel de esta transacción), dos pagos concurrentes
+      // del mismo gasto pasarían ambos el chequeo de arriba (ninguno vio
+      // todavía el UPDATE del otro) y los dos ejecutarían el movimiento de
+      // caja/banco — un gasto pagado dos veces. Este `updateMany` con el
+      // status en el WHERE es la operación atómica que solo uno de los dos
+      // puede ganar; el que pierde ve `count === 0` y aborta antes de tocar
+      // caja, banco o el saldo del proveedor.
+      const claimed = await tx.expense.updateMany({
+        where: { id: expense.id, status: { in: ['PENDING', 'PARTIALLY_PAID'] } },
+        data: { status: 'PAID', paidAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('El gasto ya fue pagado (justo ahora, por otra acción).');
+      }
+
       const total = this.num(expense.total);
 
       // Pago en efectivo: sale del cajón y tiene que verse en el arqueo.
@@ -194,11 +210,6 @@ export class ExpenseService {
           data: { currentBalance: { decrement: total } },
         });
       }
-
-      await tx.expense.update({
-        where: { id: expense.id },
-        data: { status: 'PAID', paidAt: new Date() },
-      });
 
       if (expense.supplierId) {
         await tx.supplier.update({

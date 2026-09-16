@@ -568,7 +568,9 @@ model PriceRule {
 
   bookingType BookingType?
 
-  /// Precio del bloque completo, no por hora. Evita ambigüedad.
+  /// Precio POR JUGADOR del bloque completo (no por hora): el pádel se juega
+  /// siempre de a 4, así que lo que se cobra por el turno es este valor × 4
+  /// (ver PricingService.quote — PLAYERS_PER_COURT). No es el total del turno.
   price Decimal @db.Decimal(14, 2)
 
   /// Mayor prioridad gana ante empate de especificidad.

@@ -119,6 +119,9 @@ export function BookingPanel({
                 <div style={{ textAlign: 'right' }}>
                   <div className="money-label">Total del turno</div>
                   <div className="field-value">{formatMoney(booking.totalPrice)}</div>
+                  <div className="money-sublabel">
+                    {formatMoney(booking.totalPrice / 4)} por jugador
+                  </div>
                 </div>
               </div>
             )}
