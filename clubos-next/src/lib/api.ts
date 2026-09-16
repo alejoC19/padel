@@ -949,6 +949,47 @@ export const api = {
     remove: (id: string) => request<void>(`/courts/${id}`, { method: 'DELETE' }),
   },
 
+  priceRules: {
+    list: () => request<Array<{
+      id: string;
+      courtId: string | null;
+      court: { id: string; name: string } | null;
+      dayOfWeek: number | null;
+      fromMinute: number | null;
+      toMinute: number | null;
+      durationMinutes: number | null;
+      bookingType: string | null;
+      price: number;
+      priority: number;
+      isActive: boolean;
+    }>>('/price-rules'),
+
+    create: (input: {
+      courtId?: string;
+      dayOfWeek?: number;
+      fromMinute?: number;
+      toMinute?: number;
+      durationMinutes?: number;
+      bookingType?: string;
+      price: number;
+      priority?: number;
+    }) => request<{ id: string }>('/price-rules', { method: 'POST', body: JSON.stringify(input) }),
+
+    update: (id: string, input: Partial<{
+      courtId: string | null;
+      dayOfWeek: number | null;
+      fromMinute: number | null;
+      toMinute: number | null;
+      durationMinutes: number | null;
+      bookingType: string | null;
+      price: number;
+      priority: number;
+      isActive: boolean;
+    }>) => request<{ id: string }>(`/price-rules/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+    remove: (id: string) => request<void>(`/price-rules/${id}`, { method: 'DELETE' }),
+  },
+
   clubs: {
     me: () => request<{
       id: string; name: string; slug: string;
