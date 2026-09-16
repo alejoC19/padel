@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import type { AgendaDay, AgendaBooking } from '@/lib/api';
-import { currentMinuteOfDay, formatMinute, formatMoney } from '@/lib/grid';
+import { currentMinuteOfDay, formatMinute, formatMoney, isToday } from '@/lib/grid';
 
 interface Props {
   day: AgendaDay;
@@ -52,16 +52,18 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
 
   // Construye la línea de tiempo de la cancha: reservas + huecos libres.
   //
-  // Cada hueco libre es UN bloque continuo (ej. 14:00–15:30), no una fila por
-  // cada `slotMinutes` (30 min). Cortarlo en fragmentos de 30 min hacía que
-  // un mismo hueco de 90 min apareciera como tres "turnos" sueltos — 14:00,
-  // 14:30, 15:00 — dando la impresión de que la cancha solo se alquila en
-  // bloques de 30 min. El horario real de una reserva lo define quien la crea
-  // (NewBookingDialog: 60/90/120 min), no el tamaño del hueco libre.
+  // Cada hueco libre se corta en filas de `slotMinutes` (default 60, en
+  // punto: 13:00, 14:00, 15:00...), no en un solo bloque continuo — un
+  // bloque de "480 min" de largo no dice nada útil y, peor, al tocarlo la
+  // reserva arranca siempre en el inicio del bloque aunque ya haya pasado
+  // (si son las 17hs y el bloque libre empieza a las 08:00, tocarlo intenta
+  // reservar las 08:00). Con una fila por horario, cada una abre la reserva
+  // exactamente en ESE horario.
   const slots = useMemo<Slot[]>(() => {
     if (!court) return [];
     const open = court.openMinute ?? day.openMinute;
     const close = court.closeMinute ?? day.closeMinute;
+    const step = court.slotMinutes || 60;
 
     const bookings = day.bookings
       .filter((b) => b.courtId === court.id
@@ -71,13 +73,22 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
     const out: Slot[] = [];
     let cursor = open;
     for (const b of bookings) {
+      while (cursor + step <= b.startMinute) {
+        out.push({ kind: 'free', start: cursor, end: cursor + step });
+        cursor += step;
+      }
       if (b.startMinute > cursor) {
         out.push({ kind: 'free', start: cursor, end: b.startMinute });
       }
       out.push({ kind: 'booked', start: b.startMinute, end: b.endMinute, booking: b });
       cursor = Math.max(cursor, b.endMinute);
     }
-    if (close > cursor) {
+    while (cursor + step <= close) {
+      out.push({ kind: 'free', start: cursor, end: cursor + step });
+      cursor += step;
+    }
+    const lastSlot = out[out.length - 1];
+    if (cursor < close && (!lastSlot || lastSlot.end < close)) {
       out.push({ kind: 'free', start: cursor, end: close });
     }
     return out;
@@ -85,7 +96,11 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
 
   if (!court) return null;
 
-  const now = currentMinuteOfDay();
+  // Solo tiene sentido comparar contra la hora actual si el día que se está
+  // mirando es hoy — si no, cualquier horario de un día futuro que coincida
+  // con la hora actual del reloj se marcaría "ahora" o "pasado" por error.
+  const today = isToday(day.date);
+  const now = today ? currentMinuteOfDay() : -1;
 
   return (
     <div className="board">
@@ -115,6 +130,30 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
           const isNow = now >= slot.start && now < slot.end;
 
           if (slot.kind === 'free') {
+            // Pasado (ya no se puede reservar) es distinto de ocupado: el
+            // backend igual lo rechazaría, pero mostrarlo igual que un
+            // horario disponible es lo que confundía — "¿por qué me deja
+            // tocar las 08:00 si ya son las 17hs?".
+            const isPast = today && slot.start < now;
+            if (isPast) {
+              return (
+                <div
+                  key={`free-${slot.start}`}
+                  className="slot-card is-past"
+                  aria-disabled="true"
+                >
+                  <div className="slot-time">
+                    <span>{formatMinute(slot.start)}</span>
+                    <span>{formatMinute(slot.end)}</span>
+                  </div>
+                  <div className="slot-body">
+                    <span className="slot-state past">
+                      <span className="slot-dot past" /> Horario pasado
+                    </span>
+                  </div>
+                </div>
+              );
+            }
             return (
               <button
                 key={`free-${slot.start}`}

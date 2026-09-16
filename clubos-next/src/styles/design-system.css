@@ -1175,6 +1175,11 @@ h1, h2, h3,
 .dialog .section-title { margin-top: var(--sp-lg); }
 .dialog .section-title:first-of-type { margin-top: 0; }
 .card-title { font-weight: 800; font-size: var(--fs-h3); margin-bottom: var(--sp-md); }
+.card-title-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-md); margin-bottom: var(--sp-md);
+}
+.card-title-row .card-title { margin-bottom: 0; }
 .required { color: var(--ds-danger); }
 .kbd, .k {
   font-family: ui-monospace, monospace; font-size: var(--fs-caption);

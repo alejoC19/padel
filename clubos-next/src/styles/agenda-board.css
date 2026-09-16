@@ -150,6 +150,18 @@
 .slot-card.is-warn   { background: var(--ds-warning-soft); border-color: transparent; }
 .slot-card.is-danger { background: var(--ds-danger-soft); border-color: transparent; }
 .slot-card.is-muted  { background: var(--ds-surface); opacity: 0.55; }
+/* Horario ya pasado: no se puede reservar, así que no es un <button> — solo
+   una fila informativa, tachada en rojo (no gris) para que se distinga de
+   un vistazo de "Disponible", sin confundirse con "ocupado" (que lleva la
+   cruz, no el tachado). */
+.slot-card.is-past {
+  background: var(--ds-surface);
+  opacity: 0.7;
+  cursor: default;
+}
+.slot-card.is-past .slot-time span { text-decoration: line-through; color: var(--ds-danger); }
+.slot-state.past { color: var(--ds-danger); }
+.slot-dot.past   { background: var(--ds-danger); }
 
 .board-empty {
   padding: 40px 20px;

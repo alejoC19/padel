@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, type ClientSearchResult } from '@/lib/api';
 import { formatMoney } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
+import { ClientSearch } from '@/components/ClientSearch';
 
 /**
  * Torneos.
@@ -342,6 +343,7 @@ function TournamentDetail({
   const [standings, setStandings] = useState<Awaited<ReturnType<typeof api.tournaments.standings>>>([]);
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState<string | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -466,7 +468,14 @@ function TournamentDetail({
 
       {!hasFixture ? (
         <div className="panel-card">
-          <h2 className="card-title">Parejas inscriptas</h2>
+          <div className="card-title-row">
+            <h2 className="card-title">Parejas inscriptas</h2>
+            {can('tournament.manage') && !['FINISHED', 'CANCELLED'].includes(detail.status) && (
+              <button className="btn btn-secondary btn-mini" onClick={() => setRegisterOpen(true)}>
+                Inscribir pareja
+              </button>
+            )}
+          </div>
           {detail.teams.length === 0 ? (
             <p className="card-empty">Todavía no hay parejas inscriptas.</p>
           ) : (
@@ -535,7 +544,157 @@ function TournamentDetail({
           onError={(m) => onMessage(m, 'error')}
         />
       )}
+
+      {registerOpen && (
+        <RegisterTeamDialog
+          tournamentId={tournamentId}
+          entryFee={detail.entryFee}
+          onClose={() => setRegisterOpen(false)}
+          onSaved={async (msg) => { setRegisterOpen(false); await load(); onMessage(msg); }}
+          onError={(m) => onMessage(m, 'error')}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Inscribir pareja desde el panel. El backend (`POST /tournaments/:id/teams`)
+ * existía desde antes con el permiso ya resuelto, pero ninguna pantalla lo
+ * llamaba — el staff podía crear un torneo y publicarlo, pero no anotar una
+ * pareja él mismo (solo dar de baja las que ya estaban).
+ */
+function RegisterTeamDialog({
+  tournamentId, entryFee, onClose, onSaved, onError,
+}: {
+  tournamentId: string;
+  entryFee: number;
+  onClose: () => void;
+  onSaved: (message: string) => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [members, setMembers] = useState<ClientSearchResult[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [collectNow, setCollectNow] = useState(false);
+  const [methods, setMethods] = useState<Array<{ id: string; name: string; kind: string }>>([]);
+  const [methodId, setMethodId] = useState('');
+  const [amount, setAmount] = useState(entryFee > 0 ? String(entryFee) : '');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!collectNow || methods.length > 0) return;
+    api.cash.paymentMethods()
+      .then((list) => { setMethods(list); if (list[0]) setMethodId(list[0].id); })
+      .catch(() => onError('No se pudieron cargar los medios de pago.'));
+  }, [collectNow, methods.length, onError]);
+
+  const addMember = useCallback((c: ClientSearchResult) => {
+    setSearchOpen(false);
+    if (members.some((m) => m.id === c.id)) return;
+    if (members.length >= 6) { onError('Máximo 6 jugadores por equipo.'); return; }
+    setMembers((prev) => [...prev, c]);
+  }, [members, onError]);
+
+  const submit = useCallback(async () => {
+    if (!name.trim()) { onError('Ponele un nombre a la pareja.'); return; }
+    if (members.length === 0) { onError('Agregá al menos un jugador.'); return; }
+    if (collectNow && (!methodId || !Number(amount))) {
+      onError('Elegí el medio de pago y el monto a cobrar.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await api.tournaments.registerTeam(tournamentId, {
+        name: name.trim(),
+        clientIds: members.map((m) => m.id),
+        payment: collectNow ? { paymentMethodId: methodId, amount: Number(amount) } : undefined,
+      });
+      await onSaved('Pareja inscripta.');
+    } catch (e) {
+      onError(e instanceof ApiError ? e.message : 'No se pudo inscribir la pareja.');
+    } finally {
+      setBusy(false);
+    }
+  }, [tournamentId, name, members, collectNow, methodId, amount, onSaved, onError]);
+
+  return (
+    <>
+      <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="dialog" role="dialog" aria-modal="true" aria-label="Inscribir pareja">
+          <h2 className="dialog-title">Inscribir pareja</h2>
+
+          <label className="field-block">
+            <span className="label">Nombre de la pareja</span>
+            <input
+              className="input" autoFocus value={name}
+              onChange={(e) => setName(e.target.value)} placeholder="Ej: García / Pérez"
+            />
+          </label>
+
+          <label className="field-label">Jugadores</label>
+          {members.length > 0 && (
+            <div className="team-grid" style={{ marginBottom: 8 }}>
+              {members.map((m) => (
+                <div className="team-chip" key={m.id}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="team-name">{m.firstName} {m.lastName}</div>
+                  </div>
+                  <button
+                    className="btn-link btn-link-danger"
+                    onClick={() => setMembers((prev) => prev.filter((x) => x.id !== m.id))}
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button className="btn btn-secondary full" onClick={() => setSearchOpen(true)}>
+            + Agregar jugador
+          </button>
+
+          {entryFee > 0 && (
+            <label className="field-block" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
+              <input type="checkbox" checked={collectNow} onChange={(e) => setCollectNow(e.target.checked)} />
+              <span className="label" style={{ margin: 0 }}>
+                Cobrar la inscripción ahora ({formatMoney(entryFee)})
+              </span>
+            </label>
+          )}
+
+          {collectNow && (
+            <div className="field-pair">
+              <label className="field-block">
+                <span className="label">Medio de pago</span>
+                <select className="input" value={methodId} onChange={(e) => setMethodId(e.target.value)}>
+                  {methods.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-block">
+                <span className="label">Monto</span>
+                <input
+                  className="input" type="number" inputMode="decimal" min={0}
+                  value={amount} onChange={(e) => setAmount(e.target.value)}
+                />
+              </label>
+            </div>
+          )}
+
+          <div className="dialog-actions">
+            <button className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancelar</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => void submit()}>
+              {busy ? 'Inscribiendo…' : 'Inscribir'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ClientSearch open={searchOpen} onClose={() => setSearchOpen(false)} onPick={addMember} />
+    </>
   );
 }
 
