@@ -4,6 +4,7 @@ import { PhoneBookingDemo } from '@/components/marketing/PhoneBookingDemo';
 import { DesktopMock } from '@/components/marketing/DesktopMock';
 import { Ball, NotebookScene, PadelDefs } from '@/components/marketing/Art';
 import { ModuleIcon, type ModuleIconName } from '@/components/marketing/ModuleIcon';
+import '@/styles/devices.css';
 import '@/styles/landing.css';
 
 export const metadata: Metadata = {
