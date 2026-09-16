@@ -61,6 +61,7 @@ export class TournamentService {
       prizeDescription?: string;
       registrationOpensAt?: string;
       registrationClosesAt?: string;
+      imageUrl?: string;
     },
   ) {
     const starts = new Date(input.startsAt);
@@ -86,6 +87,7 @@ export class TournamentService {
           ? new Date(input.registrationOpensAt) : null,
         registrationClosesAt: input.registrationClosesAt
           ? new Date(input.registrationClosesAt) : null,
+        imageUrl: input.imageUrl ?? null,
         status: 'DRAFT',
       },
       select: { id: true, name: true, format: true, startsAt: true, status: true },
@@ -121,7 +123,7 @@ export class TournamentService {
     const tournament = await this.prisma.db.tournament.findFirst({
       where: { id: tournamentId, deletedAt: null },
       select: {
-        id: true, name: true, description: true, format: true, category: true,
+        id: true, name: true, description: true, imageUrl: true, format: true, category: true,
         skillLevel: true, startsAt: true, endsAt: true, status: true,
         maxTeams: true, entryFee: true, prizeDescription: true, rules: true,
         registrationOpensAt: true, registrationClosesAt: true,
@@ -169,6 +171,7 @@ export class TournamentService {
       entryFee?: number; category?: string; skillLevel?: string;
       description?: string; rules?: string; prizeDescription?: string;
       registrationOpensAt?: string; registrationClosesAt?: string;
+      imageUrl?: string;
     },
   ) {
     const tournament = await this.prisma.db.tournament.findFirst({
@@ -218,8 +221,35 @@ export class TournamentService {
           ? { registrationOpensAt: new Date(input.registrationOpensAt) } : {}),
         ...(input.registrationClosesAt !== undefined
           ? { registrationClosesAt: new Date(input.registrationClosesAt) } : {}),
+        ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
       },
       select: { id: true, name: true, format: true, startsAt: true, status: true },
+    });
+  }
+
+  /**
+   * Publica el torneo: sale de `DRAFT` y pasa a `REGISTRATION_OPEN`, que es
+   * el único estado que el listado público (`PublicService.tournaments`)
+   * muestra a los jugadores. Sin este paso un torneo recién creado existe en
+   * la base pero es invisible para cualquiera que no sea el club — se queda
+   * en borrador para siempre porque ningún otro flujo cambia su status.
+   */
+  async publish(tournamentId: string) {
+    const tournament = await this.prisma.db.tournament.findFirst({
+      where: { id: tournamentId, deletedAt: null },
+      select: { status: true },
+    });
+    if (!tournament) throw new NotFoundException('Torneo no encontrado');
+    if (tournament.status !== 'DRAFT') {
+      throw new ConflictException(
+        'Solo se puede publicar un torneo que está en borrador.',
+      );
+    }
+
+    return this.prisma.db.tournament.update({
+      where: { id: tournamentId },
+      data: { status: 'REGISTRATION_OPEN' },
+      select: { id: true, status: true },
     });
   }
 

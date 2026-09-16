@@ -54,6 +54,14 @@ export class TournamentsController {
     return this.tournaments.update(id, dto);
   }
 
+  /** Abre la inscripción: pasa de borrador a visible/inscribible para los jugadores. */
+  @Post(':id/publish')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(PERMISSIONS.TOURNAMENT_MANAGE)
+  async publish(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tournaments.publish(id);
+  }
+
   /** Cancela el torneo. No reembolsa inscripciones — ver tournament.service.ts. */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)

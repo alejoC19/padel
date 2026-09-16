@@ -223,6 +223,7 @@ function NewTournamentDialog({
   const [maxTeams, setMaxTeams] = useState('16');
   const [entryFee, setEntryFee] = useState('');
   const [category, setCategory] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const submit = useCallback(async () => {
@@ -236,6 +237,7 @@ function NewTournamentDialog({
         maxTeams: maxTeams ? Number(maxTeams) : undefined,
         entryFee: entryFee ? Number(entryFee) : undefined,
         category: category.trim() || undefined,
+        imageUrl: imageUrl.trim() || undefined,
       });
       onCreated(created.id);
     } catch (e) {
@@ -243,7 +245,7 @@ function NewTournamentDialog({
     } finally {
       setSubmitting(false);
     }
-  }, [name, format, startsAt, maxTeams, entryFee, category, onCreated, onError]);
+  }, [name, format, startsAt, maxTeams, entryFee, category, imageUrl, onCreated, onError]);
 
   return (
     <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -289,6 +291,27 @@ function NewTournamentDialog({
           <span className="label">Categoría (opcional)</span>
           <input className="input" value={category}
                  onChange={(e) => setCategory(e.target.value)} placeholder="4ta, Damas, Mixto…" />
+        </label>
+
+        <label className="field-block">
+          <span className="label">Foto del torneo (opcional)</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {imageUrl && (
+              <img
+                src={imageUrl} alt=""
+                style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
+                onLoad={(e) => { (e.target as HTMLImageElement).style.visibility = 'visible'; }}
+              />
+            )}
+            <input
+              className="input" placeholder="https://…" style={{ flex: 1 }}
+              value={imageUrl} onChange={(e) => setImageUrl(e.target.value)}
+            />
+          </div>
+          <span className="field-hint">
+            Pegá el link de una foto ya subida. Se muestra en el torneo y en la app de los jugadores.
+          </span>
         </label>
 
         <div className="dialog-actions">
@@ -347,6 +370,13 @@ function TournamentDetail({
 
   return (
     <div className="tournament-detail">
+      {detail.imageUrl && (
+        <div
+          className="tournament-banner-lg"
+          style={{ backgroundImage: `url(${detail.imageUrl})` }}
+        />
+      )}
+
       <header className="screen-head">
         <div>
           <button className="back-link" onClick={onBack}>
@@ -366,6 +396,22 @@ function TournamentDetail({
 
         {can('tournament.manage') && !['FINISHED', 'CANCELLED'].includes(detail.status) && (
           <div className="screen-actions">
+            {detail.status === 'DRAFT' && (
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  try {
+                    await api.tournaments.publish(tournamentId);
+                    await load();
+                    onMessage('Torneo publicado: ya lo ven y pueden anotarse los jugadores.');
+                  } catch (e) {
+                    onMessage(e instanceof Error ? e.message : 'No se pudo publicar.', 'error');
+                  }
+                }}
+              >
+                Publicar torneo
+              </button>
+            )}
             {!hasFixture && detail.teams.length >= 2 && (
               <button
                 className="btn btn-primary"
@@ -405,6 +451,12 @@ function TournamentDetail({
           </div>
         )}
       </header>
+
+      {detail.status === 'DRAFT' && (
+        <div className="demo-note" role="status">
+          <b>Este torneo está en borrador.</b> Los jugadores todavía no lo ven ni se pueden anotar — publicalo cuando esté listo.
+        </div>
+      )}
 
       {detail.status === 'CANCELLED' && (
         <div className="demo-note" role="status">

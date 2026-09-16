@@ -173,7 +173,7 @@ export interface PublicTournamentSummary {
 export interface PublicTournamentDetail extends PublicTournamentSummary {
   prizeDescription: string | null;
   rules: string | null;
-  teams: { id: string; name: string; seed: number | null }[];
+  teams: { id: string; name: string; seed: number | null; players: string[] }[];
 }
 
 export interface PublicTeamPlayer {

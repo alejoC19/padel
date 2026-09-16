@@ -548,7 +548,12 @@ export class PublicService {
           maxTeams: true, entryFee: true, prizeDescription: true, rules: true,
           registrationOpensAt: true, registrationClosesAt: true,
           teams: {
-            select: { id: true, name: true, seed: true },
+            select: {
+              id: true, name: true, seed: true,
+              members: {
+                select: { client: { select: { firstName: true, lastName: true } } },
+              },
+            },
             orderBy: [{ seed: 'asc' }, { name: 'asc' }],
           },
           _count: { select: { teams: true } },
@@ -575,7 +580,12 @@ export class PublicService {
           t.status === 'REGISTRATION_OPEN' &&
           t._count.teams < t.maxTeams &&
           (!t.registrationClosesAt || t.registrationClosesAt > new Date()),
-        teams: t.teams.map((team) => ({ id: team.id, name: team.name, seed: team.seed })),
+        teams: t.teams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          seed: team.seed,
+          players: team.members.map((m) => `${m.client.firstName} ${m.client.lastName}`.trim()),
+        })),
       };
     });
   }
