@@ -18,8 +18,8 @@ export async function GET() {
       start_url: '/jugador',
       scope: '/jugador',
       display: 'standalone',
-      background_color: '#12151d',
-      theme_color: '#0ea5a0',
+      background_color: '#131110',
+      theme_color: '#de6435',
       orientation: 'portrait',
       icons: [
         { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
