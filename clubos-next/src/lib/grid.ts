@@ -185,6 +185,17 @@ export function formatMoney(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Plural en español de una unidad de stock (viene de texto libre, ej.
+ * "unidad", "kilo", "paquete"). Agregar solo "s" rompe con "unidad" →
+ * "unidads": la regla real es "s" si termina en vocal (kilo→kilos), "es" si
+ * termina en consonante (unidad→unidades).
+ */
+export function pluralizeUnit(unit: string, qty: number): string {
+  if (Math.abs(qty) === 1) return unit;
+  return /[aeiouAEIOU]$/.test(unit) ? `${unit}s` : `${unit}es`;
+}
+
 const DAY_NAMES = [
   'domingo', 'lunes', 'martes', 'miércoles',
   'jueves', 'viernes', 'sábado',

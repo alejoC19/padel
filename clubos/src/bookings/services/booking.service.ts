@@ -26,6 +26,7 @@ import { NotificationsService } from '../../notifications/services/notifications
 import {
   formatBookingDate,
   formatBookingTime,
+  formatMoney,
 } from '../../notifications/services/format.util';
 
 /** Estados desde los que ya no se puede operar. */
@@ -956,7 +957,10 @@ export class BookingService {
     clubId: string;
     clientId: string;
     contact: { phone: string | null; whatsapp: string | null; email: string | null };
-    bookingData: { clubName: string; clientName: string; courtName: string; date: string; time: string; code: string };
+    bookingData: {
+      clubName: string; clientName: string; courtName: string; date: string; time: string;
+      code: string; totalPrice: string; paymentStatusLabel: string;
+    };
   } | null> {
     const booking = await this.prisma.db.booking.findUnique({
       where: { id: bookingId },
@@ -964,6 +968,8 @@ export class BookingService {
         clubId: true,
         code: true,
         startsAt: true,
+        totalPrice: true,
+        paymentStatus: true,
         court: { select: { name: true } },
         club: { select: { name: true, timezone: true } },
         client: {
@@ -974,6 +980,9 @@ export class BookingService {
     if (!booking?.client) return null;
 
     const tz = booking.club.timezone ?? 'America/Argentina/Buenos_Aires';
+    const paymentStatusLabel: Record<string, string> = {
+      UNPAID: 'sin pagar', PARTIAL: 'pago parcial', PAID: 'pagada', OVERPAID: 'pagada',
+    };
     return {
       clubId: booking.clubId,
       clientId: booking.client.id,
@@ -989,6 +998,8 @@ export class BookingService {
         date: formatBookingDate(booking.startsAt, tz),
         time: formatBookingTime(booking.startsAt, tz),
         code: booking.code,
+        totalPrice: formatMoney(this.num(booking.totalPrice)),
+        paymentStatusLabel: paymentStatusLabel[booking.paymentStatus] ?? booking.paymentStatus,
       },
     };
   }

@@ -108,7 +108,7 @@ export class OnboardingService {
     const created = await runWithoutTenancy(requestId, () =>
       this.prisma.tenantTransaction(
         async (tx) => {
-          // 1. Club (empieza en TRIAL, 14 días).
+          // 1. Club (empieza en TRIAL, 30 días).
           const club = await tx.club.create({
             data: {
               slug,
@@ -117,7 +117,7 @@ export class OnboardingService {
               phone: dto.phone ?? null,
               addressCity: dto.city ?? null,
               status: 'TRIAL',
-              trialEndsAt: new Date(Date.now() + 14 * 86_400_000),
+              trialEndsAt: new Date(Date.now() + 30 * 86_400_000),
               planId: plan.id,
             },
             select: { id: true, slug: true, name: true },

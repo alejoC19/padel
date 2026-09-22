@@ -377,7 +377,7 @@ export function OnboardingWizard() {
             <div className="step-label">Paso 3 de 3</div>
             <h1 className="auth-h1">Confirmá y empezá</h1>
             <p className="auth-sub">
-              Vas a arrancar con 14 días de prueba. Sin tarjeta por ahora.
+              Vas a arrancar con 30 días de prueba. Sin tarjeta por ahora.
             </p>
 
             <div className="summary">

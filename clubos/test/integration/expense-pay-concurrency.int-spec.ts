@@ -110,4 +110,39 @@ d('Concurrencia en pago de gastos', () => {
     );
     expect(Number(account.currentBalance)).toBe(90_000);
   }, 20_000);
+
+  it('rechaza pagar un gasto con medio de pago Y cuenta bancaria a la vez', async () => {
+    const expenseId = await runWithTenant(ctx(clubId), async () => {
+      const { id } = await expenses.registerExpense({
+        clubId, concept: 'Gasto XOR', amount: 5_000, date: '2026-01-01',
+      });
+      return id;
+    });
+
+    const balanceBefore = await runWithTenant(ctx(clubId), async () =>
+      prisma.db.bankAccount.findUniqueOrThrow({ where: { id: bankAccountId } }),
+    );
+
+    await expect(
+      runWithTenant(ctx(clubId), async () =>
+        expenses.payExpense(expenseId, {
+          clubId,
+          paymentMethodId: randomUUID(),
+          bankAccountId,
+        }),
+      ),
+    ).rejects.toThrow(/un solo medio de pago/i);
+
+    // No debe haber tocado el banco: la validación corta antes de mover nada.
+    const balanceAfter = await runWithTenant(ctx(clubId), async () =>
+      prisma.db.bankAccount.findUniqueOrThrow({ where: { id: bankAccountId } }),
+    );
+    expect(Number(balanceAfter.currentBalance)).toBe(Number(balanceBefore.currentBalance));
+
+    // El gasto sigue pendiente, no quedó marcado PAID a mitad de camino.
+    const expense = await runWithTenant(ctx(clubId), async () =>
+      prisma.db.expense.findUniqueOrThrow({ where: { id: expenseId } }),
+    );
+    expect(expense.status).toBe('PENDING');
+  });
 });
