@@ -166,18 +166,38 @@ export class PaymentService {
       });
     }
 
-    if (input.clientId) {
-      await this.appendAccountEntry(tx, {
-        clubId: input.clubId,
-        clientId: input.clientId,
-        type: 'PAYMENT',
-        amount: input.amount,
-        concept: input.concept,
-        bookingId: input.bookingId ?? null,
-        saleId: input.saleId ?? null,
-        paymentId: payment.id,
-        createdById: input.receivedById ?? null,
+    // Solo entra en cuenta corriente si este pago SALDA una carga a cuenta
+    // previa de esta misma reserva/venta (chargeToAccount ya dejó un
+    // asiento CHARGE con este bookingId/saleId). Un pago directo (efectivo/
+    // tarjeta cobrado al momento, sin fiado de por medio) no tiene ninguna
+    // deuda que netear — asentarlo igual "a favor" le da al cliente un
+    // crédito fantasma que nunca pagó: no vino de ningún lado y se puede
+    // gastar de nuevo cargando una reserva distinta a esa cuenta, sin que
+    // entre un peso real. Bug real encontrado en auditoría manual.
+    if (input.clientId && (input.bookingId || input.saleId)) {
+      const hasRelatedCharge = await tx.accountEntry.findFirst({
+        where: {
+          clubId: input.clubId,
+          type: 'CHARGE',
+          ...(input.bookingId
+            ? { bookingId: input.bookingId }
+            : { saleId: input.saleId }),
+        },
+        select: { id: true },
       });
+      if (hasRelatedCharge) {
+        await this.appendAccountEntry(tx, {
+          clubId: input.clubId,
+          clientId: input.clientId,
+          type: 'PAYMENT',
+          amount: input.amount,
+          concept: input.concept,
+          bookingId: input.bookingId ?? null,
+          saleId: input.saleId ?? null,
+          paymentId: payment.id,
+          createdById: input.receivedById ?? null,
+        });
+      }
     }
 
     return {

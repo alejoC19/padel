@@ -100,7 +100,7 @@ export function AgendaBoard({ day, courtId, onSlotClick, onBookingClick }: Props
   // mirando es hoy — si no, cualquier horario de un día futuro que coincida
   // con la hora actual del reloj se marcaría "ahora" o "pasado" por error.
   const today = isToday(day.date);
-  const now = today ? currentMinuteOfDay() : -1;
+  const now = today ? currentMinuteOfDay(day.timezone) : -1;
 
   return (
     <div className="board">

@@ -251,8 +251,29 @@ export function isToday(iso: string): boolean {
   return iso === todayISO();
 }
 
-/** Minuto actual del día. Alimenta la línea de "ahora". */
-export function currentMinuteOfDay(): number {
+/**
+ * Minuto actual del día EN EL HUSO HORARIO DEL CLUB. Alimenta la línea de
+ * "ahora" y qué turnos ya "pasaron".
+ *
+ * `Date.getHours()` da la hora del reloj del dispositivo que mira la
+ * pantalla, no la del club — coinciden para un mostrador en Argentina con
+ * el reloj bien puesto, pero no para un dispositivo en otro huso horario
+ * (encargado viajando, servidor de pruebas, reloj mal configurado). Ahí
+ * la agenda tachaba como "pasado" turnos que todavía no llegaron, o al
+ * revés. `timezone` es opcional y cae al reloj local solo si falta el
+ * dato (nunca debería, `day.timezone` siempre lo manda el backend).
+ */
+export function currentMinuteOfDay(timezone?: string): number {
   const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
+  if (!timezone) return now.getHours() * 60 + now.getMinutes();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(now);
+  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
+  const m = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  // Intl puede devolver "24" para medianoche con hour12: false.
+  return (h % 24) * 60 + m;
 }
