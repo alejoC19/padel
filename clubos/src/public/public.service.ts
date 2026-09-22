@@ -73,7 +73,7 @@ export class PublicService {
       }),
     );
     // Un club recién creado por onboarding arranca en TRIAL, no ACTIVE —
-    // exigir 'ACTIVE' acá dejaba el booking público roto durante los 14 días
+    // exigir 'ACTIVE' acá dejaba el booking público roto durante los 30 días
     // de prueba de TODO club nuevo, porque nada transiciona TRIAL → ACTIVE
     // automáticamente. Mismo criterio que TenantGuard para el panel: solo
     // SUSPENDED/CANCELLED bloquean.

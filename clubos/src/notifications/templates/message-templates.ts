@@ -25,6 +25,9 @@ export interface BookingData {
   date: string; // ya formateado, ej "sáb 2 de agosto"
   time: string; // ej "19:00"
   code: string;
+  /** Ya formateados (ej "$ 8.000,00") — solo la confirmación los usa. */
+  totalPrice?: string;
+  paymentStatusLabel?: string;
 }
 
 function fmtBooking(clubName: string, court: string, date: string, time: string) {
@@ -33,11 +36,15 @@ function fmtBooking(clubName: string, court: string, date: string, time: string)
 
 export const templates = {
   BOOKING_CONFIRMED(d: BookingData): RenderedMessage {
+    const priceLine = d.totalPrice
+      ? `Total: ${d.totalPrice}${d.paymentStatusLabel ? ` (${d.paymentStatusLabel})` : ''}\n`
+      : '';
     return {
       subject: `Reserva confirmada — ${d.clubName}`,
       body:
         `¡Hola ${d.clientName}! Tu reserva en ${d.clubName} quedó confirmada.\n\n` +
         `${fmtBooking(d.clubName, d.courtName, d.date, d.time)}\n` +
+        priceLine +
         `Código: ${d.code}\n\n` +
         `¡Te esperamos! 🎾`,
       waTemplate: 'booking_confirmed',

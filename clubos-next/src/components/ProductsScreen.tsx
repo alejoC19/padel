@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney } from '@/lib/grid';
+import { formatMoney, pluralizeUnit } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
 
@@ -171,7 +171,7 @@ export function ProductsScreen() {
                   <td className="num">
                     {p.trackStock ? (
                       <span className={p.stockQty <= p.minStockQty ? 'balance-owed' : ''}>
-                        {p.stockQty} {p.unit}{p.stockQty === 1 ? '' : 's'}
+                        {p.stockQty} {pluralizeUnit(p.unit, p.stockQty)}
                       </span>
                     ) : '—'}
                   </td>
@@ -459,7 +459,7 @@ function StockAdjustDialog({
       onSaved(
         res.difference === 0
           ? 'Stock sin cambios.'
-          : `Stock ajustado: ${res.difference > 0 ? '+' : ''}${res.difference} ${product.unit}${Math.abs(res.difference) === 1 ? '' : 's'}.`,
+          : `Stock ajustado: ${res.difference > 0 ? '+' : ''}${res.difference} ${pluralizeUnit(product.unit, res.difference)}.`,
       );
     } catch (e) {
       onError(e instanceof ApiError ? e.message : 'No pudimos ajustar el stock.');
@@ -472,7 +472,7 @@ function StockAdjustDialog({
     <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="dialog" role="dialog" aria-modal="true" aria-label="Ajustar stock">
         <h2 className="dialog-title">Ajustar stock · {product.name}</h2>
-        <p className="dialog-sub">Stock actual: {product.stockQty} {product.unit}{product.stockQty === 1 ? '' : 's'}</p>
+        <p className="dialog-sub">Stock actual: {product.stockQty} {pluralizeUnit(product.unit, product.stockQty)}</p>
 
         <label className="field-block">
           <span className="label">Cantidad contada</span>

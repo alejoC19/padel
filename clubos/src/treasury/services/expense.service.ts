@@ -143,6 +143,14 @@ export class ExpenseService {
           'Indicá cómo se pagó: un medio de pago (efectivo/tarjeta) o una cuenta bancaria.',
         );
       }
+      // Con LOS DOS a la vez, en cambio, corren las dos ramas: se descuenta
+      // de caja Y del banco por el mismo gasto — plata duplicada saliendo de
+      // los libros por un solo pago real. Es uno o el otro, nunca ambos.
+      if (input.paymentMethodId && input.bankAccountId) {
+        throw new BadRequestException(
+          'Elegí un solo medio de pago: efectivo/tarjeta O cuenta bancaria, no los dos.',
+        );
+      }
 
       // Reclamo exclusivo del gasto ANTES de mover ninguna plata: bajo
       // ReadCommitted (el nivel de esta transacción), dos pagos concurrentes

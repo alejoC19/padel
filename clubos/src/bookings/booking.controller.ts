@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -57,7 +58,7 @@ export class BookingController {
   @Get(':id')
   @RequirePermissions(PERMISSIONS.BOOKING_VIEW)
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.prisma.db.booking.findFirst({
+    const booking = await this.prisma.db.booking.findFirst({
       where: { id, deletedAt: null },
       select: {
         id: true,
@@ -120,6 +121,11 @@ export class BookingController {
         },
       },
     });
+    // RLS ya la hace invisible entre clubes: `findFirst` devuelve null tanto
+    // para "no existe" como para "es de otro club". Sin este chequeo, la
+    // respuesta era 200 con body vacío en vez de un 404 claro.
+    if (!booking) throw new NotFoundException('Reserva no encontrada');
+    return booking;
   }
 
   @Post(':id/cancel')

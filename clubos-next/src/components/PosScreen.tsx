@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney } from '@/lib/grid';
+import { formatMoney, pluralizeUnit } from '@/lib/grid';
 import { useSession, useToasts } from '@/hooks';
 import { Toasts } from '@/components/Toasts';
 
@@ -242,7 +242,7 @@ export function PosScreen() {
                   <span className={`product-stock${p.stockQty <= 0 ? ' is-out' : ''}`}>
                     {p.stockQty <= 0
                       ? 'Sin stock'
-                      : `${p.stockQty} ${p.unit}${p.stockQty === 1 ? '' : 's'}`}
+                      : `${p.stockQty} ${pluralizeUnit(p.unit, p.stockQty)}`}
                   </span>
                 )}
               </button>
