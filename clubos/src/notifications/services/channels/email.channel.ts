@@ -1,6 +1,8 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createTransport, type Transporter } from 'nodemailer';
+import { isIP } from 'node:net';
+import { resolve4 } from 'node:dns/promises';
+import { createTransport } from 'nodemailer';
 import type {
   NotificationChannel,
   OutboundMessage,
@@ -13,12 +15,25 @@ import type {
  * solo cambian host/puerto).
  *
  * Para comprobantes y confirmaciones, no para marketing masivo.
+ *
+ * ---------------------------------------------------------------------------
+ * POR QUÉ SE RESUELVE LA IP A MANO (y solo IPv4)
+ * ---------------------------------------------------------------------------
+ * La resolución DNS interna de nodemailer 10.x elige al azar entre las
+ * direcciones IPv4 e IPv6 del host. Railway (y muchos contenedores) reportan
+ * una interfaz IPv6 local pero no tienen salida IPv6 real a internet — cuando
+ * toca una IPv6 de smtp.gmail.com, la conexión falla con ENETUNREACH. Como no
+ * hay forma de forzar solo-IPv4 vía las opciones públicas del transport en
+ * esta versión, se resuelve el host a IPv4 antes de conectar y se pasa esa IP
+ * como `host`, con `servername` seteado al hostname original para que el TLS
+ * (SNI y validación del certificado) siga validando contra "smtp.gmail.com"
+ * y no contra la IP.
+ * ---------------------------------------------------------------------------
  */
 @Injectable()
-export class EmailChannel implements NotificationChannel, OnModuleDestroy {
+export class EmailChannel implements NotificationChannel {
   readonly kind = 'EMAIL' as const;
   private readonly log = new Logger(EmailChannel.name);
-  private transporter: Transporter | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
@@ -42,7 +57,8 @@ export class EmailChannel implements NotificationChannel, OnModuleDestroy {
     const from = this.config.get<string>('EMAIL_FROM');
 
     try {
-      const info = await this.getTransporter().sendMail({
+      const transporter = await this.buildTransporter();
+      const info = await transporter.sendMail({
         from,
         to: msg.to,
         subject: msg.subject ?? 'ClubOS',
@@ -62,10 +78,17 @@ export class EmailChannel implements NotificationChannel, OnModuleDestroy {
     }
   }
 
-  private getTransporter(): Transporter {
-    if (this.transporter) return this.transporter;
-    this.transporter = createTransport({
-      host: this.config.get<string>('SMTP_HOST'),
+  // No hay pool (`pool: true`) acá: nodemailer abre una conexión por
+  // sendMail() de todas formas, así que crear el transport en cada envío no
+  // suma overhead, y a cambio la IP resuelta nunca queda vieja si el
+  // proveedor rota sus direcciones.
+  private async buildTransporter() {
+    const host = this.config.get<string>('SMTP_HOST')!;
+    const resolvedHost = await this.resolveIPv4(host);
+
+    return createTransport({
+      host: resolvedHost,
+      servername: host,
       port: Number(this.config.get('SMTP_PORT') ?? 465),
       secure: Number(this.config.get('SMTP_PORT') ?? 465) === 465,
       auth: {
@@ -73,7 +96,18 @@ export class EmailChannel implements NotificationChannel, OnModuleDestroy {
         pass: this.config.get<string>('SMTP_PASS'),
       },
     });
-    return this.transporter;
+  }
+
+  private async resolveIPv4(host: string): Promise<string> {
+    if (isIP(host)) return host; // ya es una IP, nada que resolver.
+    try {
+      const [ip] = await resolve4(host);
+      return ip ?? host;
+    } catch {
+      // Sin registro A o falló la resolución: dejamos que nodemailer lo
+      // intente con el hostname tal cual, mejor que romper el envío acá.
+      return host;
+    }
   }
 
   private textToHtml(text: string): string {
@@ -85,9 +119,5 @@ export class EmailChannel implements NotificationChannel, OnModuleDestroy {
       /\n/g,
       '<br>',
     )}</div>`;
-  }
-
-  onModuleDestroy(): void {
-    this.transporter?.close();
   }
 }
