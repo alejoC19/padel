@@ -37,7 +37,7 @@ export function NewBookingDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const durations = [60, 90, 120];
+  const durations = [60, 90, 120, 150, 180, 210, 240];
   const endMinute = startMinute + duration;
 
   async function confirm() {
