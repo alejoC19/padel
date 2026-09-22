@@ -430,6 +430,10 @@
 .booking-item-court { font-weight: 700; }
 .booking-item-time { font-size: var(--fs-small, 13px); color: var(--ds-muted, #6b7c8a); }
 .booking-item-hint { font-size: var(--fs-caption, 12px); color: var(--ds-faint, #93a1ac); }
+.booking-item-hint.is-cancelled { color: var(--ds-danger, #c0392b); font-weight: 600; }
+.booking-item.is-cancelled { opacity: 0.7; }
+.booking-item.is-cancelled .booking-item-court,
+.booking-item.is-cancelled .booking-item-time { text-decoration: line-through; }
 .booking-item-chevron { color: var(--ds-faint, #93a1ac); flex: none; }
 
 /* Avatar de club en el directorio (/jugador): foto si el club cargó

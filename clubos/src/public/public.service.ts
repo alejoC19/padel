@@ -284,12 +284,13 @@ export class PublicService {
       });
       if (!client) return { reservas: [] };
 
+      // Incluye canceladas a propósito: si no, el jugador ve desaparecer un
+      // turno de la lista sin ninguna indicación de que el club lo canceló.
       const now = new Date();
       const rows = await this.prisma.db.booking.findMany({
         where: {
           clientId: client.id,
           endsAt: { gte: now },
-          status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_CLUB'] },
         },
         orderBy: { startsAt: 'asc' },
         select: {
@@ -863,11 +864,11 @@ export class PublicService {
           });
           if (!client) return [];
 
+          // Incluye canceladas a propósito, mismo criterio que misReservas().
           return this.prisma.db.booking.findMany({
             where: {
               clientId: client.id,
               endsAt: { gte: now },
-              status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_CLUB'] },
             },
             orderBy: { startsAt: 'asc' },
             select: {
