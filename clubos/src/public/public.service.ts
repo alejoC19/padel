@@ -165,6 +165,7 @@ export class PublicService {
       firstName: string;
       lastName?: string;
       phone: string;
+      email?: string;
     },
   ) {
     const club = await this.resolveClub(slug);
@@ -203,9 +204,10 @@ export class PublicService {
 
     return runWithTenant(ctx, async () => {
       // Buscar cliente por teléfono, o crearlo.
+      const email = input.email?.trim() || undefined;
       let client = await this.prisma.db.client.findFirst({
         where: { phone: input.phone.trim() },
-        select: { id: true },
+        select: { id: true, email: true },
       });
       if (!client) {
         client = await this.prisma.db.client.create({
@@ -214,9 +216,14 @@ export class PublicService {
             firstName: input.firstName.trim(),
             lastName: input.lastName?.trim() || '—',
             phone: input.phone.trim(),
+            email,
           },
-          select: { id: true },
+          select: { id: true, email: true },
         });
+      } else if (email && !client.email) {
+        // El cliente ya existía (reservó antes solo con teléfono): completar
+        // el email ahora para que a partir de esta reserva sí le llegue mail.
+        await this.prisma.db.client.update({ where: { id: client.id }, data: { email } });
       }
 
       const result = await this.booking.create(
@@ -599,7 +606,7 @@ export class PublicService {
   async inscribirEquipo(
     slug: string,
     tournamentId: string,
-    input: { teamName: string; players: { firstName: string; lastName?: string; phone: string }[] },
+    input: { teamName: string; players: { firstName: string; lastName?: string; phone: string; email?: string }[] },
   ) {
     const club = await this.resolveClub(slug);
 
@@ -639,9 +646,10 @@ export class PublicService {
         // Buscar o crear cada jugador por teléfono, igual que en `reservar`.
         const clientIds: string[] = [];
         for (const p of input.players) {
+          const email = p.email?.trim() || undefined;
           let client = await tx.client.findFirst({
             where: { phone: p.phone.trim() },
-            select: { id: true },
+            select: { id: true, email: true },
           });
           if (!client) {
             client = await tx.client.create({
@@ -650,9 +658,12 @@ export class PublicService {
                 firstName: p.firstName.trim(),
                 lastName: p.lastName?.trim() || '—',
                 phone: p.phone.trim(),
+                email,
               },
-              select: { id: true },
+              select: { id: true, email: true },
             });
+          } else if (email && !client.email) {
+            await tx.client.update({ where: { id: client.id }, data: { email } });
           }
           if (!clientIds.includes(client.id)) clientIds.push(client.id);
         }

@@ -7,7 +7,7 @@
 import 'reflect-metadata';
 import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsIn, IsOptional,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsEmail, IsIn, IsOptional,
   IsString, IsUUID, MaxLength, MinLength, ValidateNested,
 } from 'class-validator';
 
@@ -49,6 +49,12 @@ export class ReservarDto {
   @MinLength(6)
   @MaxLength(30)
   phone!: string;
+
+  /** Opcional: sin esto, el jugador nunca recibe confirmación por email. */
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(200)
+  email?: string;
 }
 
 export class AccessTokenDto {
@@ -73,6 +79,11 @@ export class TeamPlayerDto {
   @MinLength(6)
   @MaxLength(30)
   phone!: string;
+
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(200)
+  email?: string;
 }
 
 /** Dobles de pádel: 1 a 2 jugadores por equipo (parejas). */

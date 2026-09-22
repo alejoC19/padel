@@ -30,6 +30,7 @@ export function ClientSearch({ open, demoResults, onClose, onPick }: Props) {
   const [results, setResults] = useState<ClientSearchResult[]>([]);
   const [active, setActive] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [creating, setCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const seqRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -39,6 +40,7 @@ export function ClientSearch({ open, demoResults, onClose, onPick }: Props) {
       setTerm('');
       setResults(demoResults?.slice(0, 5) ?? []);
       setActive(0);
+      setCreating(false);
       // El foco va después del render para que el input ya exista.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -133,47 +135,163 @@ export function ClientSearch({ open, demoResults, onClose, onPick }: Props) {
           <kbd className="search-hint">Esc</kbd>
         </div>
 
-        <div className="search-results">
-          {results.length === 0 ? (
-            <p className="search-empty">
-              {term.trim().length < 2
-                ? 'Escribí al menos 2 letras del apellido.'
-                : (
-                  <>
-                    No encontramos a nadie con “{term}”.
-                    <span className="search-empty-hint">
-                      Probá con el apellido o los últimos dígitos del teléfono.
+        {creating ? (
+          <QuickCreateClient
+            initialName={term}
+            onCancel={() => setCreating(false)}
+            onCreated={onPick}
+          />
+        ) : (
+          <>
+            <div className="search-results">
+              {results.length === 0 ? (
+                <p className="search-empty">
+                  {term.trim().length < 2
+                    ? 'Escribí al menos 2 letras del apellido.'
+                    : (
+                      <>
+                        No encontramos a nadie con “{term}”.
+                        <span className="search-empty-hint">
+                          Probá con el apellido o los últimos dígitos del teléfono.
+                        </span>
+                      </>
+                    )}
+                </p>
+              ) : (
+                results.map((c, i) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`search-item${i === active ? ' is-active' : ''}`}
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => onPick(c)}
+                  >
+                    <span className="avatar">
+                      {(c.firstName[0] ?? '') + (c.lastName[0] ?? '')}
                     </span>
-                  </>
-                )}
-            </p>
-          ) : (
-            results.map((c, i) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`search-item${i === active ? ' is-active' : ''}`}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => onPick(c)}
-              >
-                <span className="avatar">
-                  {(c.firstName[0] ?? '') + (c.lastName[0] ?? '')}
-                </span>
-                <span className="search-item-main">
-                  <span className="search-name">{c.firstName} {c.lastName}</span>
-                  <span className="search-meta">
-                    {c.phone ?? c.documentNumber ?? 'Sin contacto'}
-                  </span>
-                </span>
-                {c.accountBalance < 0 && (
-                  <span className="balance-owed">
-                    Debe {formatMoney(-c.accountBalance)}
-                  </span>
-                )}
+                    <span className="search-item-main">
+                      <span className="search-name">{c.firstName} {c.lastName}</span>
+                      <span className="search-meta">
+                        {c.phone ?? c.documentNumber ?? 'Sin contacto'}
+                      </span>
+                    </span>
+                    {c.accountBalance < 0 && (
+                      <span className="balance-owed">
+                        Debe {formatMoney(-c.accountBalance)}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Modo demo no tiene backend real: no ofrecemos alta ahí. */}
+            {!demoResults && (
+              <button type="button" className="search-new-client" onClick={() => setCreating(true)}>
+                + Cliente nuevo
               </button>
-            ))
-          )}
-        </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Alta rápida sin salir del flujo de reserva/inscripción.
+ *
+ * Solo lo mínimo para poder avisarle algo a esa persona: nombre, teléfono,
+ * email. Nada de documento acá — eso se completa después desde la ficha si
+ * hace falta, no es necesario para reservar una cancha.
+ */
+function QuickCreateClient({
+  initialName, onCancel, onCreated,
+}: {
+  initialName: string;
+  onCancel: () => void;
+  onCreated: (client: ClientSearchResult) => void;
+}) {
+  const [firstName, setFirstName] = useState(initialName);
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+      setError('Completá nombre y apellido.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api.clients.create({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+      });
+      if (res.requiresConfirmation) {
+        setError('Ya existe un cliente parecido. Buscalo en vez de crear uno nuevo.');
+        return;
+      }
+      onCreated({
+        id: res.id!,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        documentNumber: null,
+        status: 'ACTIVE',
+        accountBalance: 0,
+        lastVisitAt: null,
+        score: 0,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo crear el cliente.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="search-quick-create">
+      <div className="field-pair">
+        <label className="field-block">
+          <span className="label">Nombre</span>
+          <input className="input" autoFocus value={firstName}
+                 onChange={(e) => setFirstName(e.target.value)} />
+        </label>
+        <label className="field-block">
+          <span className="label">Apellido</span>
+          <input className="input" value={lastName}
+                 onChange={(e) => setLastName(e.target.value)} />
+        </label>
+      </div>
+      <div className="field-pair">
+        <label className="field-block">
+          <span className="label">Teléfono</span>
+          <input className="input" value={phone} inputMode="tel"
+                 placeholder="11 4567-8900"
+                 onChange={(e) => setPhone(e.target.value)} />
+        </label>
+        <label className="field-block">
+          <span className="label">Email</span>
+          <input className="input" type="email" value={email}
+                 onChange={(e) => setEmail(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+        </label>
+      </div>
+      {error && <p className="field-error">{error}</p>}
+      <div className="dialog-actions">
+        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={busy}>
+          Cancelar
+        </button>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void submit()}>
+          {busy ? 'Creando…' : 'Crear y usar'}
+        </button>
       </div>
     </div>
   );

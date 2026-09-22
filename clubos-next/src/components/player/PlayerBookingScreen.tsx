@@ -59,6 +59,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -183,6 +184,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
         firstName: firstName.trim(),
         lastName: lastName.trim() || undefined,
         phone: phone.trim(),
+        email: email.trim() || undefined,
       });
 
       const endsAt = new Date(
@@ -219,7 +221,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
       setSubmitting(false);
     }
   }, [
-    clubLoad, courtId, slotStartsAt, firstName, lastName, phone, slug,
+    clubLoad, courtId, slotStartsAt, firstName, lastName, phone, email, slug,
     duration, selectedCourt, router, loadAvailability,
   ]);
 
@@ -473,6 +475,19 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
               placeholder="+54 9 11 5555 5555"
             />
             <p className="field-hint">Lo usamos para identificar tu reserva y avisarte si algo cambia.</p>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="pf-email">Email (opcional)</label>
+            <input
+              id="pf-email"
+              className="input"
+              type="email"
+              value={email}
+              disabled={submitting}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tu@email.com"
+            />
+            <p className="field-hint">Si lo dejás, te mandamos la confirmación por mail.</p>
           </div>
 
           <div className="sticky-cta">
