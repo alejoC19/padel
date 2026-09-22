@@ -1,0 +1,37 @@
+name: Migrar base de datos (producción)
+
+# Se dispara a mano desde la pestaña Actions (Run workflow) — nunca
+# automático. Las migraciones son un paso de release separado del deploy
+# a propósito (ver clubos/DEPLOYMENT.md): así un deploy con varias
+# instancias no aplica una migración a medias.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clubos
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - name: prisma migrate deploy
+        run: npx prisma migrate deploy
+        env:
+          # DATABASE_URL solo hace falta para que Prisma no se queje al
+          # leer el schema — `migrate deploy` conecta con DIRECT_URL.
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Estado final
+        run: npx prisma migrate status
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
