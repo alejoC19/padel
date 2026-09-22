@@ -6,6 +6,7 @@ import {
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgendaService } from '../bookings/services/agenda.service';
+import { OCCUPYING_STATUSES } from '../bookings/services/availability.service';
 import { ClubConfigService } from '../bookings/services/club-config.service';
 import { BookingService } from '../bookings/services/booking.service';
 import { PaymentOrderService } from '../payments-gateway/services/payment-order.service';
@@ -162,11 +163,19 @@ export class PublicService {
         openMinute: c.openMinute,
         closeMinute: c.closeMinute,
       })),
-      busy: day.bookings.map((b) => ({
-        courtId: b.courtId,
-        startsAt: b.startsAt,
-        endsAt: b.endsAt,
-      })),
+      // day.bookings trae TODOS los estados a propósito (agenda.service.ts:
+      // el panel de staff quiere ver las canceladas en gris). Acá no: el
+      // portal público solo pregunta "¿está libre?", así que un turno
+      // cancelado por el club o por el jugador tiene que volver a aparecer
+      // disponible — sin este filtro quedaba marcado "ocupado" para
+      // siempre, aunque el motor (bookings_no_overlap) ya lo dejaba libre.
+      busy: day.bookings
+        .filter((b) => (OCCUPYING_STATUSES as readonly string[]).includes(b.status))
+        .map((b) => ({
+          courtId: b.courtId,
+          startsAt: b.startsAt,
+          endsAt: b.endsAt,
+        })),
     };
   }
 
