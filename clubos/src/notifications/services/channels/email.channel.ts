@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createTransport, type Transporter } from 'nodemailer';
 import type {
   NotificationChannel,
   OutboundMessage,
@@ -7,22 +8,26 @@ import type {
 } from './channel.interface';
 
 /**
- * Canal de email transaccional vía Resend (https://resend.com).
+ * Canal de email transaccional vía SMTP (pensado para Gmail con una
+ * "contraseña de aplicación", pero sirve para cualquier proveedor SMTP —
+ * solo cambian host/puerto).
  *
- * Se eligió Resend por API simple y buen free tier, pero la interfaz es
- * idéntica para SendGrid/Postmark: cambia la URL y el shape del body.
  * Para comprobantes y confirmaciones, no para marketing masivo.
  */
 @Injectable()
-export class EmailChannel implements NotificationChannel {
+export class EmailChannel implements NotificationChannel, OnModuleDestroy {
   readonly kind = 'EMAIL' as const;
   private readonly log = new Logger(EmailChannel.name);
+  private transporter: Transporter | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
   isConfigured(): boolean {
     return Boolean(
-      this.config.get('RESEND_API_KEY') && this.config.get('EMAIL_FROM'),
+      this.config.get('SMTP_HOST') &&
+        this.config.get('SMTP_USER') &&
+        this.config.get('SMTP_PASS') &&
+        this.config.get('EMAIL_FROM'),
     );
   }
 
@@ -34,42 +39,41 @@ export class EmailChannel implements NotificationChannel {
       return { ok: false, error: 'Email destino inválido', retryable: false };
     }
 
-    const apiKey = this.config.get<string>('RESEND_API_KEY');
     const from = this.config.get<string>('EMAIL_FROM');
 
     try {
-      const res = await this.fetchWithTimeout('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from,
-          to: [msg.to],
-          subject: msg.subject ?? 'ClubOS',
-          text: msg.body,
-          html: msg.html ?? this.textToHtml(msg.body),
-        }),
+      const info = await this.getTransporter().sendMail({
+        from,
+        to: msg.to,
+        subject: msg.subject ?? 'ClubOS',
+        text: msg.body,
+        html: msg.html ?? this.textToHtml(msg.body),
       });
 
-      const text = await res.text();
-      const json = text ? JSON.parse(text) : {};
-
-      if (!res.ok) {
-        const retryable = res.status === 429 || res.status >= 500;
-        this.log.warn(`Resend ${res.status}: ${text}`);
-        return {
-          ok: false,
-          error: json?.message ?? `HTTP ${res.status}`,
-          retryable,
-        };
-      }
-
-      return { ok: true, providerMessageId: json?.id };
+      return { ok: true, providerMessageId: info.messageId };
     } catch (err) {
-      return { ok: false, error: (err as Error).message, retryable: true };
+      // SMTP invierte la semántica de HTTP: 4xx es temporario (reintentar),
+      // 5xx es permanente (rechazo del server, no se arregla reintentando).
+      // Sin código (timeout/conexión) también vale reintentar.
+      const code = (err as { responseCode?: number }).responseCode;
+      const retryable = !code || code < 500;
+      this.log.warn(`SMTP error enviando a ${msg.to}: ${(err as Error).message}`);
+      return { ok: false, error: (err as Error).message, retryable };
     }
+  }
+
+  private getTransporter(): Transporter {
+    if (this.transporter) return this.transporter;
+    this.transporter = createTransport({
+      host: this.config.get<string>('SMTP_HOST'),
+      port: Number(this.config.get('SMTP_PORT') ?? 465),
+      secure: Number(this.config.get('SMTP_PORT') ?? 465) === 465,
+      auth: {
+        user: this.config.get<string>('SMTP_USER'),
+        pass: this.config.get<string>('SMTP_PASS'),
+      },
+    });
+    return this.transporter;
   }
 
   private textToHtml(text: string): string {
@@ -83,13 +87,7 @@ export class EmailChannel implements NotificationChannel {
     )}</div>`;
   }
 
-  private async fetchWithTimeout(url: string, init: RequestInit) {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 12_000);
-    try {
-      return await fetch(url, { ...init, signal: controller.signal });
-    } finally {
-      clearTimeout(t);
-    }
+  onModuleDestroy(): void {
+    this.transporter?.close();
   }
 }

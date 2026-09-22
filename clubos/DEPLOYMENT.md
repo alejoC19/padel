@@ -60,7 +60,7 @@ Copiá `.env.example` y completá **todo**. Las imprescindibles en prod:
 - `PAYMENTS_ENC_KEY` (≥32 chars — **backupealo en el secret manager**)
 - `API_PUBLIC_URL`, `WEB_PUBLIC_URL`, `CORS_ORIGINS`
 - MercadoPago: `MP_APP_ID`, `MP_APP_SECRET`
-- Notificaciones: `WHATSAPP_*`, `RESEND_API_KEY`, `EMAIL_FROM`
+- Notificaciones: `WHATSAPP_*`, `SMTP_*`, `EMAIL_FROM`
 - Opcional: `SENTRY_DSN`
 
 ### 3. Backend
@@ -100,9 +100,10 @@ Los clubes se crean con su `slug` (`miclub.clubos.com`). Para que funcione:
   proveedor, Loki, Datadog) los indexa. Para seguir una request entera, filtrá
   por `requestId`.
 - **Errores 5xx:** el filtro global los captura, loguea con contexto y —si
-  configurás Sentry— los reporta. Para activar Sentry: `npm i @sentry/node`,
-  setear `SENTRY_DSN`, y descomentar el init en
-  `src/common/observability/error-reporter.ts`.
+  configurás Sentry— los reporta. Ya está cableado (`@sentry/node` instalado):
+  para activarlo alcanza con setear `SENTRY_DSN` en el entorno de producción
+  (creá el proyecto en sentry.io y copiá el DSN). Sin esa variable, sigue
+  funcionando en modo no-op (solo logs).
 - **Health:** `/health` y `/health/ready` para el orquestador y para un uptime
   monitor externo (UptimeRobot, Betterstack) que te avise si se cae.
 
