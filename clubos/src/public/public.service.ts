@@ -84,6 +84,31 @@ export class PublicService {
     return club;
   }
 
+  /**
+   * Sigue la cadena de reprogramaciones (BookingService.reschedule no edita
+   * in situ: cancela la original como 'RESCHEDULED' y crea una nueva
+   * encadenada por `rescheduledFromId`) hasta el id de la reserva vigente.
+   *
+   * El token de acceso se transfiere a cada nueva reserva de la cadena
+   * (ver reschedule()), así que resolver el id antes de chequear el token
+   * es lo que hace que el link/comprobante que el jugador ya tiene guardado
+   * siga funcionando después de que el club reprograma, mostrando siempre
+   * el horario vigente en vez de un callejón sin salida.
+   */
+  private async resolveLiveBookingId(bookingId: string): Promise<string> {
+    let currentId = bookingId;
+    // Tope defensivo: nada debería reprogramarse tantas veces encadenadas.
+    for (let i = 0; i < 10; i++) {
+      const successor = await this.prisma.db.booking.findFirst({
+        where: { rescheduledFromId: currentId },
+        select: { id: true },
+      });
+      if (!successor) break;
+      currentId = successor.id;
+    }
+    return currentId;
+  }
+
   /** Contexto de tenant de solo lectura para el visitante público. */
   private publicCtx(clubId: string): TenantContext {
     return {
@@ -286,11 +311,15 @@ export class PublicService {
 
       // Incluye canceladas a propósito: si no, el jugador ve desaparecer un
       // turno de la lista sin ninguna indicación de que el club lo canceló.
+      // Excluye RESCHEDULED sí: esa fila queda "muerta" (ver reschedule()),
+      // la reserva vigente ya aparece en su propia fila con el horario nuevo
+      // — mostrar las dos sería la misma reserva duplicada en la lista.
       const now = new Date();
       const rows = await this.prisma.db.booking.findMany({
         where: {
           clientId: client.id,
           endsAt: { gte: now },
+          status: { not: 'RESCHEDULED' },
         },
         orderBy: { startsAt: 'asc' },
         select: {
@@ -328,8 +357,9 @@ export class PublicService {
     }
 
     return runWithTenant(this.publicCtx(club.id), async () => {
+      const liveId = await this.resolveLiveBookingId(bookingId);
       const booking = await this.prisma.db.booking.findFirst({
-        where: { id: bookingId },
+        where: { id: liveId },
         select: {
           id: true,
           code: true,
@@ -428,14 +458,15 @@ export class PublicService {
     }
 
     return runWithTenant(this.publicCtx(club.id), async () => {
+      const liveId = await this.resolveLiveBookingId(bookingId);
       const booking = await this.prisma.db.booking.findFirst({
-        where: { id: bookingId },
+        where: { id: liveId },
         select: { id: true, accessTokenHash: true },
       });
       this.assertOwnsToken(booking, accessToken);
 
       await this.booking.cancel(
-        bookingId,
+        liveId,
         { cancelledBy: 'CLIENT', reason: 'Cancelada por el jugador desde la app' } as Parameters<
           BookingService['cancel']
         >[1],
@@ -864,11 +895,13 @@ export class PublicService {
           });
           if (!client) return [];
 
-          // Incluye canceladas a propósito, mismo criterio que misReservas().
+          // Incluye canceladas, excluye RESCHEDULED: mismo criterio que
+          // misReservas().
           return this.prisma.db.booking.findMany({
             where: {
               clientId: client.id,
               endsAt: { gte: now },
+              status: { not: 'RESCHEDULED' },
             },
             orderBy: { startsAt: 'asc' },
             select: {
