@@ -19,12 +19,42 @@ const STATUS_LABEL: Record<string, string> = {
   IN_PROGRESS: 'En curso',
   COMPLETED: 'Jugada',
   NO_SHOW: 'No se presentó',
+  CANCELLED_BY_CLIENT: 'Cancelada por vos',
+  CANCELLED_BY_CLUB: 'Cancelada por el club',
 };
 
 function timeRange(startsAt: string, endsAt: string): string {
   const s = new Date(startsAt);
   const e = new Date(endsAt);
   return `${formatMinute(s.getHours() * 60 + s.getMinutes())} – ${formatMinute(e.getHours() * 60 + e.getMinutes())}`;
+}
+
+/** Mismo motivo que en MyBookingsScreen: el comprobante local no tiene estado. */
+function useLiveStatuses(bookings: (StoredBooking & { slug: string })[]) {
+  const [statuses, setStatuses] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (bookings.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      bookings.map(async (b) => {
+        try {
+          const detail = await publicApi.consultar(b.slug, b.id, b.accessToken);
+          return [b.id, detail.status] as const;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const r of results) if (r) next[r[0]] = r[1];
+      setStatuses(next);
+    });
+    return () => { cancelled = true; };
+  }, [bookings]);
+
+  return statuses;
 }
 
 /**
@@ -45,6 +75,7 @@ export function PlayerUnifiedBookingsScreen() {
     () => new Set(localList.map((b) => `${b.slug}:${b.code}`)),
     [localList],
   );
+  const localStatuses = useLiveStatuses(localList);
 
   const runSearch = useCallback(async () => {
     if (!phone.trim()) {
@@ -83,23 +114,29 @@ export function PlayerUnifiedBookingsScreen() {
           <p className="field-hint">Todavía no reservaste desde este dispositivo.</p>
         ) : (
           <div className="booking-list">
-            {localList.map((b) => (
-              <a
-                key={`${b.slug}-${b.id}`}
-                className="booking-item is-linkable"
-                href={`/c/${b.slug}/reservas/${b.id}?token=${encodeURIComponent(b.accessToken)}`}
-              >
-                <span className="booking-item-dot" style={{ background: b.courtColor || '#0ea5a0' }} />
-                <span className="booking-item-main">
-                  <span className="booking-item-court">{b.courtName}</span>
-                  <span className="booking-item-time">
-                    {formatLocalDate(b.startsAt.slice(0, 10))} · {timeRange(b.startsAt, b.endsAt)}
+            {localList.map((b) => {
+              const status = localStatuses[b.id];
+              const isCancelled = status?.startsWith('CANCELLED');
+              return (
+                <a
+                  key={`${b.slug}-${b.id}`}
+                  className={`booking-item is-linkable${isCancelled ? ' is-cancelled' : ''}`}
+                  href={`/c/${b.slug}/reservas/${b.id}?token=${encodeURIComponent(b.accessToken)}`}
+                >
+                  <span className="booking-item-dot" style={{ background: b.courtColor || '#de6435' }} />
+                  <span className="booking-item-main">
+                    <span className="booking-item-court">{b.courtName}</span>
+                    <span className="booking-item-time">
+                      {formatLocalDate(b.startsAt.slice(0, 10))} · {timeRange(b.startsAt, b.endsAt)}
+                    </span>
+                    <span className={`booking-item-hint${isCancelled ? ' is-cancelled' : ''}`}>
+                      {isCancelled ? (STATUS_LABEL[status!] ?? status) : b.slug}
+                    </span>
                   </span>
-                  <span className="booking-item-hint">{b.slug}</span>
-                </span>
-                <span className="booking-item-chevron">›</span>
-              </a>
-            ))}
+                  <span className="booking-item-chevron">›</span>
+                </a>
+              );
+            })}
           </div>
         )}
       </section>

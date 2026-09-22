@@ -6,6 +6,39 @@ import { publicApi, type PublicBookingSummary } from '@/lib/publicApi';
 import { getPublicBookings, type StoredBooking } from '@/lib/publicStorage';
 import { formatLocalDate, formatMinute } from '@/lib/grid';
 
+/**
+ * El comprobante guardado en el dispositivo no tiene estado (se guardó tal
+ * cual quedó al reservar). Sin esto, un turno cancelado por el club después
+ * sigue mostrándose como si nada en esta lista — recién se ve al entrar al
+ * detalle. Se pide el estado real de cada uno al abrir la pantalla.
+ */
+function useLiveStatuses(slug: string, bookings: StoredBooking[]) {
+  const [statuses, setStatuses] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (bookings.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      bookings.map(async (b) => {
+        try {
+          const detail = await publicApi.consultar(slug, b.id, b.accessToken);
+          return [b.id, detail.status] as const;
+        } catch {
+          return null; // token vencido, reserva no encontrada, etc.: se omite.
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const r of results) if (r) next[r[0]] = r[1];
+      setStatuses(next);
+    });
+    return () => { cancelled = true; };
+  }, [slug, bookings]);
+
+  return statuses;
+}
+
 type SearchLoad =
   | { status: 'idle' }
   | { status: 'loading' }
@@ -19,6 +52,8 @@ const STATUS_LABEL: Record<string, string> = {
   IN_PROGRESS: 'En curso',
   COMPLETED: 'Jugada',
   NO_SHOW: 'No se presentó',
+  CANCELLED_BY_CLIENT: 'Cancelada por vos',
+  CANCELLED_BY_CLUB: 'Cancelada por el club',
 };
 
 function timeRange(startsAt: string, endsAt: string): string {
@@ -50,6 +85,7 @@ export function MyBookingsScreen({ slug }: { slug: string }) {
   }, [slug]);
 
   const localCodes = useMemo(() => new Set(localList.map((b) => b.code)), [localList]);
+  const localStatuses = useLiveStatuses(slug, localList);
 
   const runSearch = useCallback(async () => {
     if (!phone.trim()) {
@@ -88,18 +124,31 @@ export function MyBookingsScreen({ slug }: { slug: string }) {
           <p className="field-hint">Todavía no reservaste desde este dispositivo.</p>
         ) : (
           <div className="booking-list">
-            {localList.map((b) => (
-              <a key={b.id} className="booking-item is-linkable" href={`/c/${slug}/reservas/${b.id}?token=${encodeURIComponent(b.accessToken)}`}>
-                <span className="booking-item-dot" style={{ background: b.courtColor || '#c8443e' }} />
-                <span className="booking-item-main">
-                  <span className="booking-item-court">{b.courtName}</span>
-                  <span className="booking-item-time">
-                    {formatLocalDate(b.startsAt.slice(0, 10))} · {timeRange(b.startsAt, b.endsAt)}
+            {localList.map((b) => {
+              const status = localStatuses[b.id];
+              const isCancelled = status?.startsWith('CANCELLED');
+              return (
+                <a
+                  key={b.id}
+                  className={`booking-item is-linkable${isCancelled ? ' is-cancelled' : ''}`}
+                  href={`/c/${slug}/reservas/${b.id}?token=${encodeURIComponent(b.accessToken)}`}
+                >
+                  <span className="booking-item-dot" style={{ background: b.courtColor || '#c8443e' }} />
+                  <span className="booking-item-main">
+                    <span className="booking-item-court">{b.courtName}</span>
+                    <span className="booking-item-time">
+                      {formatLocalDate(b.startsAt.slice(0, 10))} · {timeRange(b.startsAt, b.endsAt)}
+                    </span>
+                    {status && (
+                      <span className={`booking-item-hint${isCancelled ? ' is-cancelled' : ''}`}>
+                        {STATUS_LABEL[status] ?? status}
+                      </span>
+                    )}
                   </span>
-                </span>
-                <span className="booking-item-chevron">›</span>
-              </a>
-            ))}
+                  <span className="booking-item-chevron">›</span>
+                </a>
+              );
+            })}
           </div>
         )}
       </section>

@@ -513,7 +513,7 @@ export class BookingService {
     const tz = await this.config.timezone(clubId);
     const startsAt = new Date(dto.startsAt);
 
-    return this.prisma.tenantTransaction(async (tx) => {
+    const result = await this.prisma.tenantTransaction(async (tx) => {
       const original = await tx.booking.findFirst({
         where: { id: bookingId, deletedAt: null },
         select: {
@@ -532,6 +532,7 @@ export class BookingService {
           paidAmount: true,
           paymentStatus: true,
           notes: true,
+          accessTokenHash: true,
         },
       });
 
@@ -560,6 +561,19 @@ export class BookingService {
 
       const { code } = await this.docNumber.next(tx, clubId, 'BOOKING');
 
+      // accessTokenHash es @unique: hay que liberarlo de la original ANTES
+      // de crear la nueva con el mismo valor, o el INSERT choca. Se
+      // transfiere (no se genera uno nuevo) para que el link/comprobante que
+      // el jugador ya tiene guardado siga funcionando tal cual — ver
+      // PublicService.resolveLiveBookingId(), que sigue la cadena de
+      // `rescheduledFromId` para resolver siempre a la reserva vigente.
+      if (original.accessTokenHash) {
+        await tx.booking.update({
+          where: { id: original.id },
+          data: { accessTokenHash: null },
+        });
+      }
+
       // El precio y lo pagado se trasladan tal cual: reprogramar no es
       // recotizar. Si el club quiere cobrar la diferencia por mover a un
       // horario más caro, es una decisión comercial que se registra aparte.
@@ -585,6 +599,7 @@ export class BookingService {
           source: 'ADMIN',
           createdById: userId,
           rescheduledFromId: original.id,
+          accessTokenHash: original.accessTokenHash,
           confirmedAt: new Date(),
         },
         select: { id: true, code: true },
@@ -636,6 +651,21 @@ export class BookingService {
 
       return { newBookingId: created.id, newCode: created.code };
     });
+
+    // Fuera de la transacción, mismo criterio que create()/cancel(): si
+    // falla el aviso, la reprogramación ya está hecha y no hay nada que
+    // revertir por eso. Reusa la plantilla de confirmación (no hay una
+    // dedicada a "reprogramada") — el jugador necesita sobre todo el
+    // horario nuevo, que ese aviso ya comunica bien.
+    try {
+      await this.notifyBookingConfirmed(result.newBookingId);
+    } catch (err) {
+      this.log.warn(
+        `Reserva ${result.newCode} reprogramada, pero falló al encolar el aviso: ${(err as Error).message}`,
+      );
+    }
+
+    return result;
   }
 
   /** Registra la llegada del cliente. */
