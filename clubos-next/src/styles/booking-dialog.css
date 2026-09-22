@@ -130,6 +130,28 @@
 }
 .search-empty-hint { font-size: 13px; color: var(--ds-faint); }
 
+/* Alta rápida sin salir del buscador */
+.search-new-client {
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-top: 1px solid var(--ds-border, #232a35);
+  background: transparent;
+  color: var(--ds-primary, #de6435);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+.search-new-client:hover { background: var(--app-bg, #12151d); }
+
+.search-quick-create {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* Spinner chico dentro del input */
 .mini-spinner {
   width: 15px; height: 15px;
