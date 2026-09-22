@@ -410,6 +410,7 @@ function CreateClientDialog({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [documentNumber, setDocumentNumber] = useState('');
   const [busy, setBusy] = useState(false);
   const [duplicates, setDuplicates] = useState<Array<Record<string, unknown>> | null>(null);
@@ -426,6 +427,7 @@ function CreateClientDialog({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
         documentNumber: documentNumber.trim() || undefined,
         force,
       });
@@ -510,10 +512,16 @@ function CreateClientDialog({
           <label className="field-block">
             <span className="label">Documento</span>
             <input className="input" value={documentNumber} inputMode="numeric"
-                   onChange={(e) => setDocumentNumber(e.target.value)}
-                   onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+                   onChange={(e) => setDocumentNumber(e.target.value)} />
           </label>
         </div>
+        <label className="field-block">
+          <span className="label">Email</span>
+          <input className="input" type="email" value={email}
+                 placeholder="para mandarle confirmaciones de reserva"
+                 onChange={(e) => setEmail(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
+        </label>
 
         <p className="field-hint">
           Con el teléfono alcanza para empezar. El resto se completa después.
