@@ -41,11 +41,13 @@ await c.connect();
 // ---------------------------------------------------------------------------
 console.log('\nPreparando el club...\n');
 
+// audit_logs, account_entries, cash_movements y stock_movements son
+// append-only (trigger forbid_mutation) a propósito — no se limpian entre
+// corridas, quedan acumulando entre ejecuciones de este script.
 await c.query(`
-  DELETE FROM audit_logs; DELETE FROM account_entries;
-  DELETE FROM cash_movements; DELETE FROM payments;
+  DELETE FROM payments;
   DELETE FROM sale_items; DELETE FROM sales;
-  DELETE FROM stock_movements; DELETE FROM products; DELETE FROM product_categories;
+  DELETE FROM products; DELETE FROM product_categories;
   DELETE FROM booking_status_changes; DELETE FROM booking_players; DELETE FROM bookings;
   DELETE FROM cash_sessions; DELETE FROM cash_registers; DELETE FROM payment_methods;
   DELETE FROM price_rules; DELETE FROM price_lists; DELETE FROM clients;

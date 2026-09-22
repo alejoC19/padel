@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import type { AgendaDay } from '@/lib/api';
-import { currentMinuteOfDay, formatMinute } from '@/lib/grid';
+import { currentMinuteOfDay, formatMinute, isToday } from '@/lib/grid';
 
 interface Props {
   day: AgendaDay;
@@ -24,11 +24,15 @@ interface Props {
  * que ya carga AgendaScreen.
  */
 export function CourtOverviewStrip({ day, selectedCourtId, onSelectCourt }: Props) {
-  const now = currentMinuteOfDay();
+  // "¿Libre AHORA?" solo tiene sentido mirando el día de hoy — en otro día,
+  // comparar sus turnos contra la hora actual del reloj los marca ocupados
+  // o libres al azar según a qué hora del día de hoy coincidan.
+  const today = isToday(day.date);
+  const now = today ? currentMinuteOfDay(day.timezone) : -1;
 
   const rows = useMemo(() => {
     return day.courts.map((court) => {
-      const current = day.bookings.find((b) => (
+      const current = today && day.bookings.find((b) => (
         b.courtId === court.id
         && b.startMinute <= now && now < b.endMinute
         && b.status !== 'CANCELLED_BY_CLIENT' && b.status !== 'CANCELLED_BY_CLUB'
@@ -36,7 +40,8 @@ export function CourtOverviewStrip({ day, selectedCourtId, onSelectCourt }: Prop
       const upcoming = !current
         ? day.bookings
           .filter((b) => (
-            b.courtId === court.id && b.startMinute > now
+            b.courtId === court.id
+            && (!today || b.startMinute > now)
             && b.status !== 'CANCELLED_BY_CLIENT' && b.status !== 'CANCELLED_BY_CLUB'
           ))
           .sort((a, b) => a.startMinute - b.startMinute)[0]
@@ -44,7 +49,7 @@ export function CourtOverviewStrip({ day, selectedCourtId, onSelectCourt }: Prop
 
       return { court, current, upcoming };
     });
-  }, [day, now]);
+  }, [day, now, today]);
 
   return (
     <div className="court-strip" role="tablist" aria-label="Estado de las canchas ahora">
