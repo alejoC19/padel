@@ -1,33 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { isIP } from 'node:net';
-import { resolve4 } from 'node:dns/promises';
-import { createTransport } from 'nodemailer';
 import type {
   NotificationChannel,
   OutboundMessage,
   SendResult,
 } from './channel.interface';
 
+const RESEND_API_URL = 'https://api.resend.com/emails';
+
 /**
- * Canal de email transaccional vía SMTP (pensado para Gmail con una
- * "contraseña de aplicación", pero sirve para cualquier proveedor SMTP —
- * solo cambian host/puerto).
+ * Canal de email transaccional vía la API HTTP de Resend.
  *
  * Para comprobantes y confirmaciones, no para marketing masivo.
  *
  * ---------------------------------------------------------------------------
- * POR QUÉ SE RESUELVE LA IP A MANO (y solo IPv4)
+ * POR QUÉ HTTP Y NO SMTP DIRECTO
  * ---------------------------------------------------------------------------
- * La resolución DNS interna de nodemailer 10.x elige al azar entre las
- * direcciones IPv4 e IPv6 del host. Railway (y muchos contenedores) reportan
- * una interfaz IPv6 local pero no tienen salida IPv6 real a internet — cuando
- * toca una IPv6 de smtp.gmail.com, la conexión falla con ENETUNREACH. Como no
- * hay forma de forzar solo-IPv4 vía las opciones públicas del transport en
- * esta versión, se resuelve el host a IPv4 antes de conectar y se pasa esa IP
- * como `host`, con `servername` seteado al hostname original para que el TLS
- * (SNI y validación del certificado) siga validando contra "smtp.gmail.com"
- * y no contra la IP.
+ * La versión anterior mandaba por SMTP directo contra Gmail (con IPv4
+ * forzada a mano para esquivar el problema de IPv6 de Railway). Aun así,
+ * en producción TODOS los envíos fallaban con "Connection timeout",
+ * probado en el puerto 465 y en 587 — la conexión SMTP en sí nunca se
+ * completa. Es un problema de red, no de configuración: es conocido que
+ * los proveedores de correo (Gmail incluido) suelen ignorar o bloquear
+ * conexiones SMTP directas que vienen de rangos de IP de datacenters/
+ * cloud como medida antispam, sin importar el puerto.
+ *
+ * La API HTTP viaja por HTTPS (443), el mismo camino que ya usa el resto
+ * del backend para salir a internet — no pega contra ese bloqueo.
  * ---------------------------------------------------------------------------
  */
 @Injectable()
@@ -39,10 +38,7 @@ export class EmailChannel implements NotificationChannel {
 
   isConfigured(): boolean {
     return Boolean(
-      this.config.get('SMTP_HOST') &&
-        this.config.get('SMTP_USER') &&
-        this.config.get('SMTP_PASS') &&
-        this.config.get('EMAIL_FROM'),
+      this.config.get('RESEND_API_KEY') && this.config.get('EMAIL_FROM'),
     );
   }
 
@@ -54,59 +50,43 @@ export class EmailChannel implements NotificationChannel {
       return { ok: false, error: 'Email destino inválido', retryable: false };
     }
 
+    const apiKey = this.config.get<string>('RESEND_API_KEY');
     const from = this.config.get<string>('EMAIL_FROM');
 
     try {
-      const transporter = await this.buildTransporter();
-      const info = await transporter.sendMail({
-        from,
-        to: msg.to,
-        subject: msg.subject ?? 'ClubOS',
-        text: msg.body,
-        html: msg.html ?? this.textToHtml(msg.body),
+      const res = await fetch(RESEND_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from,
+          to: msg.to,
+          subject: msg.subject ?? 'ClubOS',
+          text: msg.body,
+          html: msg.html ?? this.textToHtml(msg.body),
+        }),
       });
 
-      return { ok: true, providerMessageId: info.messageId };
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        // Resend usa semántica HTTP normal: 4xx es un pedido roto (dominio
+        // no verificado, remitente inválido, payload malo) — reintentar no
+        // lo arregla. 429 (rate limit) y 5xx sí valen la pena reintentar.
+        const retryable = res.status === 429 || res.status >= 500;
+        const error = `Resend ${res.status}: ${body.slice(0, 300)}`;
+        this.log.warn(`Error enviando a ${msg.to}: ${error}`);
+        return { ok: false, error, retryable };
+      }
+
+      const data = (await res.json()) as { id?: string };
+      return { ok: true, providerMessageId: data.id };
     } catch (err) {
-      // SMTP invierte la semántica de HTTP: 4xx es temporario (reintentar),
-      // 5xx es permanente (rechazo del server, no se arregla reintentando).
-      // Sin código (timeout/conexión) también vale reintentar.
-      const code = (err as { responseCode?: number }).responseCode;
-      const retryable = !code || code < 500;
-      this.log.warn(`SMTP error enviando a ${msg.to}: ${(err as Error).message}`);
-      return { ok: false, error: (err as Error).message, retryable };
-    }
-  }
-
-  // No hay pool (`pool: true`) acá: nodemailer abre una conexión por
-  // sendMail() de todas formas, así que crear el transport en cada envío no
-  // suma overhead, y a cambio la IP resuelta nunca queda vieja si el
-  // proveedor rota sus direcciones.
-  private async buildTransporter() {
-    const host = this.config.get<string>('SMTP_HOST')!;
-    const resolvedHost = await this.resolveIPv4(host);
-
-    return createTransport({
-      host: resolvedHost,
-      servername: host,
-      port: Number(this.config.get('SMTP_PORT') ?? 465),
-      secure: Number(this.config.get('SMTP_PORT') ?? 465) === 465,
-      auth: {
-        user: this.config.get<string>('SMTP_USER'),
-        pass: this.config.get<string>('SMTP_PASS'),
-      },
-    });
-  }
-
-  private async resolveIPv4(host: string): Promise<string> {
-    if (isIP(host)) return host; // ya es una IP, nada que resolver.
-    try {
-      const [ip] = await resolve4(host);
-      return ip ?? host;
-    } catch {
-      // Sin registro A o falló la resolución: dejamos que nodemailer lo
-      // intente con el hostname tal cual, mejor que romper el envío acá.
-      return host;
+      // Fetch nunca llegó a completar (red caída, DNS, timeout): reintentar
+      // tiene sentido, puede ser un problema transitorio.
+      this.log.warn(`Error de red enviando a ${msg.to}: ${(err as Error).message}`);
+      return { ok: false, error: (err as Error).message, retryable: true };
     }
   }
 

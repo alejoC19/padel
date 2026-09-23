@@ -60,7 +60,7 @@ Copiá `.env.example` y completá **todo**. Las imprescindibles en prod:
 - `PAYMENTS_ENC_KEY` (≥32 chars — **backupealo en el secret manager**)
 - `API_PUBLIC_URL`, `WEB_PUBLIC_URL`, `CORS_ORIGINS`
 - MercadoPago: `MP_APP_ID`, `MP_APP_SECRET`
-- Notificaciones: `WHATSAPP_*`, `SMTP_*`, `EMAIL_FROM`
+- Notificaciones: `WHATSAPP_*`, `RESEND_API_KEY`, `EMAIL_FROM`
 - Opcional: `SENTRY_DSN`
 
 ### 3. Backend
