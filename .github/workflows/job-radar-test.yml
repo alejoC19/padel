@@ -1,0 +1,24 @@
+name: Job Radar - Test Telegram
+
+# Workflow de verificacion: solo confirma que TELEGRAM_BOT_TOKEN y
+# TELEGRAM_CHAT_ID (GitHub Secrets) funcionan, enviando un mensaje fijo.
+# Se dispara a mano desde la pestana Actions -> Job Radar - Test Telegram ->
+# Run workflow. No tiene cron: es un paso previo antes de armar el bot.
+on:
+  workflow_dispatch:
+
+jobs:
+  test-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Enviar mensaje de prueba a Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python job-radar/scripts/test_telegram.py
