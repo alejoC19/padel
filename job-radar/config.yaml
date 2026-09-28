@@ -1,0 +1,69 @@
+# Config editable de job-radar: perfiles, keywords y pesos de scoring.
+# Los pesos son arbitrarios (mas alto = keyword mas determinante para ese perfil).
+# Bonus y penalties se aplican por igual a los 3 perfiles (hablan del aviso en
+# si: seniority pedido y ubicacion/modalidad), no son especificos de un perfil.
+
+profiles:
+  qa_automation:
+    name: "QA Automation"
+    keywords:
+      qa: 3
+      tester: 3
+      automation: 3
+      automatizacion: 3
+      selenium: 3
+      playwright: 3
+      testing: 2
+      python: 2
+      qa manual: 2
+      cypress: 2
+
+  desarrollador:
+    name: "Desarrollador"
+    keywords:
+      full stack: 3
+      fullstack: 3
+      frontend: 2
+      front end: 2
+      backend: 2
+      back end: 2
+      react: 3
+      next.js: 3
+      nextjs: 3
+      node: 2
+      node.js: 2
+      nestjs: 3
+      typescript: 3
+      javascript: 2
+
+  contable_automatizacion:
+    name: "Contable + Automatizacion"
+    keywords:
+      analista contable: 3
+      contable: 2
+      impositivo: 3
+      iibb: 3
+      conciliaciones: 3
+      bejerman: 3
+      erp: 2
+      analisis de procesos: 2
+      procesos: 1
+      python: 2
+      automatizacion: 2
+
+# Bonus: suman puntos al aviso completo (aplican a los 3 perfiles por igual).
+bonus:
+  junior: 2
+  trainee: 2
+  semi senior: 1
+  remoto: 2
+  hibrido: 1
+  caba: 1
+  gba norte: 1
+
+# Penalties: restan puntos (usar valores negativos).
+penalties:
+  senior: -3
+  sr: -2
+  lead: -3
+  "+5 años": -3
