@@ -13,6 +13,12 @@ next-env.d.ts
 
 # Test / coverage
 coverage/
+.pytest_cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
 
 # Env files (never commit secrets)
 .env
