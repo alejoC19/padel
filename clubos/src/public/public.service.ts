@@ -186,11 +186,15 @@ export class PublicService {
   }
 
   /**
-   * Reserva de un jugador INVITADO (sin cuenta).
+   * Reserva de un jugador logueado (/jugador/cuenta).
    *
-   * El jugador da su nombre, teléfono, la cancha, el inicio y la duración.
-   * Buscamos si ya existe un cliente con ese teléfono en el club; si no, lo
-   * creamos. Después creamos la reserva reusando el BookingService del panel
+   * `userId` lo exige el controller (`requireUserId`) antes de llegar
+   * acá — esta función no vuelve a validarlo, confía en esa garantía.
+   * Se usa para encontrar (o crear) el Client de ESTE club vinculado a esa
+   * cuenta; nombre/teléfono/email del body son el resto de los datos de la
+   * reserva, no la identidad (ver el fallback por teléfono/email más abajo,
+   * que solo entra en juego la primera vez que esta cuenta reserva en este
+   * club). Después creamos la reserva reusando el BookingService del panel
    * (misma lógica de validación de solapamientos, precio, etc.).
    *
    * La reserva queda registrada como creada por el dueño del club (para la
@@ -207,8 +211,7 @@ export class PublicService {
       phone: string;
       email: string;
     },
-    /** Cuenta logueada (/jugador/cuenta), si el jugador reservó así. Ver `optionalUserId` en el controller. */
-    userId?: string | null,
+    userId: string,
   ) {
     const club = await this.resolveClub(slug);
 
@@ -248,18 +251,16 @@ export class PublicService {
       const email = input.email.trim();
       const phone = input.phone.trim();
 
-      // Buscar cliente: primero por la CUENTA logueada (si vino), que es la
-      // identidad más confiable que hay — a diferencia de teléfono/email, no
-      // depende de que el jugador haya tipeado lo mismo que la vez anterior.
-      // Sin esto, alguien logueado que reserva con un teléfono nuevo volvería
-      // a caer en el mismo problema que `clients_email_uq` (ver fallback de
-      // abajo): de ahí la prioridad.
-      let client = userId
-        ? await this.prisma.db.client.findFirst({
-            where: { userId },
-            select: { id: true, email: true, userId: true },
-          })
-        : null;
+      // Buscar cliente: primero por la CUENTA (siempre viene, el controller
+      // ya la exige), que es la identidad más confiable que hay — a
+      // diferencia de teléfono/email, no depende de que el jugador haya
+      // tipeado lo mismo que la vez anterior. Sin esto, reservar con un
+      // teléfono nuevo volvería a caer en el mismo problema que
+      // `clients_email_uq` (ver fallback de abajo): de ahí la prioridad.
+      let client = await this.prisma.db.client.findFirst({
+        where: { userId },
+        select: { id: true, email: true, userId: true },
+      });
 
       if (!client) {
         client = await this.prisma.db.client.findFirst({
@@ -289,17 +290,20 @@ export class PublicService {
             lastName: input.lastName?.trim() || '—',
             phone,
             email,
-            ...(userId ? { userId } : {}),
+            userId,
           },
           select: { id: true, email: true, userId: true },
         });
       } else {
         // Cliente existente encontrado por teléfono o email: completar lo
         // que falte sin pisar nada. `userId` solo se fija si todavía no
-        // tenía uno — no se transfiere un cliente ya vinculado a OTRA cuenta.
+        // tenía uno — no se transfiere un cliente ya vinculado a OTRA cuenta
+        // (ej. el client que ya existía por email, de antes de que
+        // existieran las cuentas, ahora queda vinculado a la primera que
+        // reserve con ese email).
         const patch: { email?: string; userId?: string } = {};
         if (!client.email) patch.email = email;
-        if (userId && !client.userId) patch.userId = userId;
+        if (!client.userId) patch.userId = userId;
         if (Object.keys(patch).length > 0) {
           await this.prisma.db.client.update({ where: { id: client.id }, data: patch });
         }

@@ -349,8 +349,6 @@
   border-radius: 28px;
 }
 .lp-final .lp-btn { margin-top: 24px; }
-.lp-final-cta { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 24px; }
-.lp-final-cta .lp-btn { margin-top: 0; }
 
 /* --- FOOTER --- */
 .lp-footer {

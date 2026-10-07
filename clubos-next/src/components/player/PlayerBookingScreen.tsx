@@ -11,7 +11,7 @@ import {
   type PublicCourt,
 } from '@/lib/publicApi';
 import { getPublicBookings, savePublicBooking } from '@/lib/publicStorage';
-import { getPlayerAccessToken, usePlayerAccount } from '@/lib/playerAuth';
+import { getFreshPlayerAccessToken, usePlayerAccount } from '@/lib/playerAuth';
 import {
   ALLOWED_DURATIONS,
   buildSlotCandidates,
@@ -68,7 +68,9 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   // Prefill desde la cuenta logueada (una sola vez, cuando aparece) — igual
   // sigue siendo editable: la identidad real la fija el access token en
   // `submit`, no lo que haya tipeado en estos campos (ver reservar() en el
-  // backend, prioriza la cuenta por sobre teléfono/email del body).
+  // backend, que exige esa cuenta y la prioriza por sobre teléfono/email
+  // del body). `account` siempre está acá: `PlayerAuthGate` (en la ruta)
+  // no renderiza esta pantalla sin cuenta logueada.
   useEffect(() => {
     if (!account) return;
     setFirstName((v) => v || account.firstName);
@@ -194,6 +196,12 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
     setSubmitting(true);
     setFormError(null);
     try {
+      // Fresco, no el que haya en memoria: reservar ya exige cuenta de
+      // verdad (ver public.service.ts), así que un access token vencido
+      // (15 min) tiene que renovarse ANTES de mandarlo, no después de que
+      // el backend lo rechace — a diferencia de cuando esto era opcional
+      // y un token vencido simplemente degradaba a reserva de invitado.
+      const token = await getFreshPlayerAccessToken();
       const res = await publicApi.reservar(slug, {
         courtId,
         startsAt: slotStartsAt,
@@ -202,7 +210,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
         lastName: lastName.trim() || undefined,
         phone: phone.trim(),
         email: email.trim(),
-      }, getPlayerAccessToken());
+      }, token);
 
       const endsAt = new Date(
         new Date(slotStartsAt).getTime() + duration * 60_000,
@@ -271,6 +279,11 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
     );
   }
 
+  // No debería pasar: PlayerAuthGate, en la ruta, no renderiza esta
+  // pantalla sin cuenta. Guard de tipos, no una pantalla real que alguien
+  // vaya a ver.
+  if (!account) return null;
+
   const { club } = clubLoad;
 
   return (
@@ -279,7 +292,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
         {club.logoUrl && <img className="player-club-logo" src={club.logoUrl} alt="" />}
         <div className="player-eyebrow">ClubOS</div>
         <h1 className="player-club-name">{club.name}</h1>
-        <p className="player-tagline">Reservá tu cancha online, sin registrarte.</p>
+        <p className="player-tagline">Reservá tu cancha online en segundos.</p>
         <a className="player-nav-link" href={`/c/${slug}/mis-reservas`}>
           Ver mis reservas →
         </a>
@@ -287,7 +300,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
           ¿Jugás en otros clubes? Buscalos acá →
         </a>
         <a className="player-nav-link" href={`/jugador/cuenta?next=${encodeURIComponent(`/c/${slug}`)}`}>
-          {account ? `Hola, ${account.firstName} →` : 'Iniciar sesión / Crear cuenta →'}
+          Hola, {account.firstName} →
         </a>
       </header>
 

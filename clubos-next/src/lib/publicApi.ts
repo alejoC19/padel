@@ -121,16 +121,6 @@ export interface PublicBookingCreated {
   };
 }
 
-/** Fila de /mis-reservas: deliberadamente pobre en detalle (ver public.service.ts). */
-export interface PublicBookingSummary {
-  code: string;
-  startsAt: string;
-  endsAt: string;
-  status: string;
-  courtName: string;
-  courtColor: string | null;
-}
-
 /** Detalle completo / comprobante, gateado por accessToken. */
 export interface PublicBookingDetail {
   id: string;
@@ -240,10 +230,10 @@ export const publicApi = {
     ),
 
   /**
-   * `accessToken` es opcional: el que trae la cuenta logueada (ver
-   * playerAuth.ts), para que el backend vincule el Client de este club a
-   * esa cuenta. Sin él, la reserva sigue siendo de invitado, igual que
-   * siempre — este endpoint es público, nunca exige login.
+   * `accessToken`: el de la cuenta logueada (ver playerAuth.ts). El backend
+   * lo exige de verdad (ver reservar() en public.service.ts) — queda
+   * tipado opcional acá solo porque este archivo es un cliente HTTP
+   * delgado, no el lugar donde se decide esa regla.
    */
   reservar: (
     slug: string,
@@ -263,11 +253,6 @@ export const publicApi = {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       body: JSON.stringify(input),
     }),
-
-  misReservas: (slug: string, phone: string) =>
-    request<{ reservas: PublicBookingSummary[] }>(
-      `/public/clubs/${encodeURIComponent(slug)}/mis-reservas?phone=${encodeURIComponent(phone)}`,
-    ),
 
   consultar: (slug: string, id: string, token: string) =>
     request<PublicBookingDetail>(
@@ -329,11 +314,6 @@ export const publicApi = {
   directorio: (q?: string) =>
     request<{ clubes: PublicClubDirectoryEntry[] }>(
       `/public/jugador/clubes${q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`,
-    ),
-
-  misReservasJugador: (phone: string) =>
-    request<{ reservas: PublicUnifiedBooking[] }>(
-      `/public/jugador/mis-reservas?phone=${encodeURIComponent(phone)}`,
     ),
 
   /** Reservas de la CUENTA logueada (ver playerAuth.ts), en todos los clubes. A diferencia del resto de este archivo, requiere el access token. */
