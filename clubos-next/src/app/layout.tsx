@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
 export const metadata: Metadata = {
-  title: 'ClubOS',
+  title: 'PadelApp2',
   description: 'Sistema de gestión para clubes de pádel.',
 };
 
@@ -23,6 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
+      <head>
+        {/* eslint-disable-next-line react/no-danger */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );

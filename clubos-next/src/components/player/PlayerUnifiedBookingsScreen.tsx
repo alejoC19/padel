@@ -106,7 +106,7 @@ export function PlayerUnifiedBookingsScreen() {
   return (
     <>
       <header className="player-header">
-        <div className="player-eyebrow">ClubOS</div>
+        <div className="player-eyebrow">PadelApp2</div>
         <h1 className="player-club-name">Mis reservas</h1>
         <p className="player-tagline">
           Todas tus reservas, en cualquier club de la plataforma.

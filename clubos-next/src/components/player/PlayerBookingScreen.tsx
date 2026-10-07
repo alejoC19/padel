@@ -290,7 +290,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
     <>
       <header className="player-header">
         {club.logoUrl && <img className="player-club-logo" src={club.logoUrl} alt="" />}
-        <div className="player-eyebrow">ClubOS</div>
+        <div className="player-eyebrow">PadelApp2</div>
         <h1 className="player-club-name">{club.name}</h1>
         <p className="player-tagline">Reservá tu cancha online en segundos.</p>
         <a className="player-nav-link" href={`/c/${slug}/mis-reservas`}>

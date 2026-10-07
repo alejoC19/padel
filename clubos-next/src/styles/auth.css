@@ -33,6 +33,16 @@
   --auth-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
 
+/* Modo claro — ver el bloque equivalente en design-system.css para el porqué. */
+:root[data-theme="light"] {
+  --auth-bg: #f6f3ed;
+  --auth-card-bg: #ffffff;
+  --auth-border: rgba(35, 28, 19, 0.1);
+  --auth-text: #211c16;
+  --auth-muted: #837a6d;
+  --auth-shadow: 0 10px 40px rgba(35, 28, 19, 0.14);
+}
+
 /* ---- Contenedor de página ---- */
 .auth-wrap {
   min-height: 100dvh;

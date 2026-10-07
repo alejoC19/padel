@@ -308,7 +308,7 @@ function InviteDialog({
         </label>
 
         <p className="field-hint">
-          Si ya tiene cuenta en ClubOS se agrega directo. Si no, le mandamos un
+          Si ya tiene cuenta en PadelApp2 se agrega directo. Si no, le mandamos un
           email para que cree su contraseña.
         </p>
 

@@ -294,10 +294,10 @@ export class AuthService {
     const link = `${this.webUrl()}/restablecer-contrasena?token=${raw}`;
     await this.email.send({
       to: dto.email,
-      subject: 'Restablecé tu contraseña — ClubOS',
+      subject: 'Restablecé tu contraseña — PadelApp2',
       body:
         `Hola ${user.firstName},\n\n` +
-        `Pediste restablecer tu contraseña de ClubOS. Entrá acá para elegir una nueva ` +
+        `Pediste restablecer tu contraseña de PadelApp2. Entrá acá para elegir una nueva ` +
         `(el link vence en 1 hora):\n\n${link}\n\n` +
         `Si no fuiste vos, ignorá este mensaje — tu contraseña actual sigue funcionando.`,
     });

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import '@/styles/auth.css';
 
 export const metadata: Metadata = {
-  title: 'Crear tu club · ClubOS',
+  title: 'Crear tu club · PadelApp2',
   description: 'Empezá a gestionar tu club de pádel en minutos.',
   robots: { index: true, follow: true },
 };

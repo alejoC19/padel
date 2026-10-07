@@ -147,10 +147,10 @@ export class TeamService {
 
       await this.email.send({
         to: dto.email,
-        subject: 'Te agregaron a un club en ClubOS',
+        subject: 'Te agregaron a un club en PadelApp2',
         body:
           `Hola ${existing.firstName},\n\n` +
-          `Te sumaron como parte del staff de un club en ClubOS. Entrá con tu cuenta ` +
+          `Te sumaron como parte del staff de un club en PadelApp2. Entrá con tu cuenta ` +
           `existente (mismo email y contraseña) y vas a verlo en tu selector de clubes.`,
       });
 
@@ -199,10 +199,10 @@ export class TeamService {
     const link = `${this.webUrl()}/aceptar-invitacion?token=${raw}`;
     await this.email.send({
       to: dto.email,
-      subject: 'Te invitaron a ClubOS',
+      subject: 'Te invitaron a PadelApp2',
       body:
         `Hola ${dto.firstName},\n\n` +
-        `Te invitaron a sumarte al staff de un club en ClubOS. Entrá acá para crear tu ` +
+        `Te invitaron a sumarte al staff de un club en PadelApp2. Entrá acá para crear tu ` +
         `contraseña y empezar a usarlo (el link vence en 7 días):\n\n${link}`,
     });
 

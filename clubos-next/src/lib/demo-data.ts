@@ -189,7 +189,7 @@ export const DEMO_PRODUCTS = [
 export const DEMO_TOURNAMENTS = [
   {
     id: 't1',
-    name: 'Open ClubOS — Agosto 2026',
+    name: 'Open PadelApp2 — Agosto 2026',
     category: 'Dobles Masculino',
     format: 'Eliminación',
     status: 'IN_PROGRESS',

@@ -96,7 +96,7 @@ export function PlayerAccountScreen({ onSuccess }: { onSuccess?: () => void } = 
     return (
       <>
         <header className="player-header">
-          <div className="player-eyebrow">ClubOS</div>
+          <div className="player-eyebrow">PadelApp2</div>
           <h1 className="player-club-name">Tu cuenta</h1>
           <p className="player-tagline">Así vas a quedar identificado en cualquier club donde reserves.</p>
         </header>
@@ -129,10 +129,10 @@ export function PlayerAccountScreen({ onSuccess }: { onSuccess?: () => void } = 
   return (
     <>
       <header className="player-header">
-        <div className="player-eyebrow">ClubOS</div>
+        <div className="player-eyebrow">PadelApp2</div>
         <h1 className="player-club-name">{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</h1>
         <p className="player-tagline">
-          Guardá tus datos una vez y reservá más rápido en cualquier club de ClubOS.
+          Guardá tus datos una vez y reservá más rápido en cualquier club de PadelApp2.
         </p>
       </header>
 

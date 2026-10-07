@@ -63,7 +63,7 @@ export class EmailChannel implements NotificationChannel {
         body: JSON.stringify({
           from,
           to: msg.to,
-          subject: msg.subject ?? 'ClubOS',
+          subject: msg.subject ?? 'PadelApp2',
           text: msg.body,
           html: msg.html ?? this.textToHtml(msg.body),
         }),

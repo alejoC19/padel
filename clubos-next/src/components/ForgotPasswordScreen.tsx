@@ -40,11 +40,12 @@ export function ForgotPasswordScreen() {
 
   if (sent) {
     return (
+      <div className="auth-wrap">
       <main className="auth-card">
         <PadelDefs />
         <div className="auth-brand">
           <Ball size={26} />
-          <span className="auth-brand-name">ClubOS</span>
+          <span className="auth-brand-name">PadelApp2</span>
         </div>
         <h1 className="auth-h1">Revisá tu email</h1>
         <p className="auth-sub">
@@ -55,15 +56,17 @@ export function ForgotPasswordScreen() {
           Volver a entrar
         </Link>
       </main>
+      </div>
     );
   }
 
   return (
-    <main className="auth-card">
+    <div className="auth-wrap">
+      <main className="auth-card">
       <PadelDefs />
       <div className="auth-brand">
         <Ball size={26} />
-        <span className="auth-brand-name">ClubOS</span>
+        <span className="auth-brand-name">PadelApp2</span>
       </div>
       <h1 className="auth-h1">Olvidé mi contraseña</h1>
       <p className="auth-sub">Te mandamos un link para elegir una nueva.</p>
@@ -102,5 +105,6 @@ export function ForgotPasswordScreen() {
         <Link href="/entrar" className="auth-link-muted">Volver a entrar</Link>
       </div>
     </main>
+    </div>
   );
 }

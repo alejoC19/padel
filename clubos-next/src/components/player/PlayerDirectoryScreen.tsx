@@ -49,7 +49,7 @@ export function PlayerDirectoryScreen() {
   return (
     <>
       <header className="player-header">
-        <div className="player-eyebrow">ClubOS</div>
+        <div className="player-eyebrow">PadelApp2</div>
         <h1 className="player-club-name">Encontrá tu club</h1>
         <p className="player-tagline">
           Buscá cualquier club de pádel de la plataforma. Una sola app para todos.

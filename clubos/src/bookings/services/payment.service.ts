@@ -333,7 +333,7 @@ export class PaymentService {
       payment.gatewayProvider === 'MERCADO_PAGO' || payment.method.kind === 'MERCADO_PAGO';
     if (isMercadoPago && !input.confirmedByGateway) {
       throw new BadRequestException(
-        'ClubOS todavía no reembolsa online por Mercado Pago: hacé el reembolso ' +
+        'PadelApp2 todavía no reembolsa online por Mercado Pago: hacé el reembolso ' +
           'desde el panel de Mercado Pago del club. Cuando confirme la devolución ' +
           'vía webhook, el pago se va a marcar reembolsado automáticamente acá.',
       );

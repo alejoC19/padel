@@ -6,6 +6,7 @@ import { PlayerTabBar } from '@/components/player/PlayerTabBar';
 import { InstallPrompt } from '@/components/player/InstallPrompt';
 import { PlayerSessionBoot } from '@/components/player/PlayerSessionBoot';
 import { publicApi } from '@/lib/publicApi';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 /**
  * `manifest` es dinámico (uno por club, ver manifest.webmanifest/route.ts)
@@ -21,7 +22,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug } = await params;
   const club = await publicApi.getClub(slug).catch(() => null);
-  const name = club?.name ?? 'ClubOS';
+  const name = club?.name ?? 'PadelApp2';
 
   return {
     title: name,
@@ -66,6 +67,7 @@ export default async function PlayerLayout({
         <main className="player-main">{children}</main>
         <PlayerSessionBoot />
         <InstallPrompt />
+        <ThemeToggle className="player-theme-toggle" />
         <PlayerTabBar slug={slug} />
       </div>
     </div>

@@ -109,6 +109,28 @@
 }
 
 /* =========================================================================
+   MODO CLARO — mismo criterio: papel cálido, no gris-azulado de SaaS.
+   -------------------------------------------------------------------------
+   Solo se redefinen superficie/texto/borde: los colores de marca y
+   semánticos (--ds-primary, --ds-danger, etc.) son los mismos en los dos
+   modos — son la identidad, no el fondo. El toggle vive en ThemeToggle.tsx
+   (ver lib/theme.ts); esto solo define a qué valores apunta cada variable
+   cuando el <html> tiene data-theme="light".
+   ========================================================================= */
+:root[data-theme="light"] {
+  --ds-bg: #f6f3ed;
+  --ds-surface: #ffffff;
+  --ds-surface-2: #efeae1;
+  --ds-border: rgba(35, 28, 19, 0.1);
+  --ds-border-strong: rgba(35, 28, 19, 0.18);
+
+  --ds-text: #211c16;
+  --ds-text-2: #4a4238;
+  --ds-muted: #837a6d;
+  --ds-faint: #a39a8c;
+}
+
+/* =========================================================================
    RESET SUAVE / BASE
    ========================================================================= */
 * { box-sizing: border-box; }
@@ -314,6 +336,26 @@ h1, h2, h3,
   transition: border-color var(--t-fast);
 }
 .user-btn:hover { border-color: var(--ds-border-strong); }
+
+/* Toggle de modo claro/oscuro — ver ThemeToggle.tsx / lib/theme.ts.
+   Mismo molde visual en panel de staff y portal del jugador: ambos
+   cargan design-system.css. La landing tiene su propia copia en
+   landing.css porque no carga este archivo. */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-2);
+  cursor: pointer;
+  flex: none;
+  transition: border-color var(--t-fast), color var(--t-fast);
+}
+.theme-toggle-btn:hover { border-color: var(--ds-border-strong); color: var(--ds-text); }
 .user-info { text-align: right; line-height: 1.2; }
 .user-name { font-size: var(--fs-small); font-weight: 700; }
 .user-club { font-size: var(--fs-caption); color: var(--ds-muted); }

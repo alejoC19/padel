@@ -54,6 +54,7 @@ export function AcceptInviteScreen() {
 
   if (!token) {
     return (
+      <div className="auth-wrap">
       <main className="auth-card">
         <PadelDefs />
         <h1 className="auth-h1">Link inválido</h1>
@@ -62,15 +63,17 @@ export function AcceptInviteScreen() {
           Ir a entrar
         </Link>
       </main>
+      </div>
     );
   }
 
   return (
-    <main className="auth-card">
+    <div className="auth-wrap">
+      <main className="auth-card">
       <PadelDefs />
       <div className="auth-brand">
         <Ball size={26} />
-        <span className="auth-brand-name">ClubOS</span>
+        <span className="auth-brand-name">PadelApp2</span>
       </div>
       <h1 className="auth-h1">Te invitaron a un club</h1>
       <p className="auth-sub">Elegí tu contraseña para empezar.</p>
@@ -108,5 +111,6 @@ export function AcceptInviteScreen() {
         {loading ? <><span className="spinner" aria-hidden="true" /> Activando…</> : 'Crear contraseña y entrar'}
       </button>
     </main>
+    </div>
   );
 }
