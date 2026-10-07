@@ -10,14 +10,16 @@
  * que `GET /public/clubs/:slug` y `.../availability` NO exponen (es
  * intencionalmente mínimo para la vista pública).
  *
- * Para no inventar una dependencia de timezone que el backend no da acá,
- * este módulo evita esa conversión por completo: arma cada horario candidato
- * como una fecha LOCAL del navegador (`new Date(year, month, day, h, m)`) y
- * compara instantes absolutos (epoch ms) contra los `busy` que llegan en
- * ISO/UTC. Esto asume que el dispositivo del jugador está en el mismo huso
- * horario que el club — supuesto razonable para alguien reservando una
- * cancha para jugar ahí en persona, y el mismo supuesto implícito que hace
- * cualquier reloj de pared. Documentado acá como decisión consciente.
+ * `GET .../availability` expone `timezone` (IANA del club) junto con
+ * `openMinute`/`closeMinute`, así que cada horario candidato se construye
+ * con `zonedMinuteToUtc` en el huso del CLUB, no en el del dispositivo que
+ * mira la pantalla. Antes se armaba con `new Date(year, month, day, h, m)`
+ * (hora local del navegador) asumiendo que el jugador reserva desde el
+ * mismo huso que el club — rompía en cualquier dispositivo con el reloj en
+ * otro huso: el horario se veía "disponible" en pantalla (la comparación
+ * contra `busy` usaba el mismo instante corrido, así que no mostraba
+ * contradicción) pero `reservar` lo rechazaba con 409 al llegar al backend,
+ * que sí calcula en UTC real contra las reservas reales.
  * ---------------------------------------------------------------------------
  *
  * El rango de horarios SÍ viene del backend (`PublicCourt.openMinute` /
@@ -58,6 +60,45 @@ function parseDateISO(dateISO: string): { year: number; month: number; day: numb
 }
 
 /**
+ * Instante UTC correspondiente a "minuto `minute` del día `dateISO`, en el
+ * huso `timezone`". `minute` puede pasar de 1440 (franja de madrugada que
+ * sigue abierta del día siguiente, ver `GridWindow.closeMinute`).
+ *
+ * No hay forma directa de pedirle esto a `Date` (solo convierte UTC → huso,
+ * nunca al revés) ni a `Intl` sin una librería de timezones. Se resuelve por
+ * aproximación: arma un instante ADIVINANDO que esos Y-M-D-H-M ya son UTC,
+ * mira en qué Y-M-D-H-M cae ESE instante dentro de `timezone`, y corrige la
+ * adivinanza por la diferencia. Converge en una pasada para husos sin DST
+ * (Argentina) y en como mucho dos para husos con DST — por eso el loop
+ * corto en vez de asumir una sola iteración.
+ */
+function zonedMinuteToUtc(dateISO: string, minute: number, timezone: string): Date {
+  const { year, month, day } = parseDateISO(dateISO);
+  const dayOffset = Math.floor(minute / 1440);
+  const minuteOfDay = minute - dayOffset * 1440;
+  const h = Math.floor(minuteOfDay / 60);
+  const m = minuteOfDay % 60;
+  const target = Date.UTC(year, month - 1, day + dayOffset, h, m, 0, 0);
+
+  let guess = target;
+  for (let i = 0; i < 2; i++) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
+    }).formatToParts(new Date(guess));
+    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+    const seenAsUtc = Date.UTC(
+      get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'),
+    );
+    const diff = seenAsUtc - target;
+    if (diff === 0) break;
+    guess -= diff;
+  }
+  return new Date(guess);
+}
+
+/**
  * Arma los horarios candidatos de un día para una duración dada, dentro del
  * horario real de apertura de la cancha (`openMinute`/`closeMinute`, de
  * `PublicCourt` — null en cualquiera de los dos significa "no abre este
@@ -68,20 +109,17 @@ export function buildSlotCandidates(
   durationMinutes: number,
   openMinute: number | null,
   closeMinute: number | null,
+  timezone: string,
 ): SlotCandidate[] {
   const candidates: SlotCandidate[] = [];
   if (openMinute === null || closeMinute === null) return candidates;
-
-  const { year, month, day } = parseDateISO(dateISO);
 
   for (
     let minute = openMinute;
     minute + durationMinutes <= closeMinute;
     minute += STEP_MINUTES
   ) {
-    const h = Math.floor(minute / 60);
-    const m = minute % 60;
-    const start = new Date(year, month - 1, day, h, m, 0, 0);
+    const start = zonedMinuteToUtc(dateISO, minute, timezone);
     const startsAtMs = start.getTime();
     candidates.push({
       startMinute: minute,
