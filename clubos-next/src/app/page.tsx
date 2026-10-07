@@ -378,6 +378,7 @@ export default function LandingPage() {
         <div className="lp-footer-links">
           <a href="#precios">Precios</a>
           <Link href="/entrar">Iniciar sesión</Link>
+          <Link href="/privacidad">Privacidad</Link>
           <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">Crear mi club</a>
         </div>
       </footer>
