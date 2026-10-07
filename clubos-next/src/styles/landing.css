@@ -697,3 +697,33 @@
   .lp-slot-pill.is-tapped, .lp-toast-confirm { animation: none; }
   .lp-toast-confirm { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* =========================================================================
+   PÁGINAS LEGALES (/privacidad) — texto corrido, sin el resto del
+   aparataje de marketing. Reusa .lp/.lp-nav/.lp-footer tal cual.
+   ========================================================================= */
+.legal-body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 24px 80px;
+  line-height: 1.65;
+}
+.legal-body h1 { font-size: 34px; margin: 0 0 4px; letter-spacing: -0.02em; }
+.legal-updated { color: var(--lp-muted); font-size: 14px; margin: 0 0 32px; }
+.legal-body h2 { font-size: 20px; margin: 32px 0 10px; }
+.legal-body p { margin: 0 0 14px; color: var(--lp-muted); }
+.legal-body ul { margin: 0 0 14px; padding-left: 20px; color: var(--lp-muted); }
+.legal-body li { margin-bottom: 6px; }
+.legal-body strong { color: var(--lp-ink); }
+.legal-body code {
+  background: var(--lp-bg-soft);
+  border: 1px solid var(--lp-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+.legal-body a { color: var(--lp-primary); font-weight: 600; text-decoration: underline; }
+@media (max-width: 640px) {
+  .legal-body { padding: 40px 20px 60px; }
+  .legal-body h1 { font-size: 27px; }
+}
