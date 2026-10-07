@@ -8,12 +8,12 @@ import '@/styles/devices.css';
 import '@/styles/landing.css';
 
 export const metadata: Metadata = {
-  title: 'ClubOS — El sistema de gestión para tu club de pádel',
+  title: 'PadelApp2 — El sistema de gestión para tu club de pádel',
   description:
     'Agenda, caja, clientes, buffet, torneos, tesorería y reportes en una sola plataforma. Administrá tu club de pádel desde un solo lugar.',
   robots: 'index, follow',
   openGraph: {
-    title: 'ClubOS — Gestión para clubes de pádel',
+    title: 'PadelApp2 — Gestión para clubes de pádel',
     description:
       'Agenda, caja, clientes, buffet, torneos y reportes en una única plataforma.',
     type: 'website',
@@ -81,7 +81,7 @@ const PLANS = [
 ] as const;
 
 const FAQS = [
-  { q: '¿Necesito instalar algo?', a: 'No. ClubOS funciona desde el navegador, tanto en la compu de recepción como en el celular de tus jugadores — nada que descargar ni mantener actualizado.' },
+  { q: '¿Necesito instalar algo?', a: 'No. PadelApp2 funciona desde el navegador, tanto en la compu de recepción como en el celular de tus jugadores — nada que descargar ni mantener actualizado.' },
   { q: '¿Mis jugadores tienen que bajar una app?', a: 'No. Reservan desde el link de tu club en el navegador del celular, y lo pueden agregar a la pantalla de inicio como si fuera una app, sin pasar por ninguna tienda de aplicaciones.' },
   { q: '¿Cómo cobro los turnos?', a: 'Como ya lo hacés hoy, en la caja del club (efectivo o tarjeta), y además podés activar el cobro online con Mercado Pago al momento de reservar.' },
   { q: '¿Puedo probarlo antes de pagar?', a: 'Sí: al crear tu club arrancás con 30 días gratis para cargarlo con tus datos reales y decidir con calma.' },
@@ -105,7 +105,7 @@ function whatsappHref(message: string): string {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
-const WHATSAPP_HREF = whatsappHref('Hola! Quiero crear mi club en ClubOS.');
+const WHATSAPP_HREF = whatsappHref('Hola! Quiero crear mi club en PadelApp2.');
 
 function formatARS(n: number): string {
   return `$${n.toLocaleString('es-AR')}`;
@@ -120,7 +120,7 @@ export default function LandingPage() {
       <header className="lp-nav">
         <Link href="/" className="lp-brand">
           <Ball size={30} />
-          <span>ClubOS</span>
+          <span>PadelApp2</span>
         </Link>
         <nav className="lp-nav-links">
           <a href="#producto">Producto</a>
@@ -268,7 +268,7 @@ export default function LandingPage() {
       {/* BENEFICIOS */}
       <section className="lp-section" id="para-clubes">
         <div className="lp-section-head">
-          <h2 className="lp-h2">Por qué los clubes eligen ClubOS</h2>
+          <h2 className="lp-h2">Por qué los clubes eligen PadelApp2</h2>
         </div>
         <div className="lp-benefits">
           {BENEFITS.map((b) => (
@@ -317,7 +317,7 @@ export default function LandingPage() {
                 ))}
               </ul>
               <a
-                href={whatsappHref(`Hola! Quiero crear mi club en ClubOS, plan ${p.name}.`)}
+                href={whatsappHref(`Hola! Quiero crear mi club en PadelApp2, plan ${p.name}.`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`lp-btn ${p.highlight ? 'lp-btn-primary' : 'lp-btn-ghost'}`}
@@ -368,7 +368,7 @@ export default function LandingPage() {
       <footer className="lp-footer">
         <div className="lp-brand">
           <Ball size={24} />
-          <span>ClubOS</span>
+          <span>PadelApp2</span>
         </div>
         <p className="lp-footer-note">
           Sistema de gestión para clubes de pádel.

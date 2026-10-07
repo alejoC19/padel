@@ -209,7 +209,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="shell-sidebar">
         <Link href="/agenda" className="brand">
           <BrandMark size={28} />
-          ClubOS
+          PadelApp2
           {session?.clubName && <span className="brand-club">{session.clubName}</span>}
         </Link>
 
@@ -238,7 +238,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="topbar">
           <Link href="/agenda" className="brand topbar-brand-mobile">
             <BrandMark size={26} />
-            ClubOS
+            PadelApp2
           </Link>
 
           <div className="topbar-spacer" />

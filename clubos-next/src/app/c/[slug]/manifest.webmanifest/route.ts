@@ -27,7 +27,7 @@ export async function GET(
   const scope = `/c/${slug}`;
 
   const club = await publicApi.getClub(slug).catch(() => null);
-  const name = club?.name ?? 'ClubOS';
+  const name = club?.name ?? 'PadelApp2';
 
   // El logo es una URL cualquiera (no un asset pre-recortado a 192/512):
   // se declara en los dos tamaños igual, el navegador la escala. Es la

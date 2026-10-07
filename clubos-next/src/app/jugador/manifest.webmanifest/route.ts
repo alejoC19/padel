@@ -12,9 +12,9 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   return NextResponse.json(
     {
-      name: 'ClubOS',
-      short_name: 'ClubOS',
-      description: 'Encontrá cualquier club de pádel de ClubOS y mirá tus reservas, todo en una sola app.',
+      name: 'PadelApp2',
+      short_name: 'PadelApp2',
+      description: 'Encontrá cualquier club de pádel de PadelApp2 y mirá tus reservas, todo en una sola app.',
       start_url: '/jugador',
       scope: '/jugador',
       display: 'standalone',

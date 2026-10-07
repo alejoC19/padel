@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ClubOS',
+  title: 'PadelApp2',
   description: 'Sistema de gestión para clubes de pádel.',
 };
 

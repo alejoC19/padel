@@ -21,7 +21,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug } = await params;
   const club = await publicApi.getClub(slug).catch(() => null);
-  const name = club?.name ?? 'ClubOS';
+  const name = club?.name ?? 'PadelApp2';
 
   return {
     title: name,

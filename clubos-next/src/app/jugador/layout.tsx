@@ -8,10 +8,10 @@ import { PlayerSessionBoot } from '@/components/player/PlayerSessionBoot';
 import { PlayerAuthGate } from '@/components/player/PlayerAuthGate';
 
 export const metadata: Metadata = {
-  title: 'ClubOS — Encontrá tu club',
-  description: 'Buscá cualquier club de pádel de ClubOS y mirá tus reservas — una sola app para todos los clubes en los que jugás.',
+  title: 'PadelApp2 — Encontrá tu club',
+  description: 'Buscá cualquier club de pádel de PadelApp2 y mirá tus reservas — una sola app para todos los clubes en los que jugás.',
   robots: { index: true, follow: true },
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ClubOS' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'PadelApp2' },
   icons: { apple: '/icons/apple-touch-icon.png' },
   manifest: '/jugador/manifest.webmanifest',
 };

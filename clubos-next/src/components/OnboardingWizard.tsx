@@ -150,7 +150,7 @@ export function OnboardingWizard() {
             </div>
             <h1 className="auth-h1">¡Tu club está listo!</h1>
             <p className="auth-sub">
-              Entrando a ClubOS…
+              Entrando a PadelApp2…
             </p>
             <div className="spinner" style={{ margin: '0 auto', borderTopColor: 'var(--pad-red)', borderColor: 'rgba(200,68,62,0.25)' }} />
           </div>
@@ -164,7 +164,7 @@ export function OnboardingWizard() {
       <div className="auth-card wide">
         <div className="auth-brand">
           <BrandMark size={30} />
-          <span className="auth-brand-name">ClubOS</span>
+          <span className="auth-brand-name">PadelApp2</span>
         </div>
 
         <div className="stepper" aria-hidden>

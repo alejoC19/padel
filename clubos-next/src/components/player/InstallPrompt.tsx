@@ -104,7 +104,7 @@ export function InstallPrompt() {
         </svg>
       </div>
       <div className="install-banner-text">
-        <strong>Instalá ClubOS</strong>
+        <strong>Instalá PadelApp2</strong>
         <span>
           {deferred
             ? 'Accedé más rápido a tus turnos, torneos y el buffet.'

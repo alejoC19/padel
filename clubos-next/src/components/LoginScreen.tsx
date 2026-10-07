@@ -237,7 +237,7 @@ export function LoginScreen() {
 
       <div className="auth-brand">
         <Ball size={26} />
-        <span className="auth-brand-name">ClubOS</span>
+        <span className="auth-brand-name">PadelApp2</span>
       </div>
 
       <h1 className="auth-h1">Entrar</h1>

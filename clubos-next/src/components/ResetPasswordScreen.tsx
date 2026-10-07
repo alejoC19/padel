@@ -68,7 +68,7 @@ export function ResetPasswordScreen() {
       <PadelDefs />
       <div className="auth-brand">
         <Ball size={26} />
-        <span className="auth-brand-name">ClubOS</span>
+        <span className="auth-brand-name">PadelApp2</span>
       </div>
       <h1 className="auth-h1">Elegí una nueva contraseña</h1>
 
