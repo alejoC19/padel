@@ -205,13 +205,13 @@ export class PublicService {
       firstName: string;
       lastName?: string;
       phone: string;
-      email?: string;
+      email: string;
     },
   ) {
     const club = await this.resolveClub(slug);
 
-    if (!input.firstName?.trim() || !input.phone?.trim()) {
-      throw new BadRequestException('Nombre y teléfono son obligatorios.');
+    if (!input.firstName?.trim() || !input.phone?.trim() || !input.email?.trim()) {
+      throw new BadRequestException('Nombre, teléfono y email son obligatorios.');
     }
 
     // Duración permitida para reservas online: siempre en horas, 1 o 2.

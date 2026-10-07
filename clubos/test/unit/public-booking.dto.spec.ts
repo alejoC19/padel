@@ -20,6 +20,7 @@ const VALID_RESERVAR = {
   durationMinutes: 90,
   firstName: 'Ana',
   phone: '+5491122334455',
+  email: 'ana@example.com',
 };
 
 async function errorsFor(input: Record<string, unknown>) {
@@ -34,6 +35,17 @@ describe('ReservarDto', () => {
 
   it('acepta lastName opcional', async () => {
     expect(await errorsFor({ ...VALID_RESERVAR, lastName: 'Pérez' })).toHaveLength(0);
+  });
+
+  it('rechaza sin email: sin esto el jugador nunca recibe la confirmación', async () => {
+    const { email, ...withoutEmail } = VALID_RESERVAR;
+    const errors = await errorsFor(withoutEmail);
+    expect(errors.some((e) => e.property === 'email')).toBe(true);
+  });
+
+  it('rechaza email con formato inválido', async () => {
+    const errors = await errorsFor({ ...VALID_RESERVAR, email: 'no-es-un-email' });
+    expect(errors.some((e) => e.property === 'email')).toBe(true);
   });
 
   it('rechaza courtId que no es UUID', async () => {

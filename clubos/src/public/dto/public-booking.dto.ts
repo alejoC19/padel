@@ -50,11 +50,10 @@ export class ReservarDto {
   @MaxLength(30)
   phone!: string;
 
-  /** Opcional: sin esto, el jugador nunca recibe confirmación por email. */
-  @IsOptional()
+  /** Obligatorio: sin esto, el jugador nunca recibe confirmación por email. */
   @IsEmail()
   @MaxLength(200)
-  email?: string;
+  email!: string;
 }
 
 export class AccessTokenDto {
