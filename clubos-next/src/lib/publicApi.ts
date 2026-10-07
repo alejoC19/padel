@@ -104,6 +104,8 @@ export interface PublicBusyInterval {
 export interface PublicAvailability {
   club: PublicClub;
   date: string;
+  /** Huso horario del club (IANA, ej. "America/Argentina/Buenos_Aires"). */
+  timezone: string;
   courts: PublicCourt[];
   busy: PublicBusyInterval[];
 }

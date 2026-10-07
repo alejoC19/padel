@@ -150,6 +150,12 @@ export class PublicService {
     return {
       club: { id: club.id, name: club.name, slug: club.slug },
       date,
+      // El front necesita esto para armar cada horario candidato en el huso
+      // del club (no el del dispositivo del jugador) — sin esto, un celular
+      // con el reloj en otro huso manda un `startsAt` corrido a `reservar`,
+      // que el backend rechaza con 409 contra la reserva real de otro
+      // horario: se ve "disponible" en pantalla pero nunca se puede confirmar.
+      timezone: tz,
       courts: day.courts.map((c) => ({
         id: c.id,
         name: c.name,

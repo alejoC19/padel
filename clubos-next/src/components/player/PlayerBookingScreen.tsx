@@ -154,13 +154,16 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
 
   const candidates = useMemo<SlotCandidate[]>(
     () =>
-      buildSlotCandidates(
-        date,
-        duration,
-        selectedCourt?.openMinute ?? null,
-        selectedCourt?.closeMinute ?? null,
-      ),
-    [date, duration, selectedCourt],
+      availLoad.status === 'ready'
+        ? buildSlotCandidates(
+            date,
+            duration,
+            selectedCourt?.openMinute ?? null,
+            selectedCourt?.closeMinute ?? null,
+            availLoad.data.timezone,
+          )
+        : [],
+    [date, duration, selectedCourt, availLoad],
   );
 
   // Cambiar duración o cancha puede dejar el horario elegido inválido.
