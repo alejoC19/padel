@@ -185,6 +185,7 @@ export function LoginScreen() {
   // --- paso 2: elegir club ---
   if (clubs) {
     return (
+      <div className="auth-wrap">
       <main className="auth-card">
         <PadelDefs />
         <button className="back-btn" onClick={() => { setClubs(null); setPassword(''); }}>
@@ -227,12 +228,14 @@ export function LoginScreen() {
           ))}
         </div>
       </main>
+      </div>
     );
   }
 
   // --- paso 1: credenciales ---
   return (
-    <main className="auth-card">
+    <div className="auth-wrap">
+      <main className="auth-card">
       <PadelDefs />
 
       <div className="auth-brand">
@@ -330,5 +333,6 @@ export function LoginScreen() {
         </div>
       )}
     </main>
+    </div>
   );
 }

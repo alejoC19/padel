@@ -42,6 +42,7 @@ export function ResetPasswordScreen() {
 
   if (!token) {
     return (
+      <div className="auth-wrap">
       <main className="auth-card">
         <PadelDefs />
         <h1 className="auth-h1">Link inválido</h1>
@@ -50,21 +51,25 @@ export function ResetPasswordScreen() {
           Pedir un link nuevo
         </Link>
       </main>
+      </div>
     );
   }
 
   if (done) {
     return (
+      <div className="auth-wrap">
       <main className="auth-card">
         <PadelDefs />
         <h1 className="auth-h1">Listo</h1>
         <p className="auth-sub">Tu contraseña se actualizó. Te llevamos a entrar…</p>
       </main>
+      </div>
     );
   }
 
   return (
-    <main className="auth-card">
+    <div className="auth-wrap">
+      <main className="auth-card">
       <PadelDefs />
       <div className="auth-brand">
         <Ball size={26} />
@@ -105,5 +110,6 @@ export function ResetPasswordScreen() {
         {loading ? <><span className="spinner" aria-hidden="true" /> Guardando…</> : 'Guardar contraseña'}
       </button>
     </main>
+    </div>
   );
 }
