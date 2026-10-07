@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { readSession, useSession, type Session } from '@/hooks';
 import { BrandMark } from '@/components/BrandMark';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 /**
  * Marco de las pantallas internas.
@@ -252,6 +253,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Datos de ejemplo
             </span>
           )}
+
+          <ThemeToggle />
 
           <div className="user-menu">
             <button

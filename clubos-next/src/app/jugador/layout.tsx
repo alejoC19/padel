@@ -6,6 +6,7 @@ import { JugadorTabBar } from '@/components/player/JugadorTabBar';
 import { InstallPrompt } from '@/components/player/InstallPrompt';
 import { PlayerSessionBoot } from '@/components/player/PlayerSessionBoot';
 import { PlayerAuthGate } from '@/components/player/PlayerAuthGate';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export const metadata: Metadata = {
   title: 'PadelApp2 — Encontrá tu club',
@@ -41,6 +42,7 @@ export default function JugadorLayout({ children }: { children: React.ReactNode 
         </main>
         <PlayerSessionBoot />
         <InstallPrompt />
+        <ThemeToggle className="player-theme-toggle" />
         <JugadorTabBar />
       </div>
     </div>

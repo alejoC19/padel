@@ -39,6 +39,16 @@
   --app-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
+/* Modo claro — ver el bloque equivalente en design-system.css para el porqué. */
+:root[data-theme="light"] {
+  --app-bg: #f6f3ed;
+  --app-surface: #ffffff;
+  --app-border: rgba(35, 28, 19, 0.1);
+  --app-text: #211c16;
+  --app-muted: #837a6d;
+  --app-shadow: 0 1px 3px rgba(35, 28, 19, 0.12);
+}
+
 /* Contenedor general */
 .app-shell {
   min-height: 100dvh;

@@ -15,13 +15,22 @@ body {
   min-height: 100%;
 }
 
+:root {
+  --root-bg: #12151d;
+  --root-text: #eef1f5;
+}
+:root[data-theme="light"] {
+  --root-bg: #f6f3ed;
+  --root-text: #211c16;
+}
+
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #eef1f5;
-  background: #12151d;
+  color: var(--root-text);
+  background: var(--root-bg);
 }
 
 a {

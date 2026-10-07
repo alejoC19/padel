@@ -4,6 +4,7 @@ import { PhoneBookingDemo } from '@/components/marketing/PhoneBookingDemo';
 import { DesktopMock } from '@/components/marketing/DesktopMock';
 import { Ball, NotebookScene, PadelDefs } from '@/components/marketing/Art';
 import { ModuleIcon, type ModuleIconName } from '@/components/marketing/ModuleIcon';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import '@/styles/devices.css';
 import '@/styles/landing.css';
 
@@ -134,6 +135,7 @@ export default function LandingPage() {
           <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-primary">
             Crear mi club
           </a>
+          <ThemeToggle />
         </div>
       </header>
 

@@ -18,9 +18,22 @@
   --lp-bg: #131110;
   --lp-bg-soft: #1c1a17;
   --lp-border: rgba(255, 248, 240, 0.09);
+  --lp-nav-bg: rgba(18, 21, 29, 0.85);
   --lp-ok: var(--turf);
   --lp-warn: #d99a3d;
   --lp-danger: #e0665f;
+}
+
+/* Modo claro — ver el bloque equivalente en design-system.css para el porqué.
+   --lp-primary/--lp-primary-dark/--turf/--lp-warn/--lp-danger no cambian:
+   son la marca, no el fondo. */
+:root[data-theme="light"] {
+  --lp-ink: #211c16;
+  --lp-muted: #726a5d;
+  --lp-bg: #faf8f4;
+  --lp-bg-soft: #efeae1;
+  --lp-border: rgba(35, 28, 19, 0.1);
+  --lp-nav-bg: rgba(250, 248, 244, 0.85);
 }
 
 .lp {
@@ -41,7 +54,7 @@
   margin: 0 auto;
   position: sticky;
   top: 0;
-  background: rgba(18, 21, 29, 0.85);
+  background: var(--lp-nav-bg);
   backdrop-filter: blur(8px);
   z-index: 20;
 }
@@ -63,6 +76,24 @@
 .lp-nav-links a:hover { color: var(--lp-ink); }
 .lp-nav-cta { display: flex; align-items: center; gap: 14px; }
 .lp-link { color: var(--lp-ink); font-weight: 700; font-size: 15px; }
+
+/* Toggle de modo claro/oscuro — ver ThemeToggle.tsx / lib/theme.ts. Copia
+   del molde de design-system.css: la landing no carga ese archivo. */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-border);
+  background: transparent;
+  color: var(--lp-muted);
+  cursor: pointer;
+  flex: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.theme-toggle-btn:hover { color: var(--lp-ink); background: var(--lp-bg-soft); }
 
 /* --- BOTONES --- */
 .lp-btn {
