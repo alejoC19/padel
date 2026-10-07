@@ -4,6 +4,7 @@ import '@/styles/design-system.css';
 import '@/styles/player.css';
 import { PlayerTabBar } from '@/components/player/PlayerTabBar';
 import { InstallPrompt } from '@/components/player/InstallPrompt';
+import { PlayerSessionBoot } from '@/components/player/PlayerSessionBoot';
 import { publicApi } from '@/lib/publicApi';
 
 /**
@@ -62,6 +63,7 @@ export default async function PlayerLayout({
     <div className="player-shell">
       <div className="player-frame">
         <main className="player-main">{children}</main>
+        <PlayerSessionBoot />
         <InstallPrompt />
         <PlayerTabBar slug={slug} />
       </div>

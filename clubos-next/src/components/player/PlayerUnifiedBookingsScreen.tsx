@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api';
 import { publicApi, type PublicUnifiedBooking } from '@/lib/publicApi';
 import { getAllPublicBookings, type StoredBooking } from '@/lib/publicStorage';
 import { formatLocalDate, formatMinute } from '@/lib/grid';
+import { getPlayerAccessToken, usePlayerAccount } from '@/lib/playerAuth';
 
 type SearchLoad =
   | { status: 'idle' }
@@ -65,8 +66,33 @@ function useLiveStatuses(bookings: (StoredBooking & { slug: string })[]) {
  * de bajo detalle que la búsqueda de un solo club, ver public.service.ts).
  */
 export function PlayerUnifiedBookingsScreen() {
+  const account = usePlayerAccount();
   const [phone, setPhone] = useState('');
   const [search, setSearch] = useState<SearchLoad>({ status: 'idle' });
+
+  // Logueado: se busca sola, sin tipear nada — por eso aparte de `search`
+  // (que sigue siendo la búsqueda manual por teléfono, para quien no tiene
+  // cuenta).
+  const [accountSearch, setAccountSearch] = useState<SearchLoad>({ status: 'idle' });
+  useEffect(() => {
+    const token = getPlayerAccessToken();
+    if (!account || !token) {
+      setAccountSearch({ status: 'idle' });
+      return;
+    }
+    let stale = false;
+    setAccountSearch({ status: 'loading' });
+    publicApi.misReservasDeCuenta(token)
+      .then(({ reservas }) => { if (!stale) setAccountSearch({ status: 'ready', reservas }); })
+      .catch((e) => {
+        if (stale) return;
+        const message = e instanceof ApiError
+          ? e.message
+          : 'No pudimos cargar las reservas de tu cuenta.';
+        setAccountSearch({ status: 'error', message });
+      });
+    return () => { stale = true; };
+  }, [account]);
 
   const [localList, setLocalList] = useState<(StoredBooking & { slug: string })[]>([]);
   useEffect(() => { setLocalList(getAllPublicBookings()); }, []);
@@ -98,15 +124,61 @@ export function PlayerUnifiedBookingsScreen() {
     ? search.reservas.filter((r) => !localKeys.has(`${r.clubSlug}:${r.code}`))
     : [];
 
+  const accountOnlyResults = accountSearch.status === 'ready'
+    ? accountSearch.reservas.filter((r) => !localKeys.has(`${r.clubSlug}:${r.code}`))
+    : [];
+
   return (
     <>
       <header className="player-header">
         <div className="player-eyebrow">ClubOS</div>
         <h1 className="player-club-name">Mis reservas</h1>
         <p className="player-tagline">
-          Todas tus reservas, en cualquier club de la plataforma — sin cuenta ni contraseña.
+          {account
+            ? 'Todas tus reservas, en cualquier club de la plataforma.'
+            : 'Todas tus reservas, en cualquier club de la plataforma — sin cuenta ni contraseña.'}
         </p>
+        {!account && (
+          <a className="player-nav-link" href="/jugador/cuenta?next=/jugador/mis-reservas">
+            Iniciar sesión para verlas sin buscar →
+          </a>
+        )}
       </header>
+
+      {account && (
+        <section>
+          <div className="player-section-title">Reservas de tu cuenta</div>
+          {accountSearch.status === 'loading' && (
+            <div className="player-state" style={{ minHeight: 'auto', padding: '16px 0' }}>
+              <div className="spinner" />
+            </div>
+          )}
+          {accountSearch.status === 'error' && (
+            <div className="alert">{accountSearch.message}</div>
+          )}
+          {accountSearch.status === 'ready' && (
+            <div className="booking-list">
+              {accountSearch.reservas.length === 0 && (
+                <p className="field-hint">Todavía no tenés reservas futuras con esta cuenta.</p>
+              )}
+              {accountOnlyResults.map((r) => (
+                <div key={`acc-${r.clubSlug}-${r.code}`} className="booking-item">
+                  <span className="booking-item-dot" style={{ background: r.courtColor || '#0ea5a0' }} />
+                  <span className="booking-item-main">
+                    <span className="booking-item-court">{r.courtName} · {r.clubName}</span>
+                    <span className="booking-item-time">
+                      {formatLocalDate(r.startsAt.slice(0, 10))} · {timeRange(r.startsAt, r.endsAt)}
+                    </span>
+                    <span className="booking-item-hint">
+                      {STATUS_LABEL[r.status] ?? r.status} · entrá al club para el comprobante completo
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section>
         <div className="player-section-title">Reservas en este dispositivo</div>
@@ -141,6 +213,7 @@ export function PlayerUnifiedBookingsScreen() {
         )}
       </section>
 
+      {!account && (
       <section>
         <div className="player-section-title">Buscar por teléfono</div>
         <div className="phone-lookup">
@@ -186,6 +259,7 @@ export function PlayerUnifiedBookingsScreen() {
           </div>
         )}
       </section>
+      )}
     </>
   );
 }

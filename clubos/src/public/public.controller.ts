@@ -1,8 +1,11 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { JwtService } from '@nestjs/jwt';
+import type { Request } from 'express';
 import { Public, SkipTenant } from '../common/decorators';
 import { PublicService } from './public.service';
 import { AccessTokenDto, InscribirEquipoDto, ReservarDto } from './dto/public-booking.dto';
+import type { AccessTokenPayload } from '../auth/token.service';
 
 /**
  * Endpoints PÚBLICOS para la app del jugador. Sin login.
@@ -20,7 +23,32 @@ import { AccessTokenDto, InscribirEquipoDto, ReservarDto } from './dto/public-bo
 @SkipTenant()
 @Throttle({ default: { limit: 60, ttl: 60_000 } })
 export class PublicController {
-  constructor(private readonly svc: PublicService) {}
+  constructor(
+    private readonly svc: PublicService,
+    private readonly jwt: JwtService,
+  ) {}
+
+  /**
+   * Si viene un Bearer de una cuenta logueada (/jugador/cuenta), lo
+   * decodifica para vincular la reserva a esa cuenta — pero esta ruta sigue
+   * siendo @Public(): sin token, con uno vencido, o con cualquier otra cosa
+   * rota en el header, la reserva de invitado tiene que seguir funcionando
+   * igual que siempre. Por eso NO se usa JwtAuthGuard acá (que sí tira 401):
+   * esto es "identidad opcional", no autenticación.
+   */
+  private async optionalUserId(req: Request): Promise<string | null> {
+    const header = req.headers.authorization;
+    if (!header?.startsWith('Bearer ')) return null;
+    try {
+      const payload = await this.jwt.verifyAsync<AccessTokenPayload>(
+        header.slice(7),
+        { secret: process.env.JWT_ACCESS_SECRET },
+      );
+      return payload.sub;
+    } catch {
+      return null;
+    }
+  }
 
   @Get(':slug')
   getClub(@Param('slug') slug: string) {
@@ -41,8 +69,13 @@ export class PublicController {
    */
   @Post(':slug/reservar')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  reservar(@Param('slug') slug: string, @Body() body: ReservarDto) {
-    return this.svc.reservar(slug, body);
+  async reservar(
+    @Param('slug') slug: string,
+    @Body() body: ReservarDto,
+    @Req() req: Request,
+  ) {
+    const userId = await this.optionalUserId(req);
+    return this.svc.reservar(slug, body, userId);
   }
 
   /**

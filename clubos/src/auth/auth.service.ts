@@ -74,6 +74,7 @@ export class AuthService {
         passwordHash: true,
         firstName: true,
         lastName: true,
+        phone: true,
         avatarUrl: true,
         isPlatformAdmin: true,
         isActive: true,
@@ -149,6 +150,7 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         avatarUrl: true,
         isPlatformAdmin: true,
       },
@@ -174,6 +176,7 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         avatarUrl: true,
         isPlatformAdmin: true,
       },
@@ -206,6 +209,7 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         avatarUrl: true,
         isPlatformAdmin: true,
       },
@@ -340,6 +344,7 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         avatarUrl: true,
         isPlatformAdmin: true,
       },
@@ -488,6 +493,7 @@ export class AuthService {
       email: string;
       firstName: string;
       lastName: string;
+      phone: string | null;
       avatarUrl: string | null;
       isPlatformAdmin: boolean;
     },
@@ -508,6 +514,7 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
         avatarUrl: user.avatarUrl,
         isPlatformAdmin: user.isPlatformAdmin,
       },

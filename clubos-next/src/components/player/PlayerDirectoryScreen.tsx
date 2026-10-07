@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/lib/api';
 import { publicApi, type PublicClubDirectoryEntry } from '@/lib/publicApi';
 import { PlayerStateIcon } from '@/components/player/PlayerStateIcon';
+import { usePlayerAccount } from '@/lib/playerAuth';
 
 type Load =
   | { status: 'loading' }
@@ -16,6 +17,7 @@ type Load =
  * (/c/[slug]) — esta pantalla no reserva nada, solo ayuda a encontrar.
  */
 export function PlayerDirectoryScreen() {
+  const account = usePlayerAccount();
   const [term, setTerm] = useState('');
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -51,6 +53,9 @@ export function PlayerDirectoryScreen() {
         <p className="player-tagline">
           Buscá cualquier club de pádel de la plataforma. Una sola app para todos.
         </p>
+        <a className="player-nav-link" href="/jugador/cuenta">
+          {account ? `Hola, ${account.firstName} →` : 'Iniciar sesión / Crear cuenta →'}
+        </a>
       </header>
 
       <section>
