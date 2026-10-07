@@ -52,6 +52,52 @@ const PROBLEMS = [
   { t: 'La plata se pierde en el camino', d: 'Sin caja centralizada, cerrar el día es adivinar cuánto entró de verdad.' },
 ];
 
+const STEPS = [
+  { n: '1', t: 'Creá tu club', d: 'Nombre, canchas y horarios. Queda andando en minutos, con 30 días gratis para probarlo.' },
+  { n: '2', t: 'Compartí tu link', d: 'Mandalo por WhatsApp o ponelo en tus redes: tus jugadores reservan solos desde el celular.' },
+  { n: '3', t: 'Manejá todo desde un lugar', d: 'Agenda, caja, clientes y reportes del club, al día, sin planillas sueltas.' },
+];
+
+/** Precios reales de prisma/seed.ts (planes de plataforma) — no inventar números acá. */
+const PLANS = [
+  {
+    code: 'starter', name: 'Starter', priceMonthly: 45000,
+    tagline: 'Para clubes que arrancan',
+    features: ['Hasta 3 canchas', 'Hasta 3 usuarios del panel', 'Agenda, caja y clientes', 'Reportes básicos'],
+    highlight: false,
+  },
+  {
+    code: 'pro', name: 'Pro', priceMonthly: 89000,
+    tagline: 'Gestión completa del club',
+    features: ['Hasta 10 canchas', 'Hasta 15 usuarios del panel', 'Todo Starter + buffet y torneos', 'Facturación y WhatsApp', 'Reportes y analítica completa'],
+    highlight: true,
+  },
+  {
+    code: 'enterprise', name: 'Enterprise', priceMonthly: 189000,
+    tagline: 'Multi-sede y soporte dedicado',
+    features: ['Canchas y usuarios ilimitados', 'Todo Pro + múltiples sedes', 'Soporte dedicado'],
+    highlight: false,
+  },
+] as const;
+
+const FAQS = [
+  { q: '¿Necesito instalar algo?', a: 'No. ClubOS funciona desde el navegador, tanto en la compu de recepción como en el celular de tus jugadores — nada que descargar ni mantener actualizado.' },
+  { q: '¿Mis jugadores tienen que bajar una app?', a: 'No. Reservan desde el link de tu club en el navegador del celular, y lo pueden agregar a la pantalla de inicio como si fuera una app, sin pasar por ninguna tienda de aplicaciones.' },
+  { q: '¿Cómo cobro los turnos?', a: 'Como ya lo hacés hoy, en la caja del club (efectivo o tarjeta), y además podés activar el cobro online con Mercado Pago al momento de reservar.' },
+  { q: '¿Puedo probarlo antes de pagar?', a: 'Sí: al crear tu club arrancás con 30 días gratis para cargarlo con tus datos reales y decidir con calma.' },
+  { q: '¿Qué pasa si mi club crece?', a: 'Pasás al plan con más canchas y usuarios cuando lo necesites — no tenés que migrar nada, seguís con la misma cuenta.' },
+  { q: '¿Qué pasa con los clientes que ya tengo?', a: 'Los cargás en el panel de Clientes y quedan con su ficha, teléfono e historial — nada se pierde del cuaderno o la planilla que usabas antes.' },
+] as const;
+
+/** `542273418842`: número real del negocio para el click-to-chat de WhatsApp (sin "+" ni espacios, formato que espera wa.me). */
+const WHATSAPP_NUMBER = '542273418842';
+const WHATSAPP_MESSAGE = encodeURIComponent('Hola! Quiero más información sobre ClubOS para mi club.');
+const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`;
+
+function formatARS(n: number): string {
+  return `$${n.toLocaleString('es-AR')}`;
+}
+
 export default function LandingPage() {
   return (
     <div className="lp">
@@ -67,6 +113,7 @@ export default function LandingPage() {
           <a href="#producto">Producto</a>
           <a href="#funcionalidades">Funcionalidades</a>
           <a href="#para-clubes">Para clubes</a>
+          <a href="#precios">Precios</a>
         </nav>
         <div className="lp-nav-cta">
           <Link href="/jugador" className="lp-link lp-link-player">Soy jugador</Link>
@@ -167,6 +214,26 @@ export default function LandingPage() {
             </article>
           ))}
         </div>
+        <div className="lp-section-cta">
+          <Link href="/agenda" className="lp-btn lp-btn-ghost">Ver demo de la agenda →</Link>
+        </div>
+      </section>
+
+      {/* CÓMO EMPEZAR */}
+      <section className="lp-section">
+        <div className="lp-section-head">
+          <span className="lp-eyebrow" style={{ justifyContent: 'center' }}>Cómo empezar</span>
+          <h2 className="lp-h2">Tu club andando en tres pasos</h2>
+        </div>
+        <div className="lp-steps">
+          {STEPS.map((s) => (
+            <div className="lp-step" key={s.n}>
+              <span className="lp-step-num">{s.n}</span>
+              <h3 className="lp-step-title">{s.t}</h3>
+              <p className="lp-step-desc">{s.d}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* AGENDA + TESORERÍA como diferencial */}
@@ -206,13 +273,84 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* PRECIOS */}
+      <section className="lp-section" id="precios">
+        <div className="lp-section-head">
+          <span className="lp-eyebrow" style={{ justifyContent: 'center' }}>Precios</span>
+          <h2 className="lp-h2">Un plan para cada tamaño de club</h2>
+          <p className="lp-section-sub">30 días gratis en cualquier plan. Pagás mes a mes.</p>
+        </div>
+        <div className="lp-plans">
+          {PLANS.map((p) => (
+            <div className={`lp-plan${p.highlight ? ' is-highlight' : ''}`} key={p.code}>
+              {p.highlight && <span className="lp-plan-badge">Más elegido</span>}
+              <h3 className="lp-plan-name">{p.name}</h3>
+              <p className="lp-plan-tagline">{p.tagline}</p>
+              <div className="lp-plan-price">
+                <span className="lp-plan-price-num">{formatARS(p.priceMonthly)}</span>
+                <span className="lp-plan-price-period">/mes</span>
+              </div>
+              <ul className="lp-plan-features">
+                {p.features.map((f) => (
+                  <li key={f}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/crear-club"
+                className={`lp-btn ${p.highlight ? 'lp-btn-primary' : 'lp-btn-ghost'}`}
+                style={{ width: '100%' }}
+              >
+                Crear mi club
+              </Link>
+            </div>
+          ))}
+        </div>
+        <p className="lp-plans-note">
+          ¿No sabés qué plan elegir?{' '}
+          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">Hablá con un asesor por WhatsApp →</a>
+        </p>
+      </section>
+
+      {/* FAQ */}
+      <section className="lp-section">
+        <div className="lp-section-head">
+          <span className="lp-eyebrow" style={{ justifyContent: 'center' }}>Preguntas frecuentes</span>
+          <h2 className="lp-h2">Lo que más preguntan antes de arrancar</h2>
+        </div>
+        <div className="lp-faq">
+          {FAQS.map((f) => (
+            <details className="lp-faq-item" key={f.q}>
+              <summary className="lp-faq-q">
+                {f.q}
+                <svg className="lp-faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </summary>
+              <p className="lp-faq-a">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       {/* CTA FINAL */}
       <section className="lp-final">
         <h2 className="lp-h2">Empezá a ordenar tu club hoy</h2>
-        <p className="lp-section-sub">Creá tu club en minutos y probalo con datos reales.</p>
-        <Link href="/crear-club" className="lp-btn lp-btn-primary lp-btn-lg">
-          Crear mi club
-        </Link>
+        <p className="lp-section-sub">Creá tu club en minutos y probalo con datos reales, 30 días gratis.</p>
+        <div className="lp-final-cta">
+          <Link href="/crear-club" className="lp-btn lp-btn-primary lp-btn-lg">
+            Crear mi club
+          </Link>
+          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-ghost lp-btn-lg">
+            Hablar con un asesor
+          </a>
+        </div>
       </section>
 
       {/* FOOTER */}
@@ -225,8 +363,10 @@ export default function LandingPage() {
           Sistema de gestión para clubes de pádel.
         </p>
         <div className="lp-footer-links">
+          <a href="#precios">Precios</a>
           <Link href="/entrar">Iniciar sesión</Link>
           <Link href="/crear-club">Crear mi club</Link>
+          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">Hablar con un asesor</a>
         </div>
       </footer>
     </div>
