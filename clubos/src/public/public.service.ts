@@ -207,6 +207,8 @@ export class PublicService {
       phone: string;
       email: string;
     },
+    /** Cuenta logueada (/jugador/cuenta), si el jugador reservó así. Ver `optionalUserId` en el controller. */
+    userId?: string | null,
   ) {
     const club = await this.resolveClub(slug);
 
@@ -243,13 +245,28 @@ export class PublicService {
     const ctx = this.publicCtx(club.id);
 
     return runWithTenant(ctx, async () => {
-      // Buscar cliente por teléfono, o crearlo.
       const email = input.email.trim();
       const phone = input.phone.trim();
-      let client = await this.prisma.db.client.findFirst({
-        where: { phone },
-        select: { id: true, email: true },
-      });
+
+      // Buscar cliente: primero por la CUENTA logueada (si vino), que es la
+      // identidad más confiable que hay — a diferencia de teléfono/email, no
+      // depende de que el jugador haya tipeado lo mismo que la vez anterior.
+      // Sin esto, alguien logueado que reserva con un teléfono nuevo volvería
+      // a caer en el mismo problema que `clients_email_uq` (ver fallback de
+      // abajo): de ahí la prioridad.
+      let client = userId
+        ? await this.prisma.db.client.findFirst({
+            where: { userId },
+            select: { id: true, email: true, userId: true },
+          })
+        : null;
+
+      if (!client) {
+        client = await this.prisma.db.client.findFirst({
+          where: { phone },
+          select: { id: true, email: true, userId: true },
+        });
+      }
       if (!client) {
         // No hay cliente con ese teléfono — pero puede que ya exista uno con
         // este email y OTRO teléfono (p. ej. cambió de número entre una
@@ -261,7 +278,7 @@ export class PublicService {
         // email ni de teléfono.
         client = await this.prisma.db.client.findFirst({
           where: { email },
-          select: { id: true, email: true },
+          select: { id: true, email: true, userId: true },
         });
       }
       if (!client) {
@@ -272,13 +289,20 @@ export class PublicService {
             lastName: input.lastName?.trim() || '—',
             phone,
             email,
+            ...(userId ? { userId } : {}),
           },
-          select: { id: true, email: true },
+          select: { id: true, email: true, userId: true },
         });
-      } else if (!client.email) {
-        // El cliente ya existía (reservó antes solo con teléfono): completar
-        // el email ahora para que a partir de esta reserva sí le llegue mail.
-        await this.prisma.db.client.update({ where: { id: client.id }, data: { email } });
+      } else {
+        // Cliente existente encontrado por teléfono o email: completar lo
+        // que falte sin pisar nada. `userId` solo se fija si todavía no
+        // tenía uno — no se transfiere un cliente ya vinculado a OTRA cuenta.
+        const patch: { email?: string; userId?: string } = {};
+        if (!client.email) patch.email = email;
+        if (userId && !client.userId) patch.userId = userId;
+        if (Object.keys(patch).length > 0) {
+          await this.prisma.db.client.update({ where: { id: client.id }, data: patch });
+        }
       }
 
       const result = await this.booking.create(
@@ -344,22 +368,7 @@ export class PublicService {
       // Excluye RESCHEDULED sí: esa fila queda "muerta" (ver reschedule()),
       // la reserva vigente ya aparece en su propia fila con el horario nuevo
       // — mostrar las dos sería la misma reserva duplicada en la lista.
-      const now = new Date();
-      const rows = await this.prisma.db.booking.findMany({
-        where: {
-          clientId: client.id,
-          endsAt: { gte: now },
-          status: { not: 'RESCHEDULED' },
-        },
-        orderBy: { startsAt: 'asc' },
-        select: {
-          code: true,
-          startsAt: true,
-          endsAt: true,
-          status: true,
-          court: { select: { name: true, color: true } },
-        },
-      });
+      const rows = await this.bookingsFor(client.id);
 
       return {
         reservas: rows.map((b) => ({
@@ -908,6 +917,74 @@ export class PublicService {
     }
     const trimmedPhone = phone.trim();
 
+    const reservas = await this.crossClubBookings(() =>
+      this.prisma.db.client.findFirst({
+        where: { phone: trimmedPhone },
+        select: { id: true },
+      }),
+    );
+
+    return { reservas };
+  }
+
+  /**
+   * Reservas futuras de una CUENTA logueada (/jugador/cuenta), en todos los
+   * clubes de la plataforma — la versión con login de `misReservasJugador`.
+   * A diferencia de esa, no hace falta tipear el teléfono: se busca por
+   * `userId` (si ya hay algún Client vinculado a la cuenta en ese club) y,
+   * si no, por el email/teléfono de la cuenta — mismo criterio de fallback
+   * que usa `reservar()` para no duplicar al mismo jugador.
+   */
+  async misReservasDeCuenta(userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true, phone: true },
+    });
+
+    const reservas = await this.crossClubBookings(() =>
+      this.prisma.db.client.findFirst({
+        where: {
+          OR: [
+            { userId },
+            ...(user.email ? [{ email: user.email }] : []),
+            ...(user.phone ? [{ phone: user.phone }] : []),
+          ],
+        },
+        select: { id: true },
+      }),
+    );
+
+    return { reservas };
+  }
+
+  /** Reservas futuras (no RESCHEDULED) de un cliente — mismo criterio en toda consulta de "mis reservas". */
+  private async bookingsFor(clientId: string) {
+    const now = new Date();
+    return this.prisma.db.booking.findMany({
+      where: {
+        clientId,
+        endsAt: { gte: now },
+        status: { not: 'RESCHEDULED' },
+      },
+      orderBy: { startsAt: 'asc' },
+      select: {
+        code: true, startsAt: true, endsAt: true, status: true,
+        court: { select: { name: true, color: true } },
+      },
+    });
+  }
+
+  /**
+   * Recorre todos los clubes activos de la plataforma buscando las reservas
+   * de UN jugador. El recorrido (bypass de tenancy a nivel plataforma,
+   * tenant real adentro de cada club) es siempre igual; lo único que cambia
+   * según quien llama es CÓMO se encuentra al cliente dentro de cada club
+   * (por teléfono tipeado, o por la cuenta logueada) — eso lo decide
+   * `findClient`, que corre ya dentro del contexto de tenant de cada club.
+   */
+  private async crossClubBookings(
+    findClient: () => Promise<{ id: string } | null>,
+  ) {
     const clubs = await runWithoutTenancy(randomUUID(), async () =>
       this.prisma.club.findMany({
         where: { status: { notIn: ['SUSPENDED', 'CANCELLED'] } },
@@ -915,30 +992,12 @@ export class PublicService {
       }),
     );
 
-    const now = new Date();
     const perClub = await Promise.all(
       clubs.map(async (club) => {
         const rows = await runWithTenant(this.publicCtx(club.id), async () => {
-          const client = await this.prisma.db.client.findFirst({
-            where: { phone: trimmedPhone },
-            select: { id: true },
-          });
+          const client = await findClient();
           if (!client) return [];
-
-          // Incluye canceladas, excluye RESCHEDULED: mismo criterio que
-          // misReservas().
-          return this.prisma.db.booking.findMany({
-            where: {
-              clientId: client.id,
-              endsAt: { gte: now },
-              status: { not: 'RESCHEDULED' },
-            },
-            orderBy: { startsAt: 'asc' },
-            select: {
-              code: true, startsAt: true, endsAt: true, status: true,
-              court: { select: { name: true, color: true } },
-            },
-          });
+          return this.bookingsFor(client.id);
         });
 
         return rows.map((b) => ({
@@ -954,11 +1013,7 @@ export class PublicService {
       }),
     );
 
-    const reservas = perClub.flat().sort(
-      (a, b) => a.startsAt.getTime() - b.startsAt.getTime(),
-    );
-
-    return { reservas };
+    return perClub.flat().sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   }
 
   private num(v: unknown): number {

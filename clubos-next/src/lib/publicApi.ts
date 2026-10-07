@@ -239,6 +239,12 @@ export const publicApi = {
       `/public/clubs/${encodeURIComponent(slug)}/availability?date=${encodeURIComponent(date)}`,
     ),
 
+  /**
+   * `accessToken` es opcional: el que trae la cuenta logueada (ver
+   * playerAuth.ts), para que el backend vincule el Client de este club a
+   * esa cuenta. Sin él, la reserva sigue siendo de invitado, igual que
+   * siempre — este endpoint es público, nunca exige login.
+   */
   reservar: (
     slug: string,
     input: {
@@ -250,9 +256,11 @@ export const publicApi = {
       phone: string;
       email: string;
     },
+    accessToken?: string | null,
   ) =>
     request<PublicBookingCreated>(`/public/clubs/${encodeURIComponent(slug)}/reservar`, {
       method: 'POST',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       body: JSON.stringify(input),
     }),
 
@@ -327,4 +335,10 @@ export const publicApi = {
     request<{ reservas: PublicUnifiedBooking[] }>(
       `/public/jugador/mis-reservas?phone=${encodeURIComponent(phone)}`,
     ),
+
+  /** Reservas de la CUENTA logueada (ver playerAuth.ts), en todos los clubes. A diferencia del resto de este archivo, requiere el access token. */
+  misReservasDeCuenta: (accessToken: string) =>
+    request<{ reservas: PublicUnifiedBooking[] }>('/public/jugador/cuenta/reservas', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }),
 };

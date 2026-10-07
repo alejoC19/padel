@@ -11,6 +11,7 @@ import {
   type PublicCourt,
 } from '@/lib/publicApi';
 import { getPublicBookings, savePublicBooking } from '@/lib/publicStorage';
+import { getPlayerAccessToken, usePlayerAccount } from '@/lib/playerAuth';
 import {
   ALLOWED_DURATIONS,
   buildSlotCandidates,
@@ -48,6 +49,7 @@ type NextBookingLoad =
  */
 export function PlayerBookingScreen({ slug }: { slug: string }) {
   const router = useRouter();
+  const account = usePlayerAccount();
 
   const [clubLoad, setClubLoad] = useState<ClubLoad>({ status: 'loading' });
   const [date, setDate] = useState(todayISO());
@@ -62,6 +64,18 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Prefill desde la cuenta logueada (una sola vez, cuando aparece) — igual
+  // sigue siendo editable: la identidad real la fija el access token en
+  // `submit`, no lo que haya tipeado en estos campos (ver reservar() en el
+  // backend, prioriza la cuenta por sobre teléfono/email del body).
+  useEffect(() => {
+    if (!account) return;
+    setFirstName((v) => v || account.firstName);
+    setLastName((v) => v || account.lastName);
+    setPhone((v) => v || account.phone || '');
+    setEmail((v) => v || account.email);
+  }, [account]);
 
   const loadClub = useCallback(async () => {
     setClubLoad({ status: 'loading' });
@@ -188,7 +202,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
         lastName: lastName.trim() || undefined,
         phone: phone.trim(),
         email: email.trim(),
-      });
+      }, getPlayerAccessToken());
 
       const endsAt = new Date(
         new Date(slotStartsAt).getTime() + duration * 60_000,
@@ -271,6 +285,9 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
         </a>
         <a className="player-nav-link" href="/jugador">
           ¿Jugás en otros clubes? Buscalos acá →
+        </a>
+        <a className="player-nav-link" href={`/jugador/cuenta?next=${encodeURIComponent(`/c/${slug}`)}`}>
+          {account ? `Hola, ${account.firstName} →` : 'Iniciar sesión / Crear cuenta →'}
         </a>
       </header>
 

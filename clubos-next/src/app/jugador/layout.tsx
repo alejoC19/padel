@@ -4,6 +4,7 @@ import '@/styles/design-system.css';
 import '@/styles/player.css';
 import { JugadorTabBar } from '@/components/player/JugadorTabBar';
 import { InstallPrompt } from '@/components/player/InstallPrompt';
+import { PlayerSessionBoot } from '@/components/player/PlayerSessionBoot';
 
 export const metadata: Metadata = {
   title: 'ClubOS — Encontrá tu club',
@@ -32,6 +33,7 @@ export default function JugadorLayout({ children }: { children: React.ReactNode 
     <div className="player-shell">
       <div className="player-frame">
         <main className="player-main">{children}</main>
+        <PlayerSessionBoot />
         <InstallPrompt />
         <JugadorTabBar />
       </div>
