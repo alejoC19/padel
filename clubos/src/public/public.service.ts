@@ -244,23 +244,38 @@ export class PublicService {
 
     return runWithTenant(ctx, async () => {
       // Buscar cliente por teléfono, o crearlo.
-      const email = input.email?.trim() || undefined;
+      const email = input.email.trim();
+      const phone = input.phone.trim();
       let client = await this.prisma.db.client.findFirst({
-        where: { phone: input.phone.trim() },
+        where: { phone },
         select: { id: true, email: true },
       });
+      if (!client) {
+        // No hay cliente con ese teléfono — pero puede que ya exista uno con
+        // este email y OTRO teléfono (p. ej. cambió de número entre una
+        // reserva y la siguiente). Reusarlo evita duplicar al mismo jugador
+        // y, sobre todo, evita romper `clients_email_uq` (único por club):
+        // sin este fallback, crear un cliente nuevo con un email que ya está
+        // cargado en otro cliente del club revienta con un 409 genérico
+        // ("Ya existe un registro con esos datos") que no dice nada de
+        // email ni de teléfono.
+        client = await this.prisma.db.client.findFirst({
+          where: { email },
+          select: { id: true, email: true },
+        });
+      }
       if (!client) {
         client = await this.prisma.db.client.create({
           data: {
             clubId: club.id,
             firstName: input.firstName.trim(),
             lastName: input.lastName?.trim() || '—',
-            phone: input.phone.trim(),
+            phone,
             email,
           },
           select: { id: true, email: true },
         });
-      } else if (email && !client.email) {
+      } else if (!client.email) {
         // El cliente ya existía (reservó antes solo con teléfono): completar
         // el email ahora para que a partir de esta reserva sí le llegue mail.
         await this.prisma.db.client.update({ where: { id: client.id }, data: { email } });
