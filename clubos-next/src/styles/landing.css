@@ -219,6 +219,106 @@
 .lp-feature-name { font-size: 19px; font-weight: 800; margin: 0 0 8px; }
 .lp-feature-desc { color: var(--lp-muted); font-size: 15px; line-height: 1.5; margin: 0; }
 
+/* --- CTA dentro de una sección (repetir "Ver demo" sin otro bloque entero) --- */
+.lp-section-cta { display: flex; justify-content: center; margin-top: 36px; }
+
+/* --- CÓMO EMPEZAR (3 pasos) --- */
+.lp-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.lp-step {
+  padding: 28px 24px;
+  border-radius: 18px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg-soft);
+}
+.lp-step-num {
+  display: grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--lp-primary); color: #fff;
+  font-weight: 800; font-size: 15px;
+  margin-bottom: 14px;
+}
+.lp-step-title { font-size: 18px; font-weight: 800; margin: 0 0 6px; }
+.lp-step-desc { font-size: 14.5px; color: var(--lp-muted); line-height: 1.5; margin: 0; }
+
+/* --- PRECIOS --- */
+.lp-plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+.lp-plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 26px;
+  border-radius: 20px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg-soft);
+}
+.lp-plan.is-highlight {
+  border-color: var(--lp-primary);
+  background: linear-gradient(160deg, rgba(222,100,53,0.14), var(--lp-bg-soft) 65%);
+  transform: translateY(-6px);
+}
+.lp-plan-badge {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: var(--lp-primary); color: #fff; font-size: 12px; font-weight: 800;
+  padding: 5px 14px; border-radius: 999px; white-space: nowrap;
+}
+.lp-plan-name { font-size: 21px; font-weight: 800; margin: 4px 0 2px; }
+.lp-plan-tagline { font-size: 13.5px; color: var(--lp-muted); margin: 0 0 18px; }
+.lp-plan-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 20px; }
+.lp-plan-price-num { font-size: 32px; font-weight: 900; letter-spacing: -0.02em; }
+.lp-plan-price-period { font-size: 14px; color: var(--lp-muted); }
+.lp-plan-features {
+  list-style: none; margin: 0 0 24px; padding: 0;
+  display: flex; flex-direction: column; gap: 11px;
+  flex: 1;
+}
+.lp-plan-features li {
+  display: flex; align-items: flex-start; gap: 9px;
+  font-size: 14px; color: var(--lp-ink); line-height: 1.4;
+}
+.lp-plan-features li svg { flex: none; margin-top: 2px; color: var(--turf); }
+.lp-plans-note { text-align: center; margin-top: 28px; font-size: 14.5px; color: var(--lp-muted); }
+.lp-plans-note a { color: var(--lp-ok); font-weight: 700; }
+.lp-plans-note a:hover { text-decoration: underline; }
+
+/* --- FAQ (acordeón nativo <details>/<summary>, sin JS) --- */
+.lp-faq {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.lp-faq-item {
+  border: 1px solid var(--lp-border);
+  border-radius: 14px;
+  background: var(--lp-bg-soft);
+  padding: 4px 20px;
+}
+.lp-faq-q {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  font-weight: 700;
+  font-size: 15.5px;
+}
+.lp-faq-q::-webkit-details-marker { display: none; }
+.lp-faq-chevron { flex: none; color: var(--lp-muted); transition: transform 0.18s; }
+.lp-faq-item[open] .lp-faq-chevron { transform: rotate(180deg); }
+.lp-faq-a { color: var(--lp-muted); font-size: 14.5px; line-height: 1.55; margin: 0 0 18px; }
+
 /* --- SECCIÓN AGENDA --- */
 .lp-agenda-section { background: var(--lp-bg-soft); border-radius: 28px; }
 .lp-agenda-demo { max-width: 860px; margin: 0 auto; }
@@ -249,6 +349,8 @@
   border-radius: 28px;
 }
 .lp-final .lp-btn { margin-top: 24px; }
+.lp-final-cta { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 24px; }
+.lp-final-cta .lp-btn { margin-top: 0; }
 
 /* --- FOOTER --- */
 .lp-footer {
@@ -543,6 +645,9 @@
   .lp-impact-grid { grid-template-columns: repeat(2, 1fr); padding: 0 24px; }
   .lp-problem { grid-template-columns: 1fr; padding: 48px 24px; gap: 32px; }
   .lp-problem-visual { order: -1; }
+  .lp-steps { grid-template-columns: 1fr; }
+  .lp-plans { grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
+  .lp-plan.is-highlight { transform: none; }
 }
 @media (max-width: 640px) {
   .lp-nav { padding: 14px 20px; }
