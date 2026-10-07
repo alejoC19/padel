@@ -173,8 +173,8 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
 
   const submit = useCallback(async () => {
     if (clubLoad.status !== 'ready' || !courtId || !slotStartsAt) return;
-    if (!firstName.trim() || !phone.trim()) {
-      setFormError('Nombre y teléfono son obligatorios.');
+    if (!firstName.trim() || !phone.trim() || !email.trim()) {
+      setFormError('Nombre, teléfono y email son obligatorios.');
       return;
     }
     setSubmitting(true);
@@ -187,7 +187,7 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
         firstName: firstName.trim(),
         lastName: lastName.trim() || undefined,
         phone: phone.trim(),
-        email: email.trim() || undefined,
+        email: email.trim(),
       });
 
       const endsAt = new Date(
@@ -480,17 +480,17 @@ export function PlayerBookingScreen({ slug }: { slug: string }) {
             <p className="field-hint">Lo usamos para identificar tu reserva y avisarte si algo cambia.</p>
           </div>
           <div className="field">
-            <label className="label" htmlFor="pf-email">Email (opcional)</label>
+            <label className="label" htmlFor="pf-email">Email</label>
             <input
               id="pf-email"
               className="input"
               type="email"
               value={email}
               disabled={submitting}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setFormError(null); }}
               placeholder="tu@email.com"
             />
-            <p className="field-hint">Si lo dejás, te mandamos la confirmación por mail.</p>
+            <p className="field-hint">Necesario para mandarte la confirmación y el comprobante de la reserva.</p>
           </div>
 
           <div className="sticky-cta">

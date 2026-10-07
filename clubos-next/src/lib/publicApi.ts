@@ -248,7 +248,7 @@ export const publicApi = {
       firstName: string;
       lastName?: string;
       phone: string;
-      email?: string;
+      email: string;
     },
   ) =>
     request<PublicBookingCreated>(`/public/clubs/${encodeURIComponent(slug)}/reservar`, {
