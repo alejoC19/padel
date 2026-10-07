@@ -20,7 +20,7 @@ type Mode = 'login' | 'register';
  * cada vez, y reservar con un teléfono nuevo nunca más choca con el email
  * ya cargado (ver PR de `clients_email_uq`).
  */
-export function PlayerAccountScreen() {
+export function PlayerAccountScreen({ onSuccess }: { onSuccess?: () => void } = {}) {
   const router = useRouter();
   const params = useSearchParams();
   const account = usePlayerAccount();
@@ -64,7 +64,13 @@ export function PlayerAccountScreen() {
           phone: phone.trim(),
         });
       }
-      router.push(next);
+      // Si se usa como gate (PlayerAuthGate), no hay que navegar: el
+      // cambio de `account` ya dispara que el gate deje de renderizar
+      // este formulario y muestre lo que estaba atrás — navegar acá
+      // encima te saca de la página en la que estabas (ej. a mitad de
+      // reservar en /c/[slug]) en vez de dejarte seguir donde estabas.
+      if (onSuccess) onSuccess();
+      else router.push(next);
     } catch (e) {
       setError(friendlyError(
         e,

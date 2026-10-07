@@ -5,6 +5,7 @@ import '@/styles/player.css';
 import { JugadorTabBar } from '@/components/player/JugadorTabBar';
 import { InstallPrompt } from '@/components/player/InstallPrompt';
 import { PlayerSessionBoot } from '@/components/player/PlayerSessionBoot';
+import { PlayerAuthGate } from '@/components/player/PlayerAuthGate';
 
 export const metadata: Metadata = {
   title: 'ClubOS — Encontrá tu club',
@@ -32,7 +33,12 @@ export default function JugadorLayout({ children }: { children: React.ReactNode 
   return (
     <div className="player-shell">
       <div className="player-frame">
-        <main className="player-main">{children}</main>
+        {/* Envuelve TODO /jugador/*, incluida /jugador/cuenta: sin cuenta,
+            el gate ya muestra el login/registro, así que no hace falta
+            excluirla a mano — es el mismo componente que esa página usaría. */}
+        <main className="player-main">
+          <PlayerAuthGate>{children}</PlayerAuthGate>
+        </main>
         <PlayerSessionBoot />
         <InstallPrompt />
         <JugadorTabBar />

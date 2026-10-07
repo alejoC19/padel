@@ -25,7 +25,7 @@ export async function generateMetadata(
 
   return {
     title: name,
-    description: 'Reservá tu cancha, anotate a torneos y mirá el buffet — sin registrarte.',
+    description: 'Reservá tu cancha, anotate a torneos y mirá el buffet.',
     // Portal público: a diferencia del panel de staff, sí queremos que un
     // buscador lo indexe — es el punto de entrada para un jugador nuevo.
     robots: { index: true, follow: true },
@@ -42,10 +42,11 @@ export const viewport = {
 /**
  * Layout del portal del jugador (`/c/[slug]/...`).
  *
- * Deliberadamente NO usa AppShell ni nada del panel de staff: este portal es
- * público y sin sesión, tiene que funcionar con cero cookies/tokens de la
- * app de staff. `.player-shell`/`.player-main` son el único armazón visual,
- * definidos en player.css.
+ * Deliberadamente NO usa AppShell ni nada del panel de staff: este portal
+ * tiene que funcionar con cero cookies/tokens de la app de staff (reservar
+ * sí exige cuenta de JUGADOR — ver PlayerAuthGate en page.tsx — pero esa es
+ * una sesión completamente distinta). `.player-shell`/`.player-main` son
+ * el único armazón visual, definidos en player.css.
  *
  * Es también la PWA instalable del jugador (ver InstallPrompt): el manifest
  * y el tabbar de abajo viven acá porque tienen que estar en TODAS las

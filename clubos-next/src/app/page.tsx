@@ -89,10 +89,23 @@ const FAQS = [
   { q: '¿Qué pasa con los clientes que ya tengo?', a: 'Los cargás en el panel de Clientes y quedan con su ficha, teléfono e historial — nada se pierde del cuaderno o la planilla que usabas antes.' },
 ] as const;
 
-/** `542273418842`: número real del negocio para el click-to-chat de WhatsApp (sin "+" ni espacios, formato que espera wa.me). */
+/**
+ * `542273418842`: número real del negocio para el click-to-chat de
+ * WhatsApp (sin "+" ni espacios, formato que espera wa.me).
+ *
+ * "Crear mi club" NO lleva a un alta autoservicio: por ahora cada club
+ * nuevo se da de alta a mano, charlando primero — así que el botón abre
+ * WhatsApp con el pedido ya armado, no el asistente de /crear-club (que
+ * sigue existiendo para cuando, después de esa charla, haga falta
+ * completarlo).
+ */
 const WHATSAPP_NUMBER = '542273418842';
-const WHATSAPP_MESSAGE = encodeURIComponent('Hola! Quiero más información sobre ClubOS para mi club.');
-const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`;
+
+function whatsappHref(message: string): string {
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+}
+
+const WHATSAPP_HREF = whatsappHref('Hola! Quiero crear mi club en ClubOS.');
 
 function formatARS(n: number): string {
   return `$${n.toLocaleString('es-AR')}`;
@@ -118,7 +131,9 @@ export default function LandingPage() {
         <div className="lp-nav-cta">
           <Link href="/jugador" className="lp-link lp-link-player">Soy jugador</Link>
           <Link href="/entrar" className="lp-link lp-link-signin">Iniciar sesión</Link>
-          <Link href="/crear-club" className="lp-btn lp-btn-primary">Crear mi club</Link>
+          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-primary">
+            Crear mi club
+          </a>
         </div>
       </header>
 
@@ -136,9 +151,9 @@ export default function LandingPage() {
             tesorería del club en una única plataforma.
           </p>
           <div className="lp-hero-cta">
-            <Link href="/crear-club" className="lp-btn lp-btn-primary lp-btn-lg">
+            <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-primary lp-btn-lg">
               Crear mi club
-            </Link>
+            </a>
             <Link href="/agenda" className="lp-btn lp-btn-ghost lp-btn-lg">
               Ver demo
             </Link>
@@ -301,19 +316,20 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href="/crear-club"
+              <a
+                href={whatsappHref(`Hola! Quiero crear mi club en ClubOS, plan ${p.name}.`)}
+                target="_blank"
+                rel="noopener noreferrer"
                 className={`lp-btn ${p.highlight ? 'lp-btn-primary' : 'lp-btn-ghost'}`}
                 style={{ width: '100%' }}
               >
                 Crear mi club
-              </Link>
+              </a>
             </div>
           ))}
         </div>
         <p className="lp-plans-note">
-          ¿No sabés qué plan elegir?{' '}
-          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">Hablá con un asesor por WhatsApp →</a>
+          Cada plan arranca charlando por WhatsApp — así vemos juntos cuál te conviene.
         </p>
       </section>
 
@@ -342,15 +358,10 @@ export default function LandingPage() {
       {/* CTA FINAL */}
       <section className="lp-final">
         <h2 className="lp-h2">Empezá a ordenar tu club hoy</h2>
-        <p className="lp-section-sub">Creá tu club en minutos y probalo con datos reales, 30 días gratis.</p>
-        <div className="lp-final-cta">
-          <Link href="/crear-club" className="lp-btn lp-btn-primary lp-btn-lg">
-            Crear mi club
-          </Link>
-          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-ghost lp-btn-lg">
-            Hablar con un asesor
-          </a>
-        </div>
+        <p className="lp-section-sub">Escribinos por WhatsApp y armamos tu club juntos, con 30 días gratis para probarlo.</p>
+        <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-primary lp-btn-lg">
+          Crear mi club
+        </a>
       </section>
 
       {/* FOOTER */}
@@ -365,8 +376,7 @@ export default function LandingPage() {
         <div className="lp-footer-links">
           <a href="#precios">Precios</a>
           <Link href="/entrar">Iniciar sesión</Link>
-          <Link href="/crear-club">Crear mi club</Link>
-          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">Hablar con un asesor</a>
+          <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">Crear mi club</a>
         </div>
       </footer>
     </div>

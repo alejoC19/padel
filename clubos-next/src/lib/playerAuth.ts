@@ -47,6 +47,8 @@ export interface PlayerAccount {
 const STORAGE_KEY = 'clubos.jugador.cuenta';
 
 let accessToken: string | null = null;
+/** `Date.now()` en el que vence `accessToken` — para refrescar ANTES de que venza, no reactivamente después de un 401 (ver getFreshPlayerAccessToken). */
+let accessTokenExpiresAt: number | null = null;
 let account: PlayerAccount | null = null;
 let refreshInFlight: Promise<boolean> | null = null;
 const listeners = new Set<() => void>();
@@ -76,8 +78,9 @@ function restore(): void {
 }
 restore();
 
-function setSession(token: string | null, acc: PlayerAccount | null): void {
+function setSession(token: string | null, acc: PlayerAccount | null, expiresInSeconds?: number): void {
   accessToken = token;
+  accessTokenExpiresAt = token && expiresInSeconds ? Date.now() + expiresInSeconds * 1000 : null;
   account = acc;
   persist();
   emit();
@@ -117,8 +120,59 @@ async function authRequest(
   if (!res.ok) throw await toApiError(res);
   const data = await res.json();
   const acc = toAccount(data.user);
-  setSession(data.accessToken, acc);
+  setSession(data.accessToken, acc, data.expiresIn);
   return acc;
+}
+
+/**
+ * Pide un access token nuevo por la cookie de refresh. A diferencia de
+ * `restoreSession` (que solo actúa si no hay token en memoria), esto
+ * siempre pega al backend — lo usa `getFreshPlayerAccessToken` para
+ * renovar un token por vencer, y `restoreSession` para el caso de montar
+ * la app sin nada en memoria. Deduplicado con `refreshInFlight`: sin esto,
+ * reservar con el token vencido Y restaurar la sesión al mismo tiempo
+ * dispararían dos refreshes, y la rotación de tokens del backend
+ * interpreta el segundo como reuso y cierra la sesión entera.
+ */
+async function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${BASE}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) { setSession(null, null); return false; }
+      const data = await res.json();
+      setSession(data.accessToken, toAccount(data.user), data.expiresIn);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      queueMicrotask(() => { refreshInFlight = null; });
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+/**
+ * El token que hay que mandar en el próximo request. Si el que está en
+ * memoria vence en menos de 30s (margen por el tiempo que tarda el propio
+ * request en llegar), lo renueva ANTES de usarlo — a diferencia de
+ * reintentar reactivamente después de un 401, esto evita que `reservar()`
+ * (que ahora exige cuenta de verdad, no admite invitados) falle con una
+ * sesión que en los hechos sigue viva.
+ */
+export async function getFreshPlayerAccessToken(): Promise<string | null> {
+  if (accessToken && accessTokenExpiresAt && Date.now() < accessTokenExpiresAt - 30_000) {
+    return accessToken;
+  }
+  await refreshAccessToken();
+  return accessToken;
 }
 
 export function getAccount(): PlayerAccount | null {
@@ -160,28 +214,7 @@ export const playerAuth = {
    */
   async restoreSession(): Promise<void> {
     if (!account || accessToken) return;
-    if (refreshInFlight) { await refreshInFlight; return; }
-
-    refreshInFlight = (async () => {
-      try {
-        const res = await fetch(`${BASE}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}',
-        });
-        if (!res.ok) { setSession(null, null); return false; }
-        const data = await res.json();
-        setSession(data.accessToken, toAccount(data.user));
-        return true;
-      } catch {
-        return false;
-      } finally {
-        queueMicrotask(() => { refreshInFlight = null; });
-      }
-    })();
-
-    await refreshInFlight;
+    await refreshAccessToken();
   },
 };
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
@@ -8,15 +8,20 @@ import { AccessTokenDto, InscribirEquipoDto, ReservarDto } from './dto/public-bo
 import type { AccessTokenPayload } from '../auth/token.service';
 
 /**
- * Endpoints PÚBLICOS para la app del jugador. Sin login.
+ * Endpoints PÚBLICOS para la app del jugador — la mayoría sin login (ver
+ * cada método). `reservar` es la excepción: exige una cuenta de verdad
+ * (ver `requireUserId`) desde que el portal dejó de aceptar invitados.
  *
  * El club se identifica por su slug en la URL:
  *   GET /public/clubs/:slug                    → datos del club
  *   GET /public/clubs/:slug/availability?date= → disponibilidad del día
  *
- * @Public: no exige token. @SkipTenant: no hay club activo en un token (lo
- * resolvemos por slug adentro). Throttle: son endpoints abiertos, los limitamos
- * para evitar abuso.
+ * @Public: todos los métodos quedan afuera del JwtAuthGuard global (incluso
+ * `reservar`, que valida el token a mano con `requireUserId` — así el 401
+ * sale con el mensaje puntual de esa regla, no el genérico del guard).
+ * @SkipTenant: no hay club activo en un token (lo resolvemos por slug
+ * adentro). Throttle: son endpoints abiertos, los limitamos para evitar
+ * abuso.
  */
 @Controller('public/clubs')
 @Public()
@@ -29,12 +34,11 @@ export class PublicController {
   ) {}
 
   /**
-   * Si viene un Bearer de una cuenta logueada (/jugador/cuenta), lo
-   * decodifica para vincular la reserva a esa cuenta — pero esta ruta sigue
-   * siendo @Public(): sin token, con uno vencido, o con cualquier otra cosa
-   * rota en el header, la reserva de invitado tiene que seguir funcionando
-   * igual que siempre. Por eso NO se usa JwtAuthGuard acá (que sí tira 401):
-   * esto es "identidad opcional", no autenticación.
+   * Decodifica el Bearer de una cuenta logueada (/jugador/cuenta), si vino
+   * y es válido. Sigue siendo la pieza de `reservar()` (abajo), que YA NO
+   * acepta invitados — sin token, con uno vencido, o con cualquier otra
+   * cosa rota en el header, esto devuelve `null` y es `requireUserId`
+   * quien decide qué hacer con eso.
    */
   private async optionalUserId(req: Request): Promise<string | null> {
     const header = req.headers.authorization;
@@ -48,6 +52,21 @@ export class PublicController {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Como `optionalUserId`, pero exige que haya resultado — para `reservar`,
+   * que no es público "de verdad" (necesita cuenta) aunque el controller
+   * entero esté marcado `@Public()` (eso solo saca a TODOS sus métodos del
+   * JwtAuthGuard global; acá se vuelve a pedir el token a mano para dar un
+   * 401 con mensaje propio en vez de caer en guest).
+   */
+  private async requireUserId(req: Request): Promise<string> {
+    const userId = await this.optionalUserId(req);
+    if (!userId) {
+      throw new UnauthorizedException('Necesitás iniciar sesión para reservar.');
+    }
+    return userId;
   }
 
   @Get(':slug')
@@ -64,8 +83,10 @@ export class PublicController {
   }
 
   /**
-   * Reserva de invitado (sin login). Límite más estricto que las lecturas:
-   * crear reservas es una acción, no una consulta.
+   * Reserva de un jugador logueado. Hasta que el portal exigió cuenta,
+   * esto aceptaba invitado (`optionalUserId`) — ahora es `requireUserId`:
+   * sin cuenta válida, 401. Límite más estricto que las lecturas: crear
+   * reservas es una acción, no una consulta.
    */
   @Post(':slug/reservar')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -74,14 +95,16 @@ export class PublicController {
     @Body() body: ReservarDto,
     @Req() req: Request,
   ) {
-    const userId = await this.optionalUserId(req);
+    const userId = await this.requireUserId(req);
     return this.svc.reservar(slug, body, userId);
   }
 
   /**
-   * Reservas del jugador, por teléfono. Consulta de bajo valor a propósito:
-   * el teléfono no es secreto, así que esto NO devuelve precio ni el
-   * accessToken — solo confirma qué reservó, para encontrar el comprobante.
+   * Reservas por teléfono — de antes de que el portal exigiera cuenta
+   * para reservar; queda para encontrar reservas viejas de esa época.
+   * Consulta de bajo valor a propósito: el teléfono no es secreto, así que
+   * esto NO devuelve precio ni el accessToken — solo confirma qué
+   * reservó, para encontrar el comprobante.
    */
   @Get(':slug/mis-reservas')
   misReservas(

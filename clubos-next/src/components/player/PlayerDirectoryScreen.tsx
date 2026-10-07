@@ -17,6 +17,7 @@ type Load =
  * (/c/[slug]) — esta pantalla no reserva nada, solo ayuda a encontrar.
  */
 export function PlayerDirectoryScreen() {
+  // Siempre hay cuenta acá: el layout de /jugador la exige con PlayerAuthGate.
   const account = usePlayerAccount();
   const [term, setTerm] = useState('');
   const [load, setLoad] = useState<Load>({ status: 'loading' });
@@ -53,9 +54,11 @@ export function PlayerDirectoryScreen() {
         <p className="player-tagline">
           Buscá cualquier club de pádel de la plataforma. Una sola app para todos.
         </p>
-        <a className="player-nav-link" href="/jugador/cuenta">
-          {account ? `Hola, ${account.firstName} →` : 'Iniciar sesión / Crear cuenta →'}
-        </a>
+        {account && (
+          <a className="player-nav-link" href="/jugador/cuenta">
+            Hola, {account.firstName} →
+          </a>
+        )}
       </header>
 
       <section>
